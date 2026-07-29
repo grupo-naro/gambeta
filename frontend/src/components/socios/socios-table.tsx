@@ -1,11 +1,15 @@
 'use client';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 import { cn } from '@/lib/utils';
 import type { EstadoSuscripcionVista, Suscripcion } from '@/lib/types';
 import { SocioDialog } from './socio-dialog';
+import { renovarSuscripcion, cancelarSuscripcion } from '@/lib/suscripciones-actions';
 
 const TONO: Record<EstadoSuscripcionVista, string> = {
   ACTIVA: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
@@ -30,6 +34,29 @@ function fmt(ymd: string): string {
 
 export function SociosTable({ socios }: { socios: Suscripcion[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [seleccion, setSeleccion] = useState<Suscripcion | null>(null);
+  const [pending, start] = useTransition();
+  const confirm = useConfirm();
+
+  function act(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
+    start(async () => {
+      const r = await fn();
+      if (r.ok) { toast.success(okMsg); setSeleccion(null); }
+      else { toast.error(r.error ?? 'Error'); }
+    });
+  }
+
+  async function cancelar(s: Suscripcion) {
+    if (await confirm({
+      title: '¿Cancelar la suscripción?',
+      description: `${s.cliente.nombre} va a dejar de tener turnos bonificados a partir de ahora. Los turnos que ya reservó siguen bonificados: eso no cambia.`,
+      confirmLabel: 'Cancelar suscripción',
+      destructive: true,
+    })) {
+      act(() => cancelarSuscripcion(s.id), 'Suscripción cancelada');
+    }
+  }
+
   return (
     <>
       <div className="mb-5 flex items-center justify-between">
@@ -55,7 +82,7 @@ export function SociosTable({ socios }: { socios: Suscripcion[] }) {
               </TableHeader>
               <TableBody>
                 {socios.map((s) => (
-                  <TableRow key={s.id} className="hover:bg-neutral-50">
+                  <TableRow key={s.id} onClick={() => setSeleccion(s)} className="cursor-pointer hover:bg-neutral-50">
                     <TableCell className="font-medium">{s.cliente.nombre}</TableCell>
                     <TableCell className="text-neutral-600">{s.cliente.whatsapp}</TableCell>
                     <TableCell>{fmt(s.inicio)} – {fmt(s.vencimiento)}</TableCell>
@@ -70,18 +97,56 @@ export function SociosTable({ socios }: { socios: Suscripcion[] }) {
           {/* Mobile */}
           <div className="md:hidden space-y-3">
             {socios.map((s) => (
-              <div key={s.id} className="rounded-lg border bg-white p-3">
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSeleccion(s)}
+                className="block w-full rounded-lg border bg-white p-3 text-left transition active:scale-[0.99]"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{s.cliente.nombre}</span>
                   <EstadoBadge estado={s.estadoVista} />
                 </div>
                 <p className="mt-2 text-sm text-neutral-600">{fmt(s.inicio)} – {fmt(s.vencimiento)}</p>
                 <p className="text-xs text-neutral-500">{s.turnosBonificados} turnos bonificados</p>
-              </div>
+              </button>
             ))}
           </div>
         </>
       )}
+
+      <Sheet open={seleccion !== null} onOpenChange={(o) => { if (!o) setSeleccion(null); }}>
+        {seleccion && (
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>{seleccion.cliente.nombre}</SheetTitle>
+              <p className="text-sm text-neutral-600">
+                Vigencia: {fmt(seleccion.inicio)} – {fmt(seleccion.vencimiento)}
+              </p>
+              <p className="text-sm text-neutral-600">{seleccion.turnosBonificados} turnos bonificados</p>
+            </SheetHeader>
+            <div className="flex flex-col gap-2">
+              <Button
+                className="h-11 w-full"
+                disabled={pending}
+                onClick={() => act(() => renovarSuscripcion(seleccion.id, {}), 'Suscripción renovada')}
+              >
+                Renovar un mes
+              </Button>
+              {seleccion.estado === 'ACTIVA' && (
+                <Button
+                  variant="ghost"
+                  className="h-11 w-full text-red-600"
+                  disabled={pending}
+                  onClick={() => cancelar(seleccion)}
+                >
+                  Cancelar suscripción
+                </Button>
+              )}
+            </div>
+          </SheetContent>
+        )}
+      </Sheet>
 
       <SocioDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </>
