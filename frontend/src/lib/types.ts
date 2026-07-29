@@ -9,11 +9,28 @@ export interface Reserva {
   esContacto: boolean; monto: number; montoSena: number | null;
   pagado: number; saldo: number;
   turnoFijoId?: string | null;
+  suscripcionId?: string | null;
+  montoLista?: number | null;
   cancha: Pick<Cancha, 'id' | 'nombre'>; cliente: Cliente;
 }
 export interface Slot { horaInicio: string; inicioUtc: string }
 export interface LoginResult { token: string; admin: { id: string; email: string; nombre: string; rol: Rol } }
 export interface Usuario { id: string; email: string; nombre: string; rol: Rol; esDefault: boolean; expiraEn: string | null }
+
+export type EstadoSuscripcionVista = 'ACTIVA' | 'VENCIDA' | 'CANCELADA';
+export interface Suscripcion {
+  id: string;
+  clienteId: string;
+  cliente: { id: string; nombre: string; whatsapp: string };
+  inicio: string;
+  vencimiento: string;
+  estado: 'ACTIVA' | 'CANCELADA';
+  estadoVista: EstadoSuscripcionVista;
+  precio: number | null;
+  nota: string | null;
+  turnosBonificados: number;
+  creadoEn: string;
+}
 
 export interface Config {
   id: string;
@@ -54,8 +71,9 @@ export interface CobrosReserva { monto: number; pagado: number; saldo: number; c
 export interface CajaReporte {
   desde: string; hasta: string; total: number;
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
+  porConcepto: { turnos: number; cuotas: number };
   porCancha: { canchaId: string; nombre: string; total: number }[];
-  cobros: { id: string; creadoEn: string; monto: number; medio: MedioPago; cancha: string; cliente: string; registradoPor: string }[];
+  cobros: { id: string; creadoEn: string; monto: number; medio: MedioPago; concepto: 'TURNO' | 'CUOTA'; cancha: string; cliente: string; registradoPor: string }[];
 }
 
 export interface SheetsInfo { configurado: boolean; url: string | null }
