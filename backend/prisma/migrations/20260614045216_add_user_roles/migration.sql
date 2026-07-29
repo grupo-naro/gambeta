@@ -1,0 +1,6 @@
+-- CreateEnum
+CREATE TYPE "Rol" AS ENUM ('ADMIN', 'RECEPCIONISTA');
+
+-- AlterTable
+ALTER TABLE "AdminUser" ADD COLUMN     "esDefault" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "rol" "Rol" NOT NULL DEFAULT 'RECEPCIONISTA';

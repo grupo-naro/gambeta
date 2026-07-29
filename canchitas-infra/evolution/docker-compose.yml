@@ -1,0 +1,25 @@
+services:
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: evolution
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8082:8080"
+    volumes:
+      - evolution_data:/evolution/instances
+    networks:
+      - canchitas-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.evolution.rule=Host(`evolution.localhost`)"
+      - "traefik.http.routers.evolution.entrypoints=http"
+      - "traefik.http.services.evolution.loadbalancer.server.port=8080"
+
+volumes:
+  evolution_data:
+    name: canchitas_evolution_data
+
+networks:
+  canchitas-network:
+    external: true

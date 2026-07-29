@@ -1,0 +1,42 @@
+import { Router } from 'express';
+import { authJwt } from '../middlewares/authJwt.js';
+import { requireRole } from '../middlewares/requireRole.js';
+import { analyticsService } from '../services/analytics.service.js';
+import { getEnv } from '../config/env.js';
+import { dayWindowUtc } from '../utils/tz.js';
+
+export const analyticsRoutes = Router();
+analyticsRoutes.use(authJwt, requireRole('ADMIN'));
+
+function serializeBigInt(rows: any[]) {
+  return rows.map((r) =>
+    Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'bigint' ? Number(v) : v])),
+  );
+}
+
+// Parsea ?desde&hasta (YYYY-MM-DD) a ventana UTC; default últimos 30 días.
+function rango(req: any): { desde: Date; hasta: Date } {
+  const tz = getEnv().TZ_NEGOCIO;
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  const q = req.query || {};
+  const hastaYmd = re.test(q.hasta) ? q.hasta : hoy;
+  const desdeYmd = re.test(q.desde) ? q.desde : new Date(Date.now() - 29 * 86400000).toLocaleDateString('en-CA', { timeZone: tz });
+  return { desde: dayWindowUtc(desdeYmd, tz).start, hasta: dayWindowUtc(hastaYmd, tz).end };
+}
+
+analyticsRoutes.get('/ingresos', async (req, res, next) => {
+  try { const { desde, hasta } = rango(req); res.json(await analyticsService.ingresos(desde, hasta)); } catch (e) { next(e); }
+});
+analyticsRoutes.get('/ingresos-por-dia', async (req, res, next) => {
+  try { const { desde, hasta } = rango(req); res.json(await analyticsService.ingresosPorDia(desde, hasta)); } catch (e) { next(e); }
+});
+analyticsRoutes.get('/canchas-top', async (req, res, next) => {
+  try { const { desde, hasta } = rango(req); res.json(await analyticsService.canchasTop(desde, hasta)); } catch (e) { next(e); }
+});
+analyticsRoutes.get('/horarios-pico', async (req, res, next) => {
+  try { const { desde, hasta } = rango(req); res.json(serializeBigInt(await analyticsService.horariosPico(desde, hasta))); } catch (e) { next(e); }
+});
+analyticsRoutes.get('/ocupacion', async (req, res, next) => {
+  try { const { desde, hasta } = rango(req); res.json(serializeBigInt(await analyticsService.ocupacion(desde, hasta))); } catch (e) { next(e); }
+});

@@ -1,0 +1,45 @@
+'use server';
+import { revalidatePath } from 'next/cache';
+import { apiFetch } from './api';
+import { ApiError } from './types';
+import type { Slot } from './types';
+
+type Result = { ok: true } | { ok: false; error: string };
+
+async function run(fn: () => Promise<unknown>): Promise<Result> {
+  try {
+    await fn();
+    revalidatePath('/reservas');
+    revalidatePath('/calendario');
+    revalidatePath('/hoy');
+    return { ok: true };
+  }
+  catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
+}
+
+// NOTE: this file is a 'use server' module, so every EXPORT must be an `async function`
+// (Next's RSC compiler rejects non-async exports here, even though tsc/lint accept them).
+export async function cancelarReserva(id: string): Promise<Result> {
+  return run(() => apiFetch(`/reservas/${id}/cancelar`, { method: 'PATCH' }));
+}
+
+export async function aprobarSena(id: string): Promise<Result> {
+  return run(() => apiFetch(`/reservas/${id}/aprobar-sena`, { method: 'PATCH', body: '{}' }));
+}
+
+export async function rechazarSena(id: string): Promise<Result> {
+  return run(() => apiFetch(`/reservas/${id}/rechazar-sena`, { method: 'PATCH' }));
+}
+
+export async function reprogramarReserva(id: string, fecha: string, horaInicio: string): Promise<Result> {
+  return run(() => apiFetch(`/reservas/${id}/reprogramar`, { method: 'PATCH', body: JSON.stringify({ fecha, horaInicio }) }));
+}
+
+export async function getDisponibilidad(canchaId: string, fecha: string): Promise<Slot[]> {
+  try { const r = await apiFetch<{ slots: Slot[] }>(`/disponibilidad?canchaId=${canchaId}&fecha=${fecha}`); return r.slots ?? []; }
+  catch { return []; }
+}
+
+export async function crearReserva(input: { canchaId: string; whatsapp: string; nombreCliente: string; fecha: string; horaInicio: string; cobroInicial: 'ninguno' | 'sena' | 'total'; medioCobro: 'EFECTIVO' | 'TRANSFERENCIA'; montoCobro?: number }): Promise<Result> {
+  return run(() => apiFetch('/reservas', { method: 'POST', body: JSON.stringify({ ...input, esContacto: false, nombreConfirmado: true }) }));
+}

@@ -1,0 +1,96 @@
+# Demo Grupo Naro — stack AUTOCONTENIDO para un VPS limpio.
+# Incluye su propio Traefik con HTTPS (Let's Encrypt). postgres + backend + frontend.
+# Bot / Evolution / n8n NO se incluyen. Solo el frontend queda expuesto al público;
+# backend y postgres quedan internos en la red del compose.
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: gruponaro-traefik
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # HTTP -> HTTPS
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Let's Encrypt (TLS-ALPN-01, no necesita puerto extra)
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - gruponaro-acme:/letsencrypt
+    networks:
+      - web
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gruponaro-postgres
+    environment:
+      POSTGRES_USER: "${PG_USER}"
+      POSTGRES_PASSWORD: "${PG_PASSWORD}"
+      POSTGRES_DB: canchitas
+    volumes:
+      - gruponaro-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d canchitas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - web
+    restart: unless-stopped
+
+  backend:
+    build: ../backend
+    image: gruponaro-backend:latest
+    container_name: gruponaro-backend
+    environment:
+      DATABASE_URL: "postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/canchitas?schema=public"
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_EXPIRES_IN: "365d"
+      # Requerido por el schema de env del backend (zod .min(1)); si falta, el backend
+      # no arranca. La demo no usa el bot, así que cualquier cadena no vacía sirve.
+      SERVICE_API_KEY: "${SERVICE_API_KEY}"
+      TZ_NEGOCIO: "America/Argentina/Buenos_Aires"
+      ADMIN_SEED_EMAIL: "${ADMIN_SEED_EMAIL}"
+      ADMIN_SEED_PASSWORD: "${ADMIN_SEED_PASSWORD}"
+      PORT: "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - web
+    restart: unless-stopped
+
+  frontend:
+    build: ../frontend
+    image: gruponaro-frontend:latest
+    container_name: gruponaro-frontend
+    environment:
+      # El frontend llega al backend solo por red interna (nunca desde el navegador).
+      API_URL: "http://backend:3000"
+      PORT: "3000"
+    depends_on:
+      - backend
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gruponaro.rule=Host(`canchas.gruponaro.com.ar`)"
+      - "traefik.http.routers.gruponaro.entrypoints=websecure"
+      - "traefik.http.routers.gruponaro.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gruponaro.loadbalancer.server.port=3000"
+    restart: unless-stopped
+
+volumes:
+  gruponaro-pg:
+  gruponaro-acme:
+
+networks:
+  web:

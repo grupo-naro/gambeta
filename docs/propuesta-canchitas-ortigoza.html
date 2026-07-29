@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propuesta Digital — Canchitas Ortigoza</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green:       #1a7a4a;
+  --green-light: #22a663;
+  --green-bg:    #edf7f1;
+  --green-mid:   #c6e9d6;
+  --dark:        #0f1c14;
+  --dark2:       #1c2e21;
+  --text:        #111a14;
+  --text2:       #3d5244;
+  --text3:       #7a9482;
+  --surface:     #ffffff;
+  --surface2:    #f4f8f5;
+  --border:      #daeade;
+  --border2:     #c2dac9;
+  --accent:      #2adf78;
+  --amber:       #c47a00;
+  --amber-bg:    #fef5e0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── COVER ── */
+.cover {
+  background: var(--dark);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 3rem 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(34,166,99,0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(26,122,74,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.cover-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(42,223,120,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42,223,120,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+
+.cover-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+}
+
+.agency-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.agency-logo {
+  width: 36px; height: 36px;
+  background: var(--green-light);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: #fff;
+}
+.agency-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.04em;
+}
+.agency-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+
+.cover-date {
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  font-family: 'DM Mono', monospace;
+}
+
+.cover-center {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 5rem 0 3rem;
+}
+
+.cover-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(42,223,120,0.12);
+  border: 1px solid rgba(42,223,120,0.25);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 99px;
+  margin-bottom: 2rem;
+  width: fit-content;
+}
+.cover-tag::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.cover-client {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.cover-title {
+  font-size: clamp(36px, 5vw, 58px);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  max-width: 700px;
+}
+.cover-title span {
+  color: var(--accent);
+}
+
+.cover-desc {
+  font-size: 16px;
+  color: rgba(255,255,255,0.55);
+  max-width: 520px;
+  line-height: 1.75;
+  font-weight: 300;
+}
+
+.cover-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  position: relative;
+}
+
+.cover-stats {
+  display: flex;
+  gap: 3rem;
+}
+.cover-stat-val {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.cover-stat-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.cover-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.08em;
+}
+.scroll-line {
+  width: 40px; height: 1px;
+  background: rgba(255,255,255,0.2);
+}
+
+/* ── MAIN CONTENT ── */
+.content {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 5rem 3rem 8rem;
+}
+
+/* ── SECTION HEADERS ── */
+.sec-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2rem;
+}
+.sec-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--green-light);
+  background: var(--green-bg);
+  border: 1px solid var(--green-mid);
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+.sec-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+section { margin-bottom: 5rem; }
+hr.sep {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4rem 0;
+}
+
+/* ── PROBLEMA ── */
+.problema-intro {
+  font-size: 17px;
+  color: var(--text2);
+  line-height: 1.8;
+  margin-bottom: 2rem;
+  font-weight: 300;
+  border-left: 3px solid var(--green-light);
+  padding-left: 1.5rem;
+}
+
+.pain-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+.pain-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+.pain-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 12px 12px 0 0;
+}
+.pain-card.red::after   { background: #e05252; }
+.pain-card.amber::after { background: #d4881e; }
+.pain-card.blue::after  { background: #3b82f6; }
+.pain-icon { font-size: 24px; margin-bottom: 10px; }
+.pain-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.pain-desc  { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+/* ── SOLUCIÓN ── */
+.solution-banner {
+  background: var(--dark);
+  border-radius: 16px;
+  padding: 2.5rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+.solution-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 50% 80% at 90% 50%, rgba(34,166,99,0.2) 0%, transparent 70%);
+}
+.solution-banner h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+.solution-banner p {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.75;
+  max-width: 560px;
+  font-weight: 300;
+  position: relative;
+}
+.solution-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 1.25rem;
+  position: relative;
+}
+.stag {
+  background: rgba(42,223,120,0.1);
+  border: 1px solid rgba(42,223,120,0.2);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 99px;
+}
+
+/* ── CÓMO FUNCIONA ── */
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+.flow-steps::before {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 24px;
+  bottom: 24px;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--green-mid), transparent);
+}
+
+.flow-step {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 1.25rem;
+  padding: 1.25rem 0;
+  align-items: start;
+}
+.flow-step:not(:last-child) {
+  border-bottom: 1px dashed var(--border);
+}
+.step-circle {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.step-circle.green  { background: var(--green-bg);  border: 2px solid var(--green-mid); }
+.step-circle.blue   { background: #e8f0fc;           border: 2px solid #a0bce8; }
+.step-circle.purple { background: #eeedfe;           border: 2px solid #c0a8e8; }
+.step-circle.amber  { background: var(--amber-bg);   border: 2px solid #f0c050; }
+.step-circle.teal   { background: #e0f4f4;           border: 2px solid #8ed4d4; }
+
+.step-body {}
+.step-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.step-desc  { font-size: 13px; color: var(--text2); line-height: 1.65; }
+.step-note  {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  padding: 3px 9px;
+  border-radius: 5px;
+}
+
+/* ── SEÑA ── */
+.sena-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+.sena-card {
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid;
+}
+.sena-card.trust {
+  background: var(--green-bg);
+  border-color: var(--green-mid);
+}
+.sena-card.new {
+  background: var(--amber-bg);
+  border-color: #f0c050;
+}
+.sena-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sena-card.trust .sena-card-title { color: var(--green); }
+.sena-card.new  .sena-card-title  { color: var(--amber); }
+.sena-card-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+.sena-flow {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+.sena-flow-title { font-size: 12px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 1rem; }
+.sena-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+.sena-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  min-width: 80px;
+}
+.sena-step-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+.sena-step-label { font-size: 11px; color: var(--text2); font-weight: 500; line-height: 1.4; }
+.sena-arrow { color: var(--border2); font-size: 18px; flex-shrink: 0; padding: 0 4px; margin-bottom: 20px; }
+
+/* ── PANEL ADMIN ── */
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.panel-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+}
+.panel-icon { font-size: 28px; margin-bottom: 10px; }
+.panel-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.panel-desc  { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+/* ── BENEFICIOS ── */
+.benefits-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.benefit {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 1rem 1.25rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.benefit-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: var(--green-bg);
+  border: 1px solid var(--green-mid);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.benefit-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.benefit-desc  { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+/* ── ROADMAP ── */
+.phases {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.phase {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.phase-head {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.phase-head.p1 { background: var(--green-bg);  border-bottom: 1px solid var(--green-mid); }
+.phase-head.p2 { background: #e8f0fc;           border-bottom: 1px solid #a0bce8; }
+.phase-head.p3 { background: #eeedfe;           border-bottom: 1px solid #c0a8e8; }
+.phase-num {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.p1 .phase-num { background: var(--green);    color: #fff; }
+.p2 .phase-num { background: #185FA5;          color: #fff; }
+.p3 .phase-num { background: #534AB7;          color: #fff; }
+.phase-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.phase-time { margin-left: auto; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text3); }
+.phase-body { padding: 14px 16px; background: var(--surface); }
+.phase-item {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.phase-item:last-child { margin-bottom: 0; }
+.phase-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--border2);
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+
+/* ── COSTOS ── */
+.cost-highlight {
+  background: var(--dark);
+  border-radius: 16px;
+  padding: 2.5rem;
+  color: #fff;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+.cost-highlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 40% 60% at 100% 50%, rgba(34,166,99,0.15) 0%, transparent 70%);
+}
+.cost-left { position: relative; }
+.cost-label-top { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+.cost-big-val { font-size: 48px; font-weight: 700; color: var(--accent); line-height: 1; margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+.cost-big-sub { font-size: 13px; color: rgba(255,255,255,0.4); }
+.cost-right { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  font-size: 13px;
+}
+.cost-row:last-child { border-bottom: none; padding-bottom: 0; }
+.cost-row-label { color: rgba(255,255,255,0.5); }
+.cost-row-val   { color: #fff; font-weight: 600; font-family: 'DM Mono', monospace; font-size: 12px; }
+.cost-row-val.green { color: var(--accent); }
+
+.cost-note {
+  background: var(--green-bg);
+  border: 1px solid var(--green-mid);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--green);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* ── CTA FOOTER ── */
+.cta-section {
+  background: var(--dark);
+  margin: 0 -3rem -8rem;
+  padding: 4rem 3rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.cta-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 80% at 50% 100%, rgba(34,166,99,0.15) 0%, transparent 70%);
+}
+.cta-section h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+.cta-section p {
+  font-size: 15px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 2rem;
+  font-weight: 300;
+  position: relative;
+}
+.cta-contact {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  position: relative;
+}
+.cta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.cta-item-label { font-size: 11px; color: rgba(255,255,255,0.3); letter-spacing: 0.07em; text-transform: uppercase; }
+.cta-item-val   { font-size: 14px; font-weight: 600; color: var(--accent); }
+
+/* ── AGENCY FOOTER ── */
+.agency-footer {
+  text-align: center;
+  padding: 2rem 3rem;
+  background: #0a1210;
+  font-size: 12px;
+  color: rgba(255,255,255,0.2);
+}
+
+/* ── PRINT ── */
+@media print {
+  .cover { min-height: auto; page-break-after: always; }
+  body { font-size: 12px; }
+}
+
+@media (max-width: 640px) {
+  .cover { padding: 2rem; }
+  .content { padding: 3rem 1.5rem 5rem; }
+  .pain-grid, .panel-grid, .phases { grid-template-columns: 1fr; }
+  .sena-split, .benefits-grid, .cost-highlight { grid-template-columns: 1fr; }
+  .cover-stats { gap: 1.5rem; flex-wrap: wrap; }
+  .cta-section { margin: 0 -1.5rem -5rem; padding: 3rem 1.5rem; }
+}
+
+/* ── FADE IN ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cover-tag, .cover-client, .cover-title, .cover-desc, .cover-stats {
+  animation: fadeUp 0.7s ease both;
+}
+.cover-client { animation-delay: 0.1s; }
+.cover-title  { animation-delay: 0.2s; }
+.cover-desc   { animation-delay: 0.35s; }
+.cover-stats  { animation-delay: 0.5s; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     COVER
+══════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-grid"></div>
+
+  <div class="cover-top">
+    <div class="agency-badge">
+      <div class="agency-logo">N</div>
+      <div>
+        <div class="agency-name">Naro Gráfica</div>
+        <div class="agency-sub">Soluciones digitales</div>
+      </div>
+    </div>
+    <div class="cover-date">Junio 2026</div>
+  </div>
+
+  <div class="cover-center">
+    <div class="cover-tag">Propuesta de automatización</div>
+    <div class="cover-client">Canchitas Ortigoza</div>
+    <h1 class="cover-title">Tu complejo<br>reserva solo,<br><span>vos descansás.</span></h1>
+    <p class="cover-desc">
+      Sistema de reservas automático por WhatsApp con verificación de seña inteligente y panel de gestión para tu equipo. Sin aplicaciones nuevas, sin cambiar el canal que ya usás.
+    </p>
+  </div>
+
+  <div class="cover-bottom">
+    <div class="cover-stats">
+      <div>
+        <div class="cover-stat-val">24/7</div>
+        <div class="cover-stat-label">Disponibilidad del bot</div>
+      </div>
+      <div>
+        <div class="cover-stat-val">0"</div>
+        <div class="cover-stat-label">Tiempo de respuesta</div>
+      </div>
+      <div>
+        <div class="cover-stat-val">100%</div>
+        <div class="cover-stat-label">Por WhatsApp</div>
+      </div>
+    </div>
+    <div class="cover-scroll">
+      <div class="scroll-line"></div>
+      Ver propuesta
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     CONTENT
+══════════════════════════════════════ -->
+<div class="content">
+
+  <!-- 01 EL PROBLEMA -->
+  <section id="problema">
+    <div class="sec-label">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">El problema de hoy</h2>
+    </div>
+
+    <p class="problema-intro">
+      Hoy cada reserva depende de que alguien del equipo esté disponible para responder, consultar el cuaderno o la planilla, confirmar y contestar. Eso cuesta tiempo y clientes.
+    </p>
+
+    <div class="pain-grid">
+      <div class="pain-card red">
+        <div class="pain-icon">🕐</div>
+        <div class="pain-title">Respuesta lenta</div>
+        <div class="pain-desc">Si nadie atiende rápido, el cliente busca otra cancha. El 37% de las consultas sin respuesta inmediata no vuelven a escribir.</div>
+      </div>
+      <div class="pain-card amber">
+        <div class="pain-icon">📋</div>
+        <div class="pain-title">Errores y confusiones</div>
+        <div class="pain-desc">Doble reserva del mismo horario, turnos anotados mal, mensajes perdidos entre conversaciones. Problemas que generan conflictos con los clientes.</div>
+      </div>
+      <div class="pain-card blue">
+        <div class="pain-icon">📊</div>
+        <div class="pain-title">Sin información del negocio</div>
+        <div class="pain-desc">¿Qué cancha se alquila más? ¿A qué hora hay más demanda? ¿Cuánto facturó la semana pasada? Hoy esa información no existe.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- 02 LA SOLUCIÓN -->
+  <section id="solucion">
+    <div class="sec-label">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">La solución</h2>
+    </div>
+
+    <div class="solution-banner">
+      <h3>Un sistema que reserva por vos, las 24 horas.</h3>
+      <p>
+        Desarrollamos un bot inteligente que atiende a tus clientes directamente desde tu WhatsApp actual. Entiende el lenguaje natural — el cliente escribe como siempre — y el sistema se encarga de todo: verificar disponibilidad, cobrar la seña y confirmar el turno.
+      </p>
+      <div class="solution-tags">
+        <span class="stag">💬 WhatsApp actual sin cambios</span>
+        <span class="stag">🤖 Inteligencia artificial</span>
+        <span class="stag">💳 Cobro de seña automático</span>
+        <span class="stag">📅 Sin doble reserva posible</span>
+        <span class="stag">🔔 Recordatorios automáticos</span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- 03 CÓMO FUNCIONA -->
+  <section id="como-funciona">
+    <div class="sec-label">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">Cómo funciona, paso a paso</h2>
+    </div>
+
+    <div class="flow-steps">
+
+      <div class="flow-step">
+        <div class="step-circle green">💬</div>
+        <div class="step-body">
+          <div class="step-title">El cliente escribe por WhatsApp</div>
+          <div class="step-desc">
+            Exactamente como lo hace hoy. Puede escribir lo que quiera: <em>"Quiero reservar la cancha 2 el viernes a las 8 de la noche"</em> o simplemente <em>"¿Está libre el sábado a las 10?"</em>. El sistema entiende el lenguaje natural en español.
+          </div>
+          <span class="step-note">Sin apps nuevas ni links de reserva</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-circle blue">🔍</div>
+        <div class="step-body">
+          <div class="step-title">El bot verifica disponibilidad en tiempo real</div>
+          <div class="step-desc">
+            En segundos, el sistema consulta el calendario de todas las canchas y confirma si el horario está libre. Si no lo está, sugiere alternativas disponibles automáticamente. Es imposible que dos clientes reserven el mismo turno al mismo tiempo.
+          </div>
+          <span class="step-note">Responde en menos de 3 segundos</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-circle amber">💰</div>
+        <div class="step-body">
+          <div class="step-title">Gestiona la seña de forma inteligente</div>
+          <div class="step-desc">
+            Si el cliente es un contacto guardado en tu agenda de WhatsApp, confirma el turno directamente sin pedirle seña. Si es un cliente nuevo, le envía el CBU/alias con el monto y espera el comprobante. La inteligencia artificial lee el comprobante y lo verifica automáticamente.
+          </div>
+          <span class="step-note">Clientes conocidos sin fricción · Nuevos con seña automática</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-circle purple">✅</div>
+        <div class="step-body">
+          <div class="step-title">Confirma el turno y lo agenda</div>
+          <div class="step-desc">
+            Una vez verificado el pago (o si es cliente de confianza), el bot confirma el turno con un mensaje claro que incluye cancha, día, hora y cualquier dato relevante. El sistema registra la reserva automáticamente en la base de datos interna.
+          </div>
+          <span class="step-note">Confirmación con resumen completo</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-circle teal">🔔</div>
+        <div class="step-body">
+          <div class="step-title">Recordatorio automático 24 horas antes</div>
+          <div class="step-desc">
+            El día anterior al turno, el sistema envía automáticamente un recordatorio al cliente. Esto reduce significativamente los ausentismos y los turnos olvidados, sin que nadie del equipo tenga que acordarse de enviar nada.
+          </div>
+          <span class="step-note">Menos inasistencias, más organización</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- 04 COBRO DE SEÑA -->
+  <section id="sena">
+    <div class="sec-label">
+      <span class="sec-num">04</span>
+      <h2 class="sec-title">Sistema de cobro de seña</h2>
+    </div>
+
+    <div class="sena-split">
+      <div class="sena-card trust">
+        <div class="sena-card-title">✅ Clientes conocidos</div>
+        <div class="sena-card-desc">
+          Si el número está guardado en tu agenda de WhatsApp, el sistema lo reconoce como cliente de confianza y <strong>confirma el turno directamente sin pedirle seña</strong>. Cero fricción para tus clientes habituales.
+        </div>
+      </div>
+      <div class="sena-card new">
+        <div class="sena-card-title">💳 Clientes nuevos</div>
+        <div class="sena-card-desc">
+          Si es un número desconocido, el bot le envía el CBU/alias con el monto de la seña y queda esperando el comprobante. Tiene <strong>30 minutos</strong> para enviarlo; si no lo hace, la reserva se cancela sola.
+        </div>
+      </div>
+    </div>
+
+    <div class="sena-flow">
+      <div class="sena-flow-title">Flujo del cliente nuevo con seña</div>
+      <div class="sena-steps">
+        <div class="sena-step">
+          <div class="sena-step-icon">📩</div>
+          <div class="sena-step-label">Recibe CBU<br>y monto</div>
+        </div>
+        <div class="sena-arrow">→</div>
+        <div class="sena-step">
+          <div class="sena-step-icon">💸</div>
+          <div class="sena-step-label">Transfiere<br>la seña</div>
+        </div>
+        <div class="sena-arrow">→</div>
+        <div class="sena-step">
+          <div class="sena-step-icon">📎</div>
+          <div class="sena-step-label">Manda<br>comprobante</div>
+        </div>
+        <div class="sena-arrow">→</div>
+        <div class="sena-step">
+          <div class="sena-step-icon">🤖</div>
+          <div class="sena-step-label">IA verifica<br>automático</div>
+        </div>
+        <div class="sena-arrow">→</div>
+        <div class="sena-step">
+          <div class="sena-step-icon">✅</div>
+          <div class="sena-step-label">Turno<br>confirmado</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cost-note" style="margin-top: 12px;">
+      <span>🛡️</span>
+      <span>Si el comprobante no es claro o el monto no coincide, el sistema avisa automáticamente a tu equipo por WhatsApp para que un humano lo revise y apruebe desde el panel. Tu equipo siempre tiene el control final.</span>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- 05 PANEL DE GESTIÓN -->
+  <section id="panel">
+    <div class="sec-label">
+      <span class="sec-num">05</span>
+      <h2 class="sec-title">Panel de gestión para tu equipo</h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--text2); margin-bottom: 1.5rem; line-height: 1.75; font-weight: 300;">
+      Además del bot, tu equipo tiene acceso a un panel web interno donde pueden ver y gestionar todo el movimiento del complejo en tiempo real — sin tocar el WhatsApp.
+    </p>
+
+    <div class="panel-grid">
+      <div class="panel-card">
+        <div class="panel-icon">📅</div>
+        <div class="panel-title">Calendario de canchas</div>
+        <div class="panel-desc">Vista semanal con todos los turnos por cancha. Colores según estado: confirmado, pendiente de seña, cancelado.</div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-icon">📋</div>
+        <div class="panel-title">Gestión de reservas</div>
+        <div class="panel-desc">Listado completo con búsqueda por nombre o número. Podés cancelar, reasignar o crear turnos manuales en un click.</div>
+      </div>
+      <div class="panel-card">
+        <div class="panel-icon">📊</div>
+        <div class="panel-title">Analíticas del negocio</div>
+        <div class="panel-desc">¿Qué cancha es la más alquilada? ¿Cuál es el horario más demandado? ¿Cuánto se facturó este mes?</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- 06 BENEFICIOS -->
+  <section id="beneficios">
+    <div class="sec-label">
+      <span class="sec-num">06</span>
+      <h2 class="sec-title">¿Qué ganás con esto?</h2>
+    </div>
+
+    <div class="benefits-grid">
+      <div class="benefit">
+        <div class="benefit-icon">⏱️</div>
+        <div>
+          <div class="benefit-title">Tiempo libre para tu equipo</div>
+          <div class="benefit-desc">Ya no hay nadie contestando mensajes de reserva todo el día. El bot lo hace solo, incluso a las 2 de la mañana.</div>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">💰</div>
+        <div>
+          <div class="benefit-title">Más reservas confirmadas</div>
+          <div class="benefit-desc">Respuesta inmediata = más conversiones. Los clientes que escriben fuera de horario también reservan.</div>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🚫</div>
+        <div>
+          <div class="benefit-title">Cero doble reservas</div>
+          <div class="benefit-desc">El sistema chequea disponibilidad en tiempo real antes de confirmar. Es técnicamente imposible que dos personas reserven el mismo turno.</div>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">📲</div>
+        <div>
+          <div class="benefit-title">Sin cambiar nada para el cliente</div>
+          <div class="benefit-desc">Siguen escribiendo al mismo WhatsApp de siempre. No hay que aprender una app, un link ni un formulario.</div>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">🔔</div>
+        <div>
+          <div class="benefit-title">Menos ausentismos</div>
+          <div class="benefit-desc">El recordatorio automático 24 horas antes reduce drásticamente los turnos en los que el cliente no aparece.</div>
+        </div>
+      </div>
+      <div class="benefit">
+        <div class="benefit-icon">📈</div>
+        <div>
+          <div class="benefit-title">Información para crecer</div>
+          <div class="benefit-desc">Por primera vez vas a saber exactamente qué canchas, horarios y días funcionan mejor para tomar decisiones del negocio.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- 07 TIEMPOS -->
+  <section id="tiempos">
+    <div class="sec-label">
+      <span class="sec-num">07</span>
+      <h2 class="sec-title">Tiempos de entrega</h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--text2); margin-bottom: 1.5rem; line-height: 1.75; font-weight: 300;">
+      El proyecto se entrega en cuatro fases. Desde la primera semana ya tenés el bot funcionando en producción.
+    </p>
+
+    <div class="phases" style="grid-template-columns: repeat(2,1fr); margin-bottom: 12px;">
+      <div class="phase">
+        <div class="phase-head p1">
+          <div class="phase-num">1</div>
+          <div class="phase-name">Sitio web institucional</div>
+          <div class="phase-time">Sem. 1–2</div>
+        </div>
+        <div class="phase-body">
+          <div class="phase-item"><div class="phase-dot"></div>Home con hero y llamada a reservar</div>
+          <div class="phase-item"><div class="phase-dot"></div>Página de canchas con galería y precios</div>
+          <div class="phase-item"><div class="phase-dot"></div>Cómo reservar (integrado al bot WA)</div>
+          <div class="phase-item"><div class="phase-dot"></div>Nosotros + Contacto con mapa</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-head p2">
+          <div class="phase-num">2</div>
+          <div class="phase-name">Bot en vivo</div>
+          <div class="phase-time">Sem. 2–3</div>
+        </div>
+        <div class="phase-body">
+          <div class="phase-item"><div class="phase-dot"></div>Bot recibe y entiende consultas</div>
+          <div class="phase-item"><div class="phase-dot"></div>Verifica disponibilidad real</div>
+          <div class="phase-item"><div class="phase-dot"></div>Confirma turnos automáticamente</div>
+          <div class="phase-item"><div class="phase-dot"></div>Base de datos de reservas activa</div>
+        </div>
+      </div>
+    </div>
+    <div class="phases" style="grid-template-columns: repeat(2,1fr);">
+      <div class="phase">
+        <div class="phase-head" style="background:#eeedfe; border-bottom:1px solid #c0a8e8;">
+          <div class="phase-num" style="background:#534AB7; color:#fff;">3</div>
+          <div class="phase-name">Seña y recordatorios</div>
+          <div class="phase-time">Sem. 4–5</div>
+        </div>
+        <div class="phase-body">
+          <div class="phase-item"><div class="phase-dot"></div>Detección de clientes conocidos</div>
+          <div class="phase-item"><div class="phase-dot"></div>Cobro de seña con CBU/alias</div>
+          <div class="phase-item"><div class="phase-dot"></div>Verificación de comprobante con IA</div>
+          <div class="phase-item"><div class="phase-dot"></div>Recordatorio 24hs automático</div>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase-head" style="background:#e0f4f4; border-bottom:1px solid #8ed4d4;">
+          <div class="phase-num" style="background:#0e7c7c; color:#fff;">4</div>
+          <div class="phase-name">Panel de gestión</div>
+          <div class="phase-time">Sem. 6–8</div>
+        </div>
+        <div class="phase-body">
+          <div class="phase-item"><div class="phase-dot"></div>Calendario visual de canchas</div>
+          <div class="phase-item"><div class="phase-dot"></div>Gestión completa de reservas</div>
+          <div class="phase-item"><div class="phase-dot"></div>Aprobación manual de señas</div>
+          <div class="phase-item"><div class="phase-dot"></div>Analíticas del negocio</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- 08 INVERSIÓN -->
+  <section id="inversion">
+    <div class="sec-label">
+      <span class="sec-num">08</span>
+      <h2 class="sec-title">Costo operativo del sistema</h2>
+    </div>
+
+    <p style="font-size: 14px; color: var(--text2); margin-bottom: 1.5rem; line-height: 1.75; font-weight: 300;">
+      Una vez desarrollado el sistema, el costo mensual de operación es mínimo. Esto es lo que paga el complejo para mantener el sistema corriendo:
+    </p>
+
+    <div class="cost-highlight">
+      <div class="cost-left">
+        <div class="cost-label-top">Costo mensual total</div>
+        <div class="cost-big-val">$40.100</div>
+        <div class="cost-big-sub">pesos argentinos / mes</div>
+      </div>
+      <div class="cost-right">
+        <div class="cost-row">
+          <span class="cost-row-label">Servidor (VPS)</span>
+          <span class="cost-row-val">$27.600 ARS/mes</span>
+        </div>
+        <div class="cost-row">
+          <span class="cost-row-label">Backup automático</span>
+          <span class="cost-row-val">$12.500 ARS/mes</span>
+        </div>
+        <div class="cost-row">
+          <span class="cost-row-label">Inteligencia Artificial</span>
+          <span class="cost-row-val green">Gratuito</span>
+        </div>
+        <div class="cost-row">
+          <span class="cost-row-label">WhatsApp Bot</span>
+          <span class="cost-row-val green">Gratuito</span>
+        </div>
+        <div class="cost-row">
+          <span class="cost-row-label">Panel + Sitio web</span>
+          <span class="cost-row-val green">Gratuito</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cost-note" style="margin-bottom: 1.5rem;">
+      <span>💡</span>
+      <span>El backup automático ($12.500 ARS/mes) garantiza que ninguna reserva ni dato del negocio se pierda ante cualquier imprevisto. La inteligencia artificial usa el nivel gratuito de Google Gemini, que cubre ampliamente el volumen de un complejo deportivo.</span>
+    </div>
+
+    <!-- Inversión de desarrollo -->
+    <p style="font-size: 13px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px;">Inversión de desarrollo (pago único)</p>
+
+    <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 10px;">
+      <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 0;">
+        <!-- header -->
+        <div style="padding: 10px 18px; font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 0.07em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--dark); color: rgba(255,255,255,0.4);">Servicio</div>
+        <div style="padding: 10px 18px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4); letter-spacing: 0.07em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--dark); text-align: center;">Plazo</div>
+        <div style="padding: 10px 18px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4); letter-spacing: 0.07em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--dark); text-align: right;">Precio</div>
+
+        <!-- fila 1 -->
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border);">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px;">Sitio web institucional — 5 páginas</div>
+          <div style="font-size: 12px; color: var(--text3);">Home · Canchas · Cómo reservar · Nosotros · Contacto</div>
+        </div>
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace;">2 sem.</div>
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: right; font-size: 14px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; white-space: nowrap;">$400.000</div>
+
+        <!-- fila 2 -->
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border);">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px;">Sistema de automatización WhatsApp</div>
+          <div style="font-size: 12px; color: var(--text3);">Bot IA · Flujo de seña · Panel de gestión · Analíticas</div>
+        </div>
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace;">6 sem.</div>
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: right; font-size: 14px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; white-space: nowrap;">$900.000</div>
+
+        <!-- fila 3: dominio -->
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border);">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px;">Dominio .com.ar (1 año)</div>
+          <div style="font-size: 12px; color: var(--text3);">canchitasortigoza.com.ar</div>
+        </div>
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace;">—</div>
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: right; font-size: 14px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; white-space: nowrap;">$15.000</div>
+
+        <!-- total -->
+        <div style="padding: 16px 18px; background: var(--dark);">
+          <div style="font-size: 14px; font-weight: 700; color: #fff;">Total inversión inicial</div>
+          <div style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px;">Pago único · Entrega en 8 semanas</div>
+        </div>
+        <div style="padding: 16px 18px; background: var(--dark); text-align: center;">
+          <div style="font-size: 12px; color: rgba(255,255,255,0.4); font-family: 'DM Mono', monospace;">8 sem.</div>
+        </div>
+        <div style="padding: 16px 18px; background: var(--dark); text-align: right;">
+          <div style="font-size: 22px; font-weight: 700; color: var(--accent); font-family: 'DM Mono', monospace;">$1.315.000</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cost-note">
+      <span>📅</span>
+      <span>Se puede acordar un esquema de pago en cuotas: <strong>50% al inicio</strong> del proyecto y <strong>50% a la entrega</strong>. El mantenimiento mensual de $40.100 ARS se factura a partir del primer mes de operación en producción.</span>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta-section">
+    <h2>¿Arrancamos?</h2>
+    <p>Podemos tener el bot funcionando en tu WhatsApp en menos de dos semanas.</p>
+    <div class="cta-contact">
+      <div class="cta-item">
+        <span class="cta-item-label">Agencia</span>
+        <span class="cta-item-val">Naro Gráfica</span>
+      </div>
+      <div class="cta-item">
+        <span class="cta-item-label">Proyecto</span>
+        <span class="cta-item-val">Canchitas Ortigoza</span>
+      </div>
+      <div class="cta-item">
+        <span class="cta-item-label">Inicio estimado</span>
+        <span class="cta-item-val">Julio 2026</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="agency-footer">
+  Propuesta elaborada por Naro Gráfica · Junio 2026 · Documento confidencial para Canchitas Ortigoza
+</div>
+
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<title>Plan de Migración y Puesta en Marcha — Canchitas Ortigoza</title>
+<style>
+  :root{
+    --verde:#15803d; --verde-claro:#dcfce7; --verde-borde:#86efac;
+    --tinta:#1f2937; --gris:#6b7280; --gris-claro:#f3f4f6; --linea:#e5e7eb;
+    --ambar:#fef3c7; --ambar-borde:#fcd34d; --azul:#dbeafe; --azul-borde:#93c5fd;
+    --rojo:#fee2e2; --rojo-borde:#fca5a5;
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body{ font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--tinta); line-height:1.55; font-size:11.5pt; margin:0; }
+  h1,h2,h3{ line-height:1.2; color:#111827; }
+  h2{ font-size:19pt; border-bottom:3px solid var(--verde); padding-bottom:6px; margin:0 0 14px; }
+  h3{ font-size:13.5pt; color:var(--verde); margin:20px 0 6px; }
+  p{ margin:0 0 9px; } ul,ol{ margin:0 0 10px; padding-left:22px; } li{ margin:3px 0; }
+  code{ background:var(--gris-claro); padding:1px 5px; border-radius:4px; font-size:10pt; }
+  .pag{ padding:24mm 19mm; } .salto{ page-break-before:always; }
+  .portada{ height:247mm; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; background:var(--verde); color:white; padding:20mm; }
+  .portada .logo{ width:90px;height:90px;border-radius:22px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;margin-bottom:22px;border:2px solid rgba(255,255,255,.5); }
+  .portada h1{ color:white;font-size:30pt;margin:0 0 8px;letter-spacing:-.5px; }
+  .portada .sub{ font-size:14pt;opacity:.92;margin-bottom:30px; }
+  .portada .meta{ font-size:10.5pt;opacity:.85;border-top:1px solid rgba(255,255,255,.4);padding-top:14px; }
+  .caja{ border-radius:10px; padding:11px 15px; margin:11px 0; border:1px solid; page-break-inside:avoid; }
+  .tip{ background:var(--verde-claro); border-color:var(--verde-borde); }
+  .imp{ background:var(--ambar); border-color:var(--ambar-borde); }
+  .info{ background:var(--azul); border-color:var(--azul-borde); }
+  .alerta{ background:var(--rojo); border-color:var(--rojo-borde); }
+  .caja .et{ font-weight:700; display:block; margin-bottom:3px; }
+  ol.pasos{ counter-reset:p; list-style:none; padding-left:0; }
+  ol.pasos>li{ counter-increment:p; position:relative; padding:7px 0 7px 40px; border-bottom:1px solid var(--linea); }
+  ol.pasos>li:before{ content:counter(p); position:absolute; left:0; top:7px; width:27px;height:27px; background:var(--verde); color:white; border-radius:50%; display:flex;align-items:center;justify-content:center; font-weight:700; }
+  table{ border-collapse:collapse; width:100%; margin:10px 0; font-size:10.3pt; }
+  th,td{ border:1px solid var(--linea); padding:7px 9px; text-align:left; vertical-align:top; }
+  th{ background:var(--verde-claro); }
+  .chip{ display:inline-block; padding:1px 9px; border-radius:999px; font-size:9.5pt; font-weight:600; }
+  .c-negro{ background:#374151; color:#fff; } .c-rojo{ background:#dc2626; color:#fff; }
+  .c-naranja{ background:#ea580c; color:#fff; } .c-azul{ background:#2563eb; color:#fff; }
+  .footernote{ color:var(--gris); font-size:9.5pt; margin-top:6px; }
+  .toc{ list-style:none; padding-left:0; font-size:12pt; }
+  .toc>li{ padding:6px 0; border-bottom:1px solid var(--linea); }
+  .toc .n{ display:inline-block; width:30px; color:var(--verde); font-weight:700; }
+  @page{ size:A4; margin:0; }
+</style>
+</head>
+<body>
+
+<section class="portada">
+  <div class="logo">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.3H9.2L7.5 10.3 12 7Z"/>
+      <path d="M12 2v5M9.2 21l1.6-4.8M14.8 21l-1.6-4.8M3.6 9.5l4.4 1.1M20.4 9.5 16 10.6"/>
+    </svg>
+  </div>
+  <h1>Plan de Migración y Puesta en Marcha</h1>
+  <div class="sub">Canchitas Ortigoza · del Excel al sistema, sin pisar turnos</div>
+  <div class="meta">Estrategia de transición gradual (bot apagado durante la migración)<br>Documento para la instalación y para acordar con el complejo</div>
+</section>
+
+<!-- ÍNDICE -->
+<section class="pag salto">
+  <h2>Índice</h2>
+  <ul class="toc">
+    <li><span class="n">1.</span> La idea en una página</li>
+    <li><span class="n">2.</span> Calendario de la migración (fechas)</li>
+    <li><span class="n">3.</span> Cómo se traduce el Excel al sistema</li>
+    <li><span class="n">4.</span> Día de instalación (martes): qué cargar y en qué orden</li>
+    <li><span class="n">5.</span> La regla de oro de la transición</li>
+    <li><span class="n">6.</span> Día del corte: prender el bot</li>
+    <li><span class="n">7.</span> Recomendaciones y pendientes</li>
+    <li><span class="n">8.</span> Planilla de inventario (para completar)</li>
+  </ul>
+  <div class="caja info">
+    <span class="et">Nota</span>
+    Esto es una <b>propuesta</b>. El complejo decide cómo opera; nosotros instalamos, enseñamos y recomendamos esta forma de migrar por ser la más segura.
+  </div>
+</section>
+
+<!-- 1. IDEA -->
+<section class="pag salto">
+  <h2>1. La idea en una página</h2>
+  <p>El complejo <b>ya está funcionando</b> con su agenda en Excel (fijos, escuelita, torneos y turnos sueltos). Si prendiéramos el bot con la base de datos vacía, <b>se pisarían los turnos</b> de la semana en curso.</p>
+  <p>Por eso migramos de forma <b>gradual</b>, con el <b>bot apagado</b> durante la transición:</p>
+  <ol>
+    <li><b>Instalamos</b> el servidor y el panel, pero <b>no conectamos el bot todavía</b>.</li>
+    <li>La <b>semana en curso sigue en el Excel</b> (no se toca: ya está funcionando).</li>
+    <li>Desde la instalación, el complejo empieza a <b>cargar en el panel</b> lo recurrente (fijos, escuelita, torneos) y <b>las reservas nuevas que sean para la semana siguiente</b>.</li>
+    <li>Llegado el <b>día de corte</b>, <b>prendemos el bot</b>. Para entonces la base ya tiene todo lo futuro cargado → el bot no pisa nada y conoce la agenda real.</li>
+  </ol>
+  <div class="caja tip">
+    <span class="et">Por qué así y no "todo de una"</span>
+    Migrar toda la semana (incluidos los sueltos) en un día es mucha carga manual bajo presión y con datos irregulares → más errores. El método gradual reparte el trabajo, <b>capacita al personal usando el panel con datos reales</b> y garantiza un arranque limpio.
+  </div>
+</section>
+
+<!-- 2. CALENDARIO -->
+<section class="pag salto">
+  <h2>2. Calendario de la migración</h2>
+  <table>
+    <tr><th>Momento</th><th>Qué pasa</th></tr>
+    <tr><td><b>Martes (instalación)</b></td><td>Se instala el servidor + panel. Se carga la <b>configuración</b> y lo <b>recurrente</b> (fijos + escuelita + torneos). Se capacita al personal. <b>El bot queda apagado.</b></td></tr>
+    <tr><td><b>Del martes al corte</b></td><td>La semana en curso sigue en el Excel. Toda <b>reserva nueva con fecha desde el corte en adelante</b> se carga en el panel.</td></tr>
+    <tr><td><b>Día de corte (propuesto: el lunes siguiente)</b></td><td>Se <b>prende el bot</b>. De acá en más, todo entra por el sistema; el Excel se deja de usar.</td></tr>
+  </table>
+  <div class="caja imp">
+    <span class="et">Definir la fecha de corte</span>
+    Recomendamos arrancar el bot <b>el lunes siguiente a la instalación</b> (semana nueva = línea de corte limpia). Conviene <b>fijar esa fecha con el complejo</b> el día de la instalación y anotarla acá: <b>Fecha y hora de corte: __________________</b>.
+  </div>
+</section>
+
+<!-- 3. TRADUCCIÓN -->
+<section class="pag salto">
+  <h2>3. Cómo se traduce el Excel al sistema</h2>
+  <p>En el Excel, el <b>color</b> indica el tipo de turno. Así se carga cada uno:</p>
+  <table>
+    <tr><th>En el Excel</th><th>Qué es</th><th>En el sistema</th><th>¿Recurrente?</th></tr>
+    <tr><td><span class="chip c-negro">Negro</span></td><td>Turno fijo (viene todas las semanas)</td><td><b>Turno fijo</b></td><td>Sí (se carga 1 vez)</td></tr>
+    <tr><td><span class="chip c-naranja">Sarmiento</span></td><td>Escuelita / entrenamiento</td><td><b>Bloqueo</b> tipo <i>Entrenamiento</i></td><td>Sí (recurrente)</td></tr>
+    <tr><td>"Torneo"</td><td>Torneos</td><td><b>Bloqueo</b> tipo <i>Torneo</i></td><td>Según corresponda</td></tr>
+    <tr><td>"Entrenamiento"</td><td>Entrenamiento</td><td><b>Bloqueo</b> tipo <i>Entrenamiento</i></td><td>Sí (recurrente)</td></tr>
+    <tr><td><span class="chip c-rojo">Rojo</span></td><td>Turno suelto (reserva de ese día)</td><td><b>Reserva</b> puntual</td><td>No (solo los futuros)</td></tr>
+  </table>
+  <div class="caja info">
+    <span class="et">Cómo leer un nombre</span>
+    Ejemplo: <code>Santy g 10000 mp</code> → cliente <b>Santy</b>, seña <b>$10.000</b> por <b>transferencia</b> (el "mp" = MercadoPago/transferencia; si fuera efectivo va solo el número). La columna <b>$$</b> es el <b>precio</b> del turno. La <b>"g"</b> es una marca propia del complejo y <b>se ignora</b> para cargar (no aporta dato).
+  </div>
+  <h3>Importante para el martes: la Cancha 4 es divisible</h3>
+  <p>En el Excel, la Cancha 4 aparece como <b>4-1, 4-2 y 4-3</b> (se puede alquilar entera o en partes). Al configurar las canchas, hay que <b>cargarla como cancha divisible</b> (la entera + sus 3 partes, compartiendo espacio). Así el sistema impide que se alquile la Cancha 4 entera si una de sus partes ya está ocupada, y viceversa.</p>
+  <p class="footernote">Las Canchas 1, 2 y 3 son de fútbol 5; la Cancha 4 (4-1/4-2/4-3) es la divisible. Confirmar tamaños reales con el complejo.</p>
+</section>
+
+<!-- 4. DÍA INSTALACIÓN -->
+<section class="pag salto">
+  <h2>4. Día de instalación (martes)</h2>
+  <p>Orden recomendado de carga en el panel. Lo importante: <b>solo lo recurrente + configuración</b>; los turnos sueltos de esta semana <b>no</b> se cargan (siguen en el Excel).</p>
+
+  <h3>Paso 1 — Configuración (base de todo)</h3>
+  <ol class="pasos">
+    <li><b>Canchas:</b> cargar Cancha 1, 2, 3 (fútbol 5) y la <b>Cancha 4 divisible</b> (4-1/4-2/4-3), con su <b>precio por hora</b>.</li>
+    <li><b>Datos de seña</b> (Configuración): alias, CBU, titular y monto/porcentaje. <span class="footernote">Es lo que el bot le pasará a los clientes — tiene que estar bien.</span></li>
+    <li><b>Horarios</b> de apertura y cierre.</li>
+    <li><b>Usuarios:</b> dar de alta al administrador (dueño) y a recepción.</li>
+  </ol>
+
+  <h3>Paso 2 — Bloqueos recurrentes (escuelita, torneos, entrenamientos)</h3>
+  <p>Cargar en <b>Bloqueos</b> todos los horarios de <b>Sarmiento/escuelita</b>, <b>entrenamientos</b> y <b>torneos</b>, marcándolos como <b>recurrentes</b> (se repiten cada semana) en el día y horario que correspondan. Esto deja esos horarios cerrados para que el bot no los ofrezca.</p>
+
+  <h3>Paso 3 — Turnos fijos (los clientes de todas las semanas)</h3>
+  <p>Cargar en <b>Turnos fijos</b> cada cliente fijo (los <span class="chip c-negro">negros</span> del Excel): día de semana, hora, cancha, nombre y —si lo tienen— el <b>WhatsApp</b>.</p>
+  <div class="caja alerta">
+    <span class="et">El Excel no tiene los teléfonos</span>
+    Para cargar un fijo <b>no es obligatorio</b> el WhatsApp: igual <b>bloquea el horario</b> (el bot no lo ofrece ni lo pisa). Pero <b>sin el número, el bot no reconoce a ese cliente</b> cuando escribe. Recomendación: cargar los fijos ya (para proteger la agenda) e ir <b>completando los WhatsApp</b> a medida que los tengan.
+  </div>
+  <div class="caja tip">
+    <span class="et">Atajo realista</span>
+    Si no llegan a cargar todos los fijos el martes, prioricen <b>los de la primera semana del bot</b>. Lo que importa es que, al prender el bot, esté cargado todo lo que ocupe cancha de la fecha de corte en adelante.
+  </div>
+</section>
+
+<!-- 5. REGLA DE ORO -->
+<section class="pag salto">
+  <h2>5. La regla de oro de la transición</h2>
+  <div class="caja imp" style="font-size:12pt">
+    <span class="et">Desde la instalación hasta el corte:</span>
+    <ul style="margin-bottom:0">
+      <li>Turnos para fechas <b>ANTES del corte</b> → siguen en el <b>Excel</b>.</li>
+      <li>Turnos para fechas <b>DESDE el corte en adelante</b> → se cargan en el <b>PANEL</b>.</li>
+    </ul>
+  </div>
+  <p>Como los <b>fijos y bloqueos</b> son recurrentes, cargándolos una vez ya cubren la semana del corte solos. El único cuidado diario es: <b>toda reserva suelta nueva cuya fecha caiga en la semana del bot, se carga en el panel</b> (además de, o en vez de, anotarla en el Excel).</p>
+  <p>De esta forma, cuando llega el día de corte, <b>todo lo que va a pasar de ahí en adelante ya está en el sistema</b>, y el bot arranca sin pisar ni perder ningún turno.</p>
+  <div class="caja info">
+    <span class="et">¿Y si quedó algún turno sin cargar?</span>
+    Antes de prender el bot (paso del capítulo 6) se hace una <b>revisión final</b>: comparar la grilla del Excel de la primera semana contra el Calendario del panel y completar lo que falte. Es la red de seguridad.
+  </div>
+</section>
+
+<!-- 6. CORTE -->
+<section class="pag salto">
+  <h2>6. Día del corte: prender el bot</h2>
+  <ol class="pasos">
+    <li><b>Revisión final:</b> comparar el Excel de la semana entrante con el <b>Calendario</b> del panel. Cargar lo que falte. Verificar que fijos y bloqueos aparezcan bien.</li>
+    <li><b>Conectar el bot</b> al número de WhatsApp del complejo y verificar que responde (mandarle un "hola" de prueba).</li>
+    <li><b>Prueba de punta a punta:</b> hacer una reserva de prueba por WhatsApp (elegir tamaño → fecha → hora → confirmar) y verificar que aparece en el panel.</li>
+    <li><b>Avisar al personal</b> que desde ese momento <b>todo se gestiona por el sistema</b> y se deja de usar el Excel.</li>
+  </ol>
+  <div class="caja imp">
+    <span class="et">Qué esperar el primer día del bot</span>
+    El bot le va a <b>pedir seña a casi todos</b> hasta que cada cliente genere historial de confianza. Si quieren evitarlo con los habituales, márquenlos como <b>"confiable"</b> en la sección Clientes antes del corte.
+  </div>
+</section>
+
+<!-- 7. RECOMENDACIONES -->
+<section class="pag salto">
+  <h2>7. Recomendaciones y pendientes</h2>
+  <table>
+    <tr><th>Tema</th><th>Recomendación</th></tr>
+    <tr><td><b>Teléfonos de los fijos</b></td><td>Ir completando el WhatsApp de cada cliente fijo para que el bot los reconozca. No frena el arranque.</td></tr>
+    <tr><td><b>Respaldos (backup)</b></td><td>Configurar una copia de seguridad automática de la base de datos. Es la información del negocio: no puede depender de un solo disco.</td></tr>
+    <tr><td><b>Energía</b></td><td>El servidor debe estar siempre encendido y con internet. Conviene un UPS (batería) para cortes de luz.</td></tr>
+    <tr><td><b>Número del bot</b></td><td>Definir el número de WhatsApp que se publicará y que será el del bot (no el personal del dueño).</td></tr>
+    <tr><td><b>Clientes de confianza</b></td><td>Marcar a los habituales como "confiable" para que el bot no les pida seña.</td></tr>
+  </table>
+  <div class="caja tip">
+    <span class="et">Resumen del éxito</span>
+    Si el martes quedan cargados <b>configuración + fijos + bloqueos</b>, y durante la semana se cargan en el panel las reservas de la semana del corte, el bot arranca el día del corte <b>conociendo toda la agenda</b> y sin pisar un solo turno. Eso es todo.
+  </div>
+</section>
+
+<!-- 8. PLANILLA -->
+<section class="pag salto">
+  <h2>8. Planilla de inventario (para completar)</h2>
+  <p>Usá esta planilla mirando el <b>Excel real</b> (donde se ven los colores) para listar lo recurrente antes de cargarlo. Una fila por cada fijo / bloqueo.</p>
+  <h3>Turnos fijos (negros)</h3>
+  <table>
+    <tr><th>Día</th><th>Hora</th><th>Cancha</th><th>Cliente</th><th>WhatsApp</th><th>Precio</th></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
+  </table>
+  <h3>Bloqueos (escuelita / torneos / entrenamientos)</h3>
+  <table>
+    <tr><th>Día</th><th>Hora (desde–hasta)</th><th>Cancha</th><th>Motivo (escuela/torneo/entren.)</th><th>¿Recurrente?</th></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+  </table>
+  <p class="footernote">Tip: imprimí esta página o copiala, y completala con el complejo el día de la instalación.</p>
+</section>
+
+</body>
+</html>

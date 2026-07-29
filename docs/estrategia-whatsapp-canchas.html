@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estrategia de Automatización WhatsApp — Complejo Deportivo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --text: #1a1917;
+    --text2: #5a5855;
+    --text3: #9a9894;
+    --border: #e2e0d8;
+    --border2: #d0cec4;
+    --green: #2d7a4f;
+    --green-bg: #e8f5ee;
+    --green-border: #a8d4b8;
+    --amber: #8a5a00;
+    --amber-bg: #fef3db;
+    --amber-border: #f0c050;
+    --blue: #1a4fa0;
+    --blue-bg: #e8f0fc;
+    --blue-border: #a0bce8;
+    --red: #9a2a2a;
+    --red-bg: #fdeaea;
+    --red-border: #e8a0a0;
+    --purple: #5a3a9a;
+    --purple-bg: #f0ecfc;
+    --purple-border: #c0a8e8;
+    --accent: #1a4fa0;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── SIDEBAR NAV ── */
+  .sidenav {
+    position: fixed;
+    top: 0; left: 0;
+    width: 220px;
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1.25rem;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  .sidenav-logo {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 2rem;
+  }
+  .sidenav-logo span { color: var(--accent); }
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin: 1.5rem 0 0.5rem;
+  }
+  .sidenav a {
+    display: block;
+    font-size: 13px;
+    color: var(--text2);
+    text-decoration: none;
+    padding: 5px 8px;
+    border-radius: 6px;
+    margin-bottom: 2px;
+    transition: all 0.15s;
+  }
+  .sidenav a:hover { background: var(--surface2); color: var(--text); }
+  .sidenav a.active { background: var(--blue-bg); color: var(--blue); font-weight: 500; }
+  .sidenav a .num {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background: var(--surface2);
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 18px;
+    margin-right: 6px;
+    color: var(--text3);
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    margin-left: 220px;
+    padding: 3rem 3rem 6rem;
+    max-width: 900px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    margin-bottom: 3.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--blue-bg);
+    color: var(--blue);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+  }
+  .hero-sub {
+    font-size: 16px;
+    color: var(--text2);
+    max-width: 600px;
+    margin-bottom: 1.5rem;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text3);
+  }
+  .meta-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--text3);
+  }
+
+  /* ── STAT CARDS ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 3rem;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label { font-size: 12px; color: var(--text3); font-weight: 500; }
+  .stat-desc { font-size: 13px; color: var(--text2); margin-top: 6px; }
+
+  /* ── SECTIONS ── */
+  section {
+    margin-bottom: 3.5rem;
+    scroll-margin-top: 2rem;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.25rem;
+  }
+  .section-num {
+    width: 28px; height: 28px;
+    background: var(--text);
+    color: #fff;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .section-intro {
+    font-size: 14px;
+    color: var(--text2);
+    margin-bottom: 1.25rem;
+    line-height: 1.7;
+    max-width: 680px;
+  }
+
+  /* ── OPTION CARDS ── */
+  .option-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 10px;
+    position: relative;
+    transition: box-shadow 0.15s;
+  }
+  .option-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .option-card.recommended {
+    border-color: var(--blue-border);
+    border-width: 2px;
+  }
+  .rec-badge {
+    position: absolute;
+    top: -1px; right: 16px;
+    background: var(--blue);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 0 0 8px 8px;
+  }
+  .option-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .option-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .option-subtitle {
+    font-size: 13px;
+    color: var(--text3);
+    font-weight: 400;
+  }
+  .option-body {
+    font-size: 13.5px;
+    color: var(--text2);
+    line-height: 1.65;
+    margin-bottom: 10px;
+  }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 11.5px;
+    padding: 3px 9px;
+    border-radius: 5px;
+    background: var(--surface2);
+    color: var(--text2);
+    border: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+  }
+  .tag.green { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .tag.blue  { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue-border); }
+  .tag.amber { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+
+  /* ── ALERT BOX ── */
+  .alert {
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+  }
+  .alert-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+  .alert.amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+  .alert.green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+  .alert.blue  { background: var(--blue-bg);  color: var(--blue);  border: 1px solid var(--blue-border); }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 5px;
+  }
+  .badge.green  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
+  .badge.amber  { background: var(--amber-bg);  color: var(--amber);  border: 1px solid var(--amber-border); }
+  .badge.blue   { background: var(--blue-bg);   color: var(--blue);   border: 1px solid var(--blue-border); }
+  .badge.purple { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+  .badge.red    { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red-border); }
+
+  /* ── COMPARISON TABLE ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--surface2); }
+  th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 11px 14px;
+    font-size: 13px;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr.rec-row td { background: #f0f5ff; }
+  .model-name { font-weight: 600; color: var(--text); font-size: 13px; }
+  .model-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .price { font-family: 'DM Mono', monospace; font-size: 12px; }
+  .price-highlight { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600; color: var(--green); }
+
+  /* ── ARCHITECTURE FLOW ── */
+  .arch-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 10px;
+  }
+  .arch-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .arch-step {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .arch-step:last-child { border-bottom: none; }
+  .arch-num {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .arch-num.green  { background: var(--green-bg);  color: var(--green); }
+  .arch-num.blue   { background: var(--blue-bg);   color: var(--blue); }
+  .arch-num.amber  { background: var(--amber-bg);  color: var(--amber); }
+  .arch-num.purple { background: var(--purple-bg); color: var(--purple); }
+  .arch-num.red    { background: var(--red-bg);    color: var(--red); }
+  .arch-content {}
+  .arch-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .arch-desc { font-size: 13px; color: var(--text2); line-height: 1.55; }
+  .arch-cost {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--green);
+    background: var(--green-bg);
+    border: 1px solid var(--green-border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    margin-top: 4px;
+  }
+
+  /* ── COST SUMMARY ── */
+  .cost-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+  .cost-item {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .cost-label { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+  .cost-value { font-size: 22px; font-weight: 700; color: var(--text); margin-top: 4px; }
+  .cost-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* ── ROADMAP ── */
+  .roadmap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .phase-num {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .phase-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .phase-time { margin-left: auto; font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; }
+  .phase-body { padding: 14px 18px; }
+  .phase-body p { font-size: 13.5px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; }
+  .phase-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .task-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border2);
+    margin-top: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── DATA FLOW DIAGRAM ── */
+  .flow-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 10px;
+    overflow-x: auto;
+  }
+  .flow-steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-width: 600px;
+  }
+  .flow-node {
+    flex: 1;
+    text-align: center;
+  }
+  .flow-box {
+    border-radius: 10px;
+    padding: 12px 8px;
+    border: 1.5px solid;
+    margin: 0 4px;
+  }
+  .flow-box-icon { font-size: 20px; margin-bottom: 4px; }
+  .flow-box-name { font-size: 11px; font-weight: 700; color: var(--text); }
+  .flow-box-sub  { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .flow-arrow {
+    color: var(--text3);
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+    padding: 0 2px;
+  }
+
+  /* ── DB SCHEMA ── */
+  .schema-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .schema-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 12px;
+  }
+  .schema-table-header {
+    background: var(--surface2);
+    padding: 8px 14px;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .schema-table-header .tbl-icon { font-size: 14px; }
+  .schema-field {
+    display: flex;
+    align-items: center;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+  }
+  .schema-field:last-child { border-bottom: none; }
+  .field-name { font-family: 'DM Mono', monospace; color: var(--text); flex: 1; font-size: 12px; }
+  .field-type { font-family: 'DM Mono', monospace; color: var(--blue); font-size: 11px; }
+  .field-pk {
+    font-size: 9px;
+    font-weight: 700;
+    background: var(--amber-bg);
+    color: var(--amber);
+    border: 1px solid var(--amber-border);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .field-fk {
+    font-size: 9px;
+    font-weight: 700;
+    background: var(--blue-bg);
+    color: var(--blue);
+    border: 1px solid var(--blue-border);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ── DECISION BOX ── */
+  .decision-box {
+    background: linear-gradient(135deg, #1a4fa0 0%, #2a6fd8 100%);
+    border-radius: 14px;
+    padding: 1.75rem 2rem;
+    color: #fff;
+    margin-bottom: 2rem;
+  }
+  .decision-box h3 { font-size: 18px; font-weight: 600; margin-bottom: 0.5rem; }
+  .decision-box p { font-size: 14px; opacity: 0.85; line-height: 1.6; }
+  .decision-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; }
+  .decision-tag {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── DIVIDER ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  /* ── SCROLLSPY ── */
+  @media (max-width: 768px) {
+    .sidenav { display: none; }
+    .main { margin-left: 0; padding: 2rem 1.25rem; }
+    .stats-row, .schema-grid, .cost-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidenav">
+  <div class="sidenav-logo">⚡ <span>WA</span> Strategy</div>
+
+  <div class="nav-section-label">Documento</div>
+  <a href="#overview">Resumen ejecutivo</a>
+  <a href="#problema">Problema</a>
+
+  <div class="nav-section-label">Stack técnico</div>
+  <a href="#whatsapp"><span class="num">1</span>WhatsApp</a>
+  <a href="#automatizacion"><span class="num">2</span>Automatización</a>
+  <a href="#ia"><span class="num">3</span>Modelo de IA</a>
+  <a href="#backend"><span class="num">4</span>Backend & DB</a>
+  <a href="#panel"><span class="num">5</span>Panel admin</a>
+
+  <div class="nav-section-label">Plan</div>
+  <a href="#arquitectura">Arquitectura final</a>
+  <a href="#schema">Esquema de datos</a>
+  <a href="#sena">Flujo de seña</a>
+  <a href="#roadmap">Roadmap</a>
+  <a href="#costos">Costos</a>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+  <!-- HERO -->
+  <div class="hero" id="overview">
+    <div class="hero-eyebrow">📋 Documento estratégico</div>
+    <h1>Automatización de Reservas<br>por WhatsApp</h1>
+    <p class="hero-sub">
+      Estrategia técnica completa para implementar un sistema de reservas automático en WhatsApp para un complejo deportivo de canchas de fútbol, con panel de gestión interno.
+    </p>
+    <div class="hero-meta">
+      <div class="meta-item"><div class="meta-dot"></div>Junio 2026</div>
+      <div class="meta-item"><div class="meta-dot"></div>Stack: n8n + Evolution API + Gemini + Node.js</div>
+      <div class="meta-item"><div class="meta-dot"></div>Costo mensual estimado: $19.400 ARS (solo VPS · IA gratuita)</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value">37%</div>
+      <div class="stat-label">Clientes perdidos</div>
+      <div class="stat-desc">promedio sin respuesta en la primera hora en WhatsApp</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">24/7</div>
+      <div class="stat-label">Disponibilidad objetivo</div>
+      <div class="stat-desc">el bot responde y reserva incluso fuera de horario laboral</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">$19.400</div>
+      <div class="stat-label">Costo mensual total</div>
+      <div class="stat-desc">ARS/mes · solo el VPS, la IA es gratuita</div>
+    </div>
+  </div>
+
+  <!-- PROBLEMA -->
+  <section id="problema">
+    <div class="section-header">
+      <div class="section-title">El problema a resolver</div>
+    </div>
+    <p class="section-intro">
+      El complejo opera hoy con reservas manuales por WhatsApp: una persona del equipo lee mensajes, consulta disponibilidad, responde y confirma. Esto tiene tres problemas críticos:
+    </p>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+      <div class="option-card" style="border-left: 3px solid var(--red);">
+        <div class="option-title" style="margin-bottom: 6px;">🕐 Demoras</div>
+        <div class="option-body">Los clientes esperan respuesta. Si nadie atiende rápido, buscan otra cancha.</div>
+      </div>
+      <div class="option-card" style="border-left: 3px solid var(--amber);">
+        <div class="option-title" style="margin-bottom: 6px;">📋 Errores</div>
+        <div class="option-body">Doble reserva del mismo turno, pérdida de mensajes, sin historial organizado.</div>
+      </div>
+      <div class="option-card" style="border-left: 3px solid var(--blue);">
+        <div class="option-title" style="margin-bottom: 6px;">📊 Sin datos</div>
+        <div class="option-body">No hay analíticas de ocupación, horarios pico ni ingresos proyectados.</div>
+      </div>
+    </div>
+
+    <div class="decision-box">
+      <h3>La solución en una línea</h3>
+      <p>Un bot de WhatsApp que entiende lenguaje natural, consulta disponibilidad en tiempo real, confirma reservas automáticamente y permite al equipo administrar todo desde un panel web.</p>
+      <div class="decision-tags">
+        <span class="decision-tag">WhatsApp nativo</span>
+        <span class="decision-tag">Sin cambiar canal</span>
+        <span class="decision-tag">Lenguaje natural en español</span>
+        <span class="decision-tag">Panel de gestión propio</span>
+        <span class="decision-tag">Costo mínimo</span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- CAPA 1: WHATSAPP -->
+  <section id="whatsapp">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div class="section-title">Conexión WhatsApp</div>
+    </div>
+    <p class="section-intro">
+      Esta es la decisión más crítica del proyecto. Hay dos caminos con trade-offs muy distintos entre velocidad de implementación, costo y estabilidad a largo plazo.
+    </p>
+
+    <div class="option-card recommended">
+      <div class="rec-badge">⭐ Recomendado</div>
+      <div class="option-header">
+        <div class="option-title">Evolution API</div>
+        <span class="badge green">Open source</span>
+        <span class="option-subtitle">— autohosteado en VPS con Docker</span>
+      </div>
+      <div class="option-body">
+        Servidor Node.js open-source que mantiene una sesión activa de WhatsApp Web y expone una REST API con estructura idéntica a la oficial de Meta. <strong>Tiene integración nativa con n8n</strong>, lo que hace el setup extremadamente directo. Para activarlo solo hay que escanear un QR con el número del negocio. Sin verificación de empresa, sin aprobación de plantillas, sin costos por conversación.
+      </div>
+      <div class="tag-row" style="margin-bottom: 8px;">
+        <span class="tag green">$5–10/mes en VPS</span>
+        <span class="tag">Deploy con Docker</span>
+        <span class="tag">Webhooks en tiempo real</span>
+        <span class="tag">Nodo nativo n8n</span>
+        <span class="tag green">Sin costo por mensaje</span>
+        <span class="tag">QR scan setup</span>
+      </div>
+      <div class="alert amber">
+        <div class="alert-icon">⚠️</div>
+        <div><strong>Riesgo a tener en cuenta:</strong> Usa WhatsApp Web, no la API oficial de Meta. Si se detecta volumen muy alto o comportamiento claramente automatizado, Meta puede restringir el número. Para un complejo deportivo con volúmenes moderados y respuestas naturales (con delays simulados entre mensajes), el riesgo es bajo. Mitigación: nunca enviar mensajes masivos proactivos, solo responder conversaciones iniciadas por el usuario.</div>
+      </div>
+    </div>
+
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">Meta WhatsApp Business Cloud API</div>
+        <span class="badge blue">Oficial</span>
+        <span class="option-subtitle">— vía Meta Developers o BSP</span>
+      </div>
+      <div class="option-body">
+        La API oficial de Meta. Requiere verificación del negocio (puede tardar semanas), aprobación de plantillas para mensajes proactivos (recordatorios), y cobra por conversación. En Argentina el costo es aproximadamente $0.03–0.06 USD por conversación de servicio. Más estable a largo plazo, pero más burocracia para arrancar.
+      </div>
+      <div class="tag-row">
+        <span class="tag amber">~$0.03–0.06 / conversación</span>
+        <span class="tag">Verificación Meta requerida</span>
+        <span class="tag">Templates aprobados</span>
+        <span class="tag green">100% estable</span>
+        <span class="tag">Sin riesgo de ban</span>
+      </div>
+    </div>
+
+    <div class="alert blue">
+      <div class="alert-icon">💡</div>
+      <div><strong>Decisión práctica:</strong> Para arrancar rápido y probar el sistema con el cliente, Evolution API es el camino correcto. Si en el futuro el negocio escala significativamente o el cliente pide garantías formales, migrar a la API oficial de Meta con un BSP (proveedor autorizado). La arquitectura soporta ese cambio sin tocar el resto del stack.</div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- CAPA 2: AUTOMATIZACIÓN -->
+  <section id="automatizacion">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div class="section-title">Motor de automatización</div>
+    </div>
+    <p class="section-intro">
+      n8n es el cerebro que conecta WhatsApp, la IA, la base de datos y el backend. Es una herramienta de automatización visual (similar a Zapier o Make) pero open-source y autohosteada, lo que significa cero costos por ejecución.
+    </p>
+
+    <div class="option-card recommended">
+      <div class="rec-badge">⭐ Recomendado</div>
+      <div class="option-header">
+        <div class="option-title">n8n self-hosted</div>
+        <span class="badge green">Gratis</span>
+        <span class="option-subtitle">— en el mismo VPS, Docker compose</span>
+      </div>
+      <div class="option-body">
+        Corriendo en tu propio servidor: sin límites de workflows, sin costos por ejecución, datos en tu infraestructura. La combinación <strong>n8n + Evolution API</strong> es actualmente la más popular en la comunidad para automatizar WhatsApp en proyectos técnicos. Soporta memoria conversacional vía LangChain, Code Nodes con JavaScript para lógica custom, y conexión directa a PostgreSQL.
+      </div>
+      <div class="tag-row">
+        <span class="tag green">$0 en ejecuciones</span>
+        <span class="tag">Sin límite de workflows</span>
+        <span class="tag">Nodo Evolution API nativo</span>
+        <span class="tag">LangChain memory</span>
+        <span class="tag">Code nodes JS/Python</span>
+        <span class="tag">Nodo PostgreSQL directo</span>
+      </div>
+    </div>
+
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">n8n Cloud</div>
+        <span class="badge amber">Desde $20/mes</span>
+        <span class="option-subtitle">— sin gestionar infraestructura</span>
+      </div>
+      <div class="option-body">
+        Si no querés ocuparte del servidor. El plan Starter incluye 2,500 ejecuciones/mes — un chatbot activo puede consumir eso en pocos días (cada mensaje = 1 ejecución). El plan Business escala pero sube el costo. Viable si el cliente paga bien y no hay tiempo para DevOps.
+      </div>
+      <div class="tag-row">
+        <span class="tag amber">Desde $20/mes</span>
+        <span class="tag amber">Límite de 2,500 ejecuciones</span>
+        <span class="tag">Sin DevOps</span>
+        <span class="tag">Deploy instantáneo</span>
+      </div>
+    </div>
+
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">Make (Integromat)</div>
+        <span class="badge red">No recomendado</span>
+        <span class="option-subtitle">— cobra por operación, no por ejecución</span>
+      </div>
+      <div class="option-body">
+        Cobra por cada operación dentro del workflow. Una sola conversación puede consumir 10–20 operaciones (recibir mensaje, llamar IA, consultar DB, escribir DB, responder). Escala muy mal en precio para chatbots activos.
+      </div>
+      <div class="tag-row">
+        <span class="tag red">Caro a escala</span>
+        <span class="tag">Cobra por operación</span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- CAPA 3: IA -->
+  <section id="ia">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div class="section-title">Modelo de Inteligencia Artificial</div>
+    </div>
+    <p class="section-intro">
+      El modelo de IA hace dos cosas: parsea el lenguaje natural del usuario ("quiero la cancha 2 el viernes a las 8") para extraer fecha, hora y cancha, y genera respuestas naturales en español. Para un bot de reservas, no se necesita el modelo más potente — se necesita el más económico que entienda bien español.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Modelo</th>
+            <th>Input / 1M tokens</th>
+            <th>Output / 1M tokens</th>
+            <th>Costo mensual est.*</th>
+            <th>Veredicto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="rec-row">
+            <td>
+              <div class="model-name">Gemini 2.5 Flash ⭐</div>
+              <div class="model-sub">Google · Recomendado</div>
+            </td>
+            <td><span class="price">$0.30</span></td>
+            <td><span class="price">$1.00</span></td>
+            <td><span class="price-highlight">~$1–3 USD</span></td>
+            <td><span class="badge green">Ideal</span></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="model-name">Gemini 1.5 Flash</div>
+              <div class="model-sub">Google · Tier gratuito disponible</div>
+            </td>
+            <td><span class="price">Gratis*</span></td>
+            <td><span class="price">Gratis*</span></td>
+            <td><span class="price-highlight">$0 para MVP</span></td>
+            <td><span class="badge purple">Para MVP</span></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="model-name">GPT-4o mini</div>
+              <div class="model-sub">OpenAI</div>
+            </td>
+            <td><span class="price">$0.15</span></td>
+            <td><span class="price">$0.60</span></td>
+            <td><span class="price">~$1–2 USD</span></td>
+            <td><span class="badge blue">Buena opción</span></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="model-name">Claude Haiku 4.5</div>
+              <div class="model-sub">Anthropic</div>
+            </td>
+            <td><span class="price">$0.25</span></td>
+            <td><span class="price">$1.25</span></td>
+            <td><span class="price">~$1–3 USD</span></td>
+            <td><span class="badge blue">Buena opción</span></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="model-name">GPT-4o (full)</div>
+              <div class="model-sub">OpenAI · Sobre-calificado</div>
+            </td>
+            <td><span class="price">$5.00</span></td>
+            <td><span class="price">$15.00</span></td>
+            <td><span class="price" style="color: var(--red);">~$15–30 USD</span></td>
+            <td><span class="badge amber">Overkill</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size: 11px; color: var(--text3); margin-bottom: 10px;">* Estimado para 500 conversaciones/mes, ~2,000 tokens promedio por conversación. El tier gratuito de Gemini permite hasta 1,500 requests/día en Gemini 1.5 Flash.</p>
+
+    <div class="alert green">
+      <div class="alert-icon">✅</div>
+      <div><strong>Recomendación:</strong> Arrancar con <strong>Gemini 1.5 Flash gratis</strong> para el MVP y testeo con el cliente. Una vez en producción estable, migrar a <strong>Gemini 2.5 Flash</strong> para mejor razonamiento con fechas y contexto conversacional. Precio casi igual, capacidad notablemente mejor.</div>
+    </div>
+
+    <div class="alert amber" style="margin-top: 8px;">
+      <div class="alert-icon">📝</div>
+      <div><strong>Clave en el prompt del sistema:</strong> El prompt debe incluir las canchas disponibles, los horarios del complejo, las reglas de reserva (anticipación mínima, duración de turnos, política de cancelación) y ejemplos de cómo responder. Un buen system prompt reduce el costo de tokens y mejora la precisión del bot.</div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- CAPA 4: BACKEND -->
+  <section id="backend">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div class="section-title">Backend Node.js + Base de Datos</div>
+    </div>
+    <p class="section-intro">
+      El backend maneja la lógica de negocio que n8n no debería hacer directamente: verificar disponibilidad, prevenir doble reserva, gestionar cancelaciones y exponer datos al panel de administración.
+    </p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+      <div class="option-card" style="margin-bottom: 0;">
+        <div class="option-title" style="margin-bottom: 8px;">🔧 Servidor Node.js</div>
+        <div class="option-body">API REST en Express o Fastify con TypeScript. Expone endpoints para n8n (verificar disponibilidad, crear reserva) y para el panel de admin (CRUD completo, analíticas).</div>
+        <div class="tag-row" style="margin-top: 8px;">
+          <span class="tag">Express / Fastify</span>
+          <span class="tag">TypeScript</span>
+          <span class="tag">REST API</span>
+          <span class="tag">JWT auth para panel</span>
+        </div>
+      </div>
+      <div class="option-card" style="margin-bottom: 0;">
+        <div class="option-title" style="margin-bottom: 8px;">🗄️ Base de Datos</div>
+        <div class="option-body">PostgreSQL para persistencia de reservas y usuarios. Redis para la memoria conversacional del bot (contexto de cada sesión de WhatsApp activa).</div>
+        <div class="tag-row" style="margin-top: 8px;">
+          <span class="tag">PostgreSQL</span>
+          <span class="tag">Redis (sesiones bot)</span>
+          <span class="tag green">Supabase free tier OK</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert blue">
+      <div class="alert-icon">💡</div>
+      <div><strong>Simplificación para el MVP:</strong> n8n puede conectarse directamente a PostgreSQL sin pasar por el backend Node.js para los flujos simples de reserva. El backend custom solo es estrictamente necesario para el panel de admin y la lógica de conflictos compleja. Se puede construir en fases.</div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- CAPA 5: PANEL -->
+  <section id="panel">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div class="section-title">Panel de Administración Interno</div>
+    </div>
+    <p class="section-intro">
+      Interface web para el equipo del complejo. No es pública — solo acceden los administradores para gestionar turnos, ver analíticas y hacer override manual cuando sea necesario.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+      <div class="option-card" style="margin-bottom: 0;">
+        <div style="font-size: 24px; margin-bottom: 8px;">📅</div>
+        <div class="option-title" style="margin-bottom: 6px;">Vista Calendario</div>
+        <div class="option-body">Semana actual con turnos por cancha. Click en turno para ver datos del cliente y opciones de gestión. Color por estado: confirmado, cancelado, pendiente.</div>
+      </div>
+      <div class="option-card" style="margin-bottom: 0;">
+        <div style="font-size: 24px; margin-bottom: 8px;">📋</div>
+        <div class="option-title" style="margin-bottom: 6px;">Lista de Reservas</div>
+        <div class="option-body">Tabla con filtros por fecha, cancha y estado. Búsqueda por número de WhatsApp o nombre. Cancelación y reasignación manual de turnos.</div>
+      </div>
+      <div class="option-card" style="margin-bottom: 0;">
+        <div style="font-size: 24px; margin-bottom: 8px;">📊</div>
+        <div class="option-title" style="margin-bottom: 6px;">Analíticas</div>
+        <div class="option-body">Ocupación por día y hora (heatmap), ingresos estimados, tasa de cancelación, canchas más demandadas, horarios pico.</div>
+      </div>
+    </div>
+
+    <div class="option-card">
+      <div class="option-header">
+        <span class="badge blue">Stack sugerido</span>
+        <div class="option-title">React + TypeScript + Recharts</div>
+      </div>
+      <div class="option-body">Tu stack habitual. Para los charts de analíticas, Recharts es suficiente y simple. Para el calendario, FullCalendar tiene una versión gratuita que funciona bien. Deploy en Vercel o en el mismo VPS.</div>
+      <div class="tag-row">
+        <span class="tag">React + TypeScript</span>
+        <span class="tag">Recharts (gráficos)</span>
+        <span class="tag">FullCalendar (gratis)</span>
+        <span class="tag">Vercel deploy</span>
+        <span class="tag green">Shadcn/ui para components</span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ARQUITECTURA FINAL -->
+  <section id="arquitectura">
+    <div class="section-header">
+      <div class="section-title" style="font-size: 22px;">Arquitectura final recomendada</div>
+    </div>
+
+    <!-- Flow diagram -->
+    <div class="flow-diagram">
+      <div class="flow-steps">
+        <div class="flow-node">
+          <div class="flow-box" style="background: #e8f5ee; border-color: #a8d4b8;">
+            <div class="flow-box-icon">💬</div>
+            <div class="flow-box-name">Cliente</div>
+            <div class="flow-box-sub">WhatsApp</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-box" style="background: #e8f0fc; border-color: #a0bce8;">
+            <div class="flow-box-icon">🔗</div>
+            <div class="flow-box-name">Evolution API</div>
+            <div class="flow-box-sub">Webhook</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-box" style="background: #fef3db; border-color: #f0c050;">
+            <div class="flow-box-icon">⚡</div>
+            <div class="flow-box-name">n8n</div>
+            <div class="flow-box-sub">Orquestador</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-box" style="background: #f0ecfc; border-color: #c0a8e8;">
+            <div class="flow-box-icon">🤖</div>
+            <div class="flow-box-name">Gemini</div>
+            <div class="flow-box-sub">IA · parsing</div>
+          </div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node">
+          <div class="flow-box" style="background: #e8f5ee; border-color: #a8d4b8;">
+            <div class="flow-box-icon">🗄️</div>
+            <div class="flow-box-name">PostgreSQL</div>
+            <div class="flow-box-sub">Reservas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-container">
+      <div class="arch-flow">
+
+        <div class="arch-step">
+          <div class="arch-num green">1</div>
+          <div class="arch-content">
+            <div class="arch-name">Evolution API — Puerta de entrada WhatsApp</div>
+            <div class="arch-desc">Corre en Docker en el VPS. Mantiene la sesión de WhatsApp activa y reenvía cada mensaje entrante como webhook a n8n. También recibe instrucciones de n8n para enviar respuestas al usuario.</div>
+          </div>
+          <div class="arch-cost">$5–10 / mes VPS</div>
+        </div>
+
+        <div class="arch-step">
+          <div class="arch-num blue">2</div>
+          <div class="arch-content">
+            <div class="arch-name">n8n self-hosted — Orquestador del flujo completo</div>
+            <div class="arch-desc">Recibe el webhook, gestiona el contexto de la conversación (via Redis), llama a Gemini para parsear el mensaje, consulta disponibilidad en PostgreSQL, confirma la reserva y envía la respuesta de vuelta a WhatsApp. Toda la lógica de flujo vive aquí.</div>
+          </div>
+          <div class="arch-cost">$0 (mismo VPS)</div>
+        </div>
+
+        <div class="arch-step">
+          <div class="arch-num purple">3</div>
+          <div class="arch-content">
+            <div class="arch-name">Gemini 2.5 Flash — Comprensión de lenguaje natural</div>
+            <div class="arch-desc">Parsea frases libres como "quiero la cancha 2 el viernes a las 8 de la noche" y devuelve JSON estructurado con {cancha, fecha, hora, nombre}. También genera las respuestas conversacionales en español rioplatense según el contexto.</div>
+          </div>
+          <div class="arch-cost">$1–3 / mes</div>
+        </div>
+
+        <div class="arch-step">
+          <div class="arch-num amber">4</div>
+          <div class="arch-content">
+            <div class="arch-name">PostgreSQL + Redis — Persistencia y memoria</div>
+            <div class="arch-desc">PostgreSQL almacena todas las reservas, canchas y horarios disponibles. Redis guarda el estado de cada conversación activa (para que el bot recuerde lo que se dijo antes en la misma charla). Pueden correr en el mismo VPS o usar Supabase free tier para Postgres.</div>
+          </div>
+          <div class="arch-cost">$0 (mismo VPS)</div>
+        </div>
+
+        <div class="arch-step">
+          <div class="arch-num blue">5</div>
+          <div class="arch-content">
+            <div class="arch-name">Node.js API — Lógica de negocio y exposición al panel</div>
+            <div class="arch-desc">Valida conflictos de horario, gestiona cancelaciones, envía recordatorios automáticos 24hs antes de cada turno, y expone todos los endpoints REST que consume el panel de administración. Auth con JWT para el acceso del equipo.</div>
+          </div>
+          <div class="arch-cost">$0 (mismo VPS)</div>
+        </div>
+
+        <div class="arch-step">
+          <div class="arch-num green">6</div>
+          <div class="arch-content">
+            <div class="arch-name">Panel React — Gestión interna del complejo</div>
+            <div class="arch-desc">Dashboard web para el equipo administrador. Calendario semanal por cancha, listado de reservas con búsqueda y filtros, módulo de analíticas (ocupación, ingresos, horarios pico). Deploy en Vercel o el mismo VPS.</div>
+          </div>
+          <div class="arch-cost">$0 (Vercel free)</div>
+        </div>
+
+      </div>
+
+      <div class="cost-grid">
+        <div class="cost-item">
+          <div class="cost-label">Infraestructura</div>
+          <div class="cost-value">$19.400</div>
+          <div class="cost-sub">ARS/mes · promo 12 meses</div>
+        </div>
+        <div class="cost-item">
+          <div class="cost-label">IA (Gemini 1.5 Flash)</div>
+          <div class="cost-value">$0</div>
+          <div class="cost-sub">Tier gratuito cubre el volumen</div>
+        </div>
+        <div class="cost-item" style="background: var(--green-bg); border: 1px solid var(--green-border);">
+          <div class="cost-label" style="color: var(--green);">Total mensual</div>
+          <div class="cost-value" style="color: var(--green);">$19.400</div>
+          <div class="cost-sub" style="color: var(--green);">ARS · solo el VPS</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ESQUEMA DB -->
+  <section id="schema">
+    <div class="section-header">
+      <div class="section-title" style="font-size: 22px;">Esquema de base de datos</div>
+    </div>
+    <p class="section-intro">Estructura de tablas PostgreSQL para el sistema de reservas. Simple y suficiente para el alcance del proyecto.</p>
+
+    <div class="schema-grid">
+      <div class="schema-table">
+        <div class="schema-table-header"><span class="tbl-icon">🏟️</span> canchas</div>
+        <div class="schema-field"><span class="field-name">id</span><span class="field-pk">PK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">nombre</span><span class="field-type">varchar</span></div>
+        <div class="schema-field"><span class="field-name">tipo</span><span class="field-type">varchar</span></div>
+        <div class="schema-field"><span class="field-name">precio_hora</span><span class="field-type">numeric</span></div>
+        <div class="schema-field"><span class="field-name">activa</span><span class="field-type">boolean</span></div>
+      </div>
+
+      <div class="schema-table">
+        <div class="schema-table-header"><span class="tbl-icon">👤</span> clientes</div>
+        <div class="schema-field"><span class="field-name">id</span><span class="field-pk">PK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">nombre</span><span class="field-type">varchar</span></div>
+        <div class="schema-field"><span class="field-name">whatsapp</span><span class="field-type">varchar</span></div>
+        <div class="schema-field"><span class="field-name">primera_reserva</span><span class="field-type">timestamp</span></div>
+        <div class="schema-field"><span class="field-name">total_reservas</span><span class="field-type">integer</span></div>
+      </div>
+
+      <div class="schema-table">
+        <div class="schema-table-header"><span class="tbl-icon">📅</span> reservas</div>
+        <div class="schema-field"><span class="field-name">id</span><span class="field-pk">PK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">cancha_id</span><span class="field-fk">FK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">cliente_id</span><span class="field-fk">FK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">fecha_inicio</span><span class="field-type">timestamp</span></div>
+        <div class="schema-field"><span class="field-name">fecha_fin</span><span class="field-type">timestamp</span></div>
+        <div class="schema-field"><span class="field-name">estado</span><span class="field-type">enum</span></div>
+        <div class="schema-field"><span class="field-name">es_contacto</span><span class="field-type">boolean</span></div>
+        <div class="schema-field"><span class="field-name">monto</span><span class="field-type">numeric</span></div>
+        <div class="schema-field"><span class="field-name">monto_sena</span><span class="field-type">numeric</span></div>
+        <div class="schema-field"><span class="field-name">notas</span><span class="field-type">text</span></div>
+        <div class="schema-field"><span class="field-name">creado_en</span><span class="field-type">timestamp</span></div>
+      </div>
+
+      <div class="schema-table">
+        <div class="schema-table-header"><span class="tbl-icon">💸</span> pagos</div>
+        <div class="schema-field"><span class="field-name">id</span><span class="field-pk">PK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">reserva_id</span><span class="field-fk">FK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">monto_detectado</span><span class="field-type">numeric</span></div>
+        <div class="schema-field"><span class="field-name">comprobante_url</span><span class="field-type">varchar</span></div>
+        <div class="schema-field"><span class="field-name">verificado_por</span><span class="field-type">enum</span></div>
+        <div class="schema-field"><span class="field-name">aprobado_por</span><span class="field-type">varchar</span></div>
+        <div class="schema-field"><span class="field-name">estado</span><span class="field-type">enum</span></div>
+        <div class="schema-field"><span class="field-name">creado_en</span><span class="field-type">timestamp</span></div>
+      </div>
+        <div class="schema-field"><span class="field-name">id</span><span class="field-pk">PK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">cancha_id</span><span class="field-fk">FK</span><span class="field-type">uuid</span></div>
+        <div class="schema-field"><span class="field-name">dia_semana</span><span class="field-type">integer</span></div>
+        <div class="schema-field"><span class="field-name">hora_inicio</span><span class="field-type">time</span></div>
+        <div class="schema-field"><span class="field-name">hora_fin</span><span class="field-type">time</span></div>
+        <div class="schema-field"><span class="field-name">activo</span><span class="field-type">boolean</span></div>
+      </div>
+    </div>
+
+    <div class="alert blue">
+      <div class="alert-icon">📝</div>
+      <div>El campo <strong>estado</strong> en reservas: <code style="background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: 'DM Mono', monospace; font-size: 12px;">pendiente | esperando_sena | sena_pagada | confirmada | cancelada | completada</code>. En la tabla <strong>pagos</strong>, <code style="background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: 'DM Mono', monospace; font-size: 12px;">verificado_por</code> puede ser <code style="background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: 'DM Mono', monospace; font-size: 12px;">ia | humano</code> y <code style="background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: 'DM Mono', monospace; font-size: 12px;">estado</code> puede ser <code style="background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: 'DM Mono', monospace; font-size: 12px;">pendiente | aprobado | rechazado</code>.</div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- FLUJO DE SEÑA -->
+  <section id="sena">
+    <div class="section-header">
+      <div class="section-title" style="font-size: 22px;">Flujo de cobro de seña</div>
+    </div>
+    <p class="section-intro">
+      Una vez confirmado que el slot está disponible, el sistema bifurca según si el usuario está guardado como contacto en la agenda del número del negocio (Evolution API). Los contactos conocidos reservan directo; los desconocidos deben pagar una seña cuyo comprobante es verificado automáticamente por Gemini.
+    </p>
+
+    <!-- Bifurcación principal -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+      <div class="option-card" style="border-left: 3px solid var(--green); margin-bottom: 0;">
+        <div class="option-header">
+          <span class="badge green">Contacto registrado</span>
+        </div>
+        <div class="option-body">El número del usuario <strong>está en la agenda</strong> de WhatsApp del negocio. El sistema lo trata como cliente de confianza: confirma el turno directamente sin pedir seña y le envía el resumen de la reserva.</div>
+        <div class="tag-row" style="margin-top: 8px;">
+          <span class="tag green">Sin seña</span>
+          <span class="tag">Confirmación inmediata</span>
+          <span class="tag">Evolution API contacts</span>
+        </div>
+      </div>
+      <div class="option-card" style="border-left: 3px solid var(--amber); margin-bottom: 0;">
+        <div class="option-header">
+          <span class="badge amber">Desconocido</span>
+        </div>
+        <div class="option-body">El número <strong>no está en la agenda</strong>. El bot envía el CBU/alias con el monto de seña y un tiempo límite (30 minutos). La reserva queda en estado <code style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--surface2); padding: 1px 5px; border-radius: 3px;">esperando_sena</code> hasta recibir el comprobante.</div>
+        <div class="tag-row" style="margin-top: 8px;">
+          <span class="tag amber">Seña requerida</span>
+          <span class="tag">Timeout 30 min</span>
+          <span class="tag">Estado Redis con TTL</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Verificación del comprobante -->
+    <div class="option-card recommended" style="margin-bottom: 12px;">
+      <div class="rec-badge">🤖 IA</div>
+      <div class="option-header">
+        <div class="option-title">Verificación automática con Gemini Vision</div>
+      </div>
+      <div class="option-body" style="margin-bottom: 10px;">
+        Cuando el cliente envía el comprobante (imagen o PDF), n8n lo pasa a Gemini con este prompt de sistema. Gemini devuelve JSON estructurado que n8n compara contra los valores esperados en DB:
+      </div>
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); line-height: 1.7; margin-bottom: 10px;">
+        Analizá este comprobante de transferencia bancaria argentina.<br>
+        Extraé y respondé SOLO en JSON con estos campos:<br>
+        { "monto": number, "cbu_destino": string, "alias_destino": string,<br>
+        &nbsp;&nbsp;"fecha": string, "es_comprobante_valido": boolean }<br>
+        Si no podés leer algún campo, usá null.
+      </div>
+      <div class="tag-row">
+        <span class="tag">Soporta imagen (JPG/PNG)</span>
+        <span class="tag">Soporta PDF</span>
+        <span class="tag">Respuesta en JSON</span>
+        <span class="tag green">Aprobación automática si coincide</span>
+      </div>
+    </div>
+
+    <!-- Escalado a humano -->
+    <div class="option-card" style="border-left: 3px solid var(--purple); margin-bottom: 12px;">
+      <div class="option-header">
+        <span class="badge purple">Escalado a humano</span>
+        <div class="option-title" style="margin-left: 4px;">Cuando Gemini no puede verificar</div>
+      </div>
+      <div class="option-body">
+        Si el monto no coincide, el CBU es diferente, o el archivo no es legible: n8n notifica al equipo en un grupo de WhatsApp del negocio adjuntando el comprobante, el nombre del cliente y un link directo al panel para aprobar o rechazar. El endpoint es <code style="font-family: 'DM Mono', monospace; font-size: 12px; background: var(--surface2); padding: 1px 5px; border-radius: 3px;">PATCH /reservas/:id/aprobar-sena</code>.
+      </div>
+      <div class="tag-row" style="margin-top: 8px;">
+        <span class="tag purple">Notificación al grupo WA del equipo</span>
+        <span class="tag">Link al panel</span>
+        <span class="tag">Aprobación con un click</span>
+      </div>
+    </div>
+
+    <!-- Diagrama SVG del flujo -->
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 12px; overflow-x: auto;">
+      <svg width="100%" viewBox="0 0 660 700" role="img" style="display: block;">
+        <title>Flujo de cobro de seña</title>
+        <desc>Diagrama del flujo de seña: contacto conocido pasa directo, desconocido paga CBU, Gemini verifica comprobante, si falla escala al admin</desc>
+        <defs>
+          <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <!-- 1. Slot disponible -->
+        <rect x="180" y="20" width="300" height="44" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+        <text x="330" y="37" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#085041">Slot disponible</text>
+        <text x="330" y="53" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">Cancha, fecha y hora confirmados</text>
+        <line x1="330" y1="64" x2="330" y2="100" stroke="#0F6E56" stroke-width="1" marker-end="url(#arr2)"/>
+
+        <!-- 2. ¿En la agenda? -->
+        <rect x="180" y="100" width="300" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+        <text x="330" y="117" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#0C447C">¿Está en la agenda?</text>
+        <text x="330" y="133" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#185FA5">Evolution API — contactos</text>
+
+        <!-- SÍ → izquierda -->
+        <line x1="180" y1="122" x2="100" y2="122" stroke="#5F5E5A" stroke-width="1" marker-end="url(#arr2)"/>
+        <text x="138" y="114" text-anchor="middle" font-size="12" fill="#5F5E5A">sí</text>
+        <rect x="20" y="100" width="80" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+        <text x="60" y="117" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#2C2C2A">Contacto</text>
+        <text x="60" y="133" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#5F5E5A">conocido</text>
+        <!-- conocido baja a confirmar -->
+        <path d="M 60 144 L 60 648 L 180 648" fill="none" stroke="#3B6D11" stroke-width="1" marker-end="url(#arr2)"/>
+        <text x="35" y="430" text-anchor="middle" font-size="11" fill="#3B6D11">sin seña</text>
+
+        <!-- NO → baja -->
+        <line x1="330" y1="144" x2="330" y2="180" stroke="#5F5E5A" stroke-width="1" marker-end="url(#arr2)"/>
+        <text x="346" y="164" font-size="12" fill="#5F5E5A">no</text>
+
+        <!-- 3. Envía CBU/alias -->
+        <rect x="180" y="180" width="300" height="44" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+        <text x="330" y="197" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#633806">Envía CBU / alias</text>
+        <text x="330" y="213" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#854F0B">Monto de seña + vencimiento 30 min</text>
+        <line x1="330" y1="224" x2="330" y2="260" stroke="#854F0B" stroke-width="1" marker-end="url(#arr2)"/>
+
+        <!-- 4. Espera comprobante -->
+        <rect x="180" y="260" width="300" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+        <text x="330" y="277" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#2C2C2A">Espera comprobante</text>
+        <text x="330" y="293" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#5F5E5A">Imagen o PDF — Redis TTL 30 min</text>
+
+        <!-- timeout → derecha -->
+        <line x1="480" y1="282" x2="548" y2="282" stroke="#5F5E5A" stroke-width="1" marker-end="url(#arr2)"/>
+        <text x="513" y="274" text-anchor="middle" font-size="11" fill="#5F5E5A">timeout</text>
+        <rect x="548" y="260" width="92" height="44" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+        <text x="594" y="277" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#712B13">Cancela</text>
+        <text x="594" y="293" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#993C1D">reserva</text>
+
+        <line x1="330" y1="304" x2="330" y2="340" stroke="#5F5E5A" stroke-width="1" marker-end="url(#arr2)"/>
+
+        <!-- 5. Gemini analiza -->
+        <rect x="155" y="340" width="350" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+        <text x="330" y="357" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#3C3489">Gemini analiza comprobante</text>
+        <text x="330" y="373" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#534AB7">Lee imagen/PDF — extrae monto y CBU</text>
+        <line x1="330" y1="384" x2="330" y2="420" stroke="#7F77DD" stroke-width="1" marker-end="url(#arr2)"/>
+
+        <!-- 6. ¿Válido? -->
+        <rect x="180" y="420" width="300" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+        <text x="330" y="437" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#2C2C2A">¿Comprobante válido?</text>
+        <text x="330" y="453" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#5F5E5A">Monto correcto + CBU coincide</text>
+
+        <!-- NO → escala humano derecha -->
+        <line x1="480" y1="442" x2="548" y2="442" stroke="#5F5E5A" stroke-width="1" marker-end="url(#arr2)"/>
+        <text x="513" y="434" text-anchor="middle" font-size="11" fill="#5F5E5A">no válido</text>
+        <rect x="548" y="420" width="92" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+        <text x="594" y="437" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#3C3489">Escala</text>
+        <text x="594" y="453" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#534AB7">a admin</text>
+        <!-- admin aprueba / rechaza -->
+        <line x1="594" y1="464" x2="594" y2="508" stroke="#534AB7" stroke-width="1" marker-end="url(#arr2)"/>
+        <rect x="548" y="508" width="92" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+        <text x="594" y="525" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="#2C2C2A">Admin</text>
+        <text x="594" y="541" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#5F5E5A">aprueba / rechaza</text>
+        <!-- admin aprueba → confirmar -->
+        <path d="M 548 530 L 490 530 L 490 610 L 480 610" fill="none" stroke="#5F5E5A" stroke-width="1" marker-end="url(#arr2)"/>
+
+        <!-- SÍ → baja -->
+        <line x1="330" y1="464" x2="330" y2="500" stroke="#5F5E5A" stroke-width="1" marker-end="url(#arr2)"/>
+        <text x="346" y="484" font-size="12" fill="#5F5E5A">válido</text>
+
+        <!-- 7. Registra pago -->
+        <rect x="180" y="500" width="300" height="44" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+        <text x="330" y="517" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#0C447C">Registra pago en DB</text>
+        <text x="330" y="533" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#185FA5">estado: sena_pagada</text>
+        <line x1="330" y1="544" x2="330" y2="580" stroke="#185FA5" stroke-width="1" marker-end="url(#arr2)"/>
+
+        <!-- 8. Turno confirmado -->
+        <rect x="180" y="580" width="300" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+        <text x="330" y="602" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="500" fill="#085041">Turno confirmado</text>
+        <text x="330" y="620" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">Mensaje con resumen + recordatorio 24hs</text>
+      </svg>
+    </div>
+
+    <!-- Detalles técnicos -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <div class="alert amber" style="margin-top: 0;">
+        <div class="alert-icon">⏱️</div>
+        <div><strong>Timeout en Redis:</strong> Al enviar el CBU, n8n guarda en Redis la clave <code style="font-family: 'DM Mono', monospace; font-size: 11px; background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px;">sena:{numero_wa}</code> con TTL de 1,800 segundos. Cada mensaje nuevo del usuario se chequea contra esta clave. Si expiró, el bot informa que el tiempo venció y sugiere reiniciar.</div>
+      </div>
+      <div class="alert purple" style="margin-top: 0; background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border);">
+        <div class="alert-icon">🔔</div>
+        <div><strong>Notificación al equipo:</strong> n8n manda al grupo interno de WhatsApp el comprobante adjunto + nombre + número + monto detectado + link al panel. El admin aprueba desde <code style="font-family: 'DM Mono', monospace; font-size: 11px; background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px;">PATCH /reservas/:id/aprobar-sena</code> y el bot confirma automáticamente al cliente.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ROADMAP -->
+  <section id="roadmap">
+    <div class="section-header">
+      <div class="section-title" style="font-size: 22px;">Roadmap de desarrollo</div>
+    </div>
+    <p class="section-intro">División en fases para entregar valor rápido al cliente mientras se construye el sistema completo.</p>
+
+    <div class="roadmap">
+
+      <div class="phase">
+        <div class="phase-header">
+          <div class="phase-num" style="background: var(--green-bg); color: var(--green);">1</div>
+          <div class="phase-title">MVP — Bot básico de reservas</div>
+          <div class="phase-time">1–2 semanas</div>
+        </div>
+        <div class="phase-body">
+          <p>El cliente puede hacer y confirmar reservas por WhatsApp. Sin panel aún. Objetivo: validar que el flujo funciona en producción y que el cliente está conforme con la experiencia.</p>
+          <div class="phase-tasks">
+            <div class="task"><div class="task-dot"></div>Setup VPS + Docker + Evolution API + n8n</div>
+            <div class="task"><div class="task-dot"></div>Flujo n8n básico: recibir mensaje → llamar Gemini → devolver respuesta</div>
+            <div class="task"><div class="task-dot"></div>PostgreSQL con tablas base (canchas, reservas, clientes)</div>
+            <div class="task"><div class="task-dot"></div>Lógica de disponibilidad: consultar si el horario está libre antes de confirmar</div>
+            <div class="task"><div class="task-dot"></div>Respuesta de confirmación con resumen de la reserva</div>
+            <div class="task"><div class="task-dot"></div>Manejo de casos edge: horario no disponible, formato de fecha incorrecto</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <div class="phase-num" style="background: var(--blue-bg); color: var(--blue);">2</div>
+          <div class="phase-title">Producción — Backend robusto y memoria</div>
+          <div class="phase-time">2–3 semanas</div>
+        </div>
+        <div class="phase-body">
+          <p>Reforzar el sistema para uso real del negocio. Agregar Redis para memoria conversacional, lógica de cancelaciones y recordatorios automáticos.</p>
+          <div class="phase-tasks">
+            <div class="task"><div class="task-dot"></div>Redis para memoria de sesión (el bot recuerda el contexto de cada charla)</div>
+            <div class="task"><div class="task-dot"></div>Node.js backend con lógica de conflictos (prevenir doble reserva concurrente)</div>
+            <div class="task"><div class="task-dot"></div>Flujo de seña: chequeo de agenda Evolution API, envío de CBU/alias, timeout Redis de 30 min</div>
+            <div class="task"><div class="task-dot"></div>Verificación de comprobante con Gemini Vision (imagen y PDF)</div>
+            <div class="task"><div class="task-dot"></div>Escalado a humano con notificación al grupo WA del equipo y endpoint de aprobación manual</div>
+            <div class="task"><div class="task-dot"></div>Flujo de cancelación: el cliente puede cancelar desde WhatsApp</div>
+            <div class="task"><div class="task-dot"></div>Recordatorios automáticos 24hs antes del turno</div>
+            <div class="task"><div class="task-dot"></div>Delay simulado en respuestas (1–3 seg) para comportamiento más natural</div>
+            <div class="task"><div class="task-dot"></div>Logs de conversación y manejo de errores</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <div class="phase-num" style="background: var(--purple-bg); color: var(--purple);">3</div>
+          <div class="phase-title">Panel — Dashboard de administración</div>
+          <div class="phase-time">2–3 semanas</div>
+        </div>
+        <div class="phase-body">
+          <p>Interface web para el equipo del complejo. React + TypeScript con calendario visual, gestión de reservas y analíticas de negocio.</p>
+          <div class="phase-tasks">
+            <div class="task"><div class="task-dot"></div>Calendario semanal con slots por cancha (FullCalendar)</div>
+            <div class="task"><div class="task-dot"></div>Listado de reservas con filtros por fecha, cancha y estado</div>
+            <div class="task"><div class="task-dot"></div>Cancelación y reasignación manual de turnos</div>
+            <div class="task"><div class="task-dot"></div>Módulo de analíticas: ocupación por hora, canchas más demandadas, ingresos</div>
+            <div class="task"><div class="task-dot"></div>Auth básico con JWT para el equipo admin</div>
+            <div class="task"><div class="task-dot"></div>Deploy en Vercel</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="alert green" style="margin-top: 12px;">
+      <div class="alert-icon">🚀</div>
+      <div><strong>Tiempo total estimado: 5–8 semanas</strong> para el producto completo. El cliente puede estar usando el bot en producción desde la semana 2, mientras se construyen las funciones avanzadas en paralelo.</div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- COSTOS FINALES -->
+  <section id="costos">
+    <div class="section-header">
+      <div class="section-title" style="font-size: 22px;">Resumen de costos</div>
+    </div>
+
+    <!-- VPS -->
+    <p style="font-size: 13px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px;">Infraestructura — VPS</p>
+    <div class="option-card recommended" style="margin-bottom: 20px;">
+      <div class="rec-badge">💰 Promo activa</div>
+      <div class="option-header">
+        <div class="option-title">VPS — Promoción 12 meses</div>
+        <span class="badge green">Confirmado</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+        <div class="cost-item">
+          <div class="cost-label">Total 12 meses</div>
+          <div class="cost-value" style="font-size: 22px;">$232.800</div>
+          <div class="cost-sub">pesos argentinos</div>
+        </div>
+        <div class="cost-item">
+          <div class="cost-label">Costo mensual</div>
+          <div class="cost-value" style="font-size: 22px;">$19.400</div>
+          <div class="cost-sub">ARS/mes promedio</div>
+        </div>
+        <div class="cost-item" style="background: var(--green-bg); border: 1px solid var(--green-border);">
+          <div class="cost-label" style="color: var(--green);">Incluye todo</div>
+          <div class="cost-value" style="font-size: 16px; color: var(--green);">Evolution API + n8n + Node.js + PostgreSQL + Redis</div>
+        </div>
+      </div>
+      <div class="alert green" style="margin-top: 0;">
+        <div class="alert-icon">✅</div>
+        <div>Todo el stack corre en este único servidor. No hay costos adicionales de infraestructura. El precio está fijo por 12 meses.</div>
+      </div>
+    </div>
+
+    <!-- Gemini -->
+    <p style="font-size: 13px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px;">Modelo de IA — Gemini 1.5 Flash</p>
+    <div class="option-card" style="margin-bottom: 20px;">
+      <div class="option-header">
+        <div class="option-title">Gemini 1.5 Flash</div>
+        <span class="badge green">Nivel gratuito disponible</span>
+        <span class="badge purple">Recomendado para MVP</span>
+      </div>
+      <div class="option-body" style="margin-bottom: 12px;">
+        Google ofrece un tier gratuito generoso para desarrolladores. Para el volumen de un complejo deportivo mediano el costo de IA es prácticamente cero durante los primeros meses de operación.
+      </div>
+      <div class="table-wrap" style="margin-bottom: 0;">
+        <table>
+          <thead>
+            <tr>
+              <th>Concepto</th>
+              <th>Precio</th>
+              <th>Aplicación en este proyecto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background: var(--green-bg);">
+              <td><strong style="color: var(--green);">Tier gratuito</strong></td>
+              <td><span class="price-highlight">$0</span></td>
+              <td style="color: var(--green);">Límites generosos para desarrollo y operación inicial</td>
+            </tr>
+            <tr>
+              <td>Tokens de entrada</td>
+              <td><span class="price" style="font-family: 'DM Mono', monospace;">$0,075 / 1M tokens</span></td>
+              <td>Mensajes entrantes del usuario + contexto de sesión</td>
+            </tr>
+            <tr>
+              <td>Tokens de salida</td>
+              <td><span class="price" style="font-family: 'DM Mono', monospace;">$0,30 / 1M tokens</span></td>
+              <td>Respuestas generadas al cliente</td>
+            </tr>
+            <tr>
+              <td>Caché de contexto</td>
+              <td><span class="price" style="font-family: 'DM Mono', monospace;">$0,005 / 1M tokens/hora</span></td>
+              <td>System prompt cacheado — ahorra hasta 90% en llamadas repetidas</td>
+            </tr>
+            <tr>
+              <td colspan="3" style="font-size: 12px; color: var(--text3); padding: 8px 14px;">
+                Para contextos mayores a 128K tokens el precio de entrada sube a $0,15/1M tokens. Las conversaciones de reservas de cancha están muy por debajo de ese umbral.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert blue" style="margin-top: 10px;">
+        <div class="alert-icon">🧮</div>
+        <div><strong>Estimación real para este proyecto:</strong> Una conversación de reserva completa (5–8 mensajes) consume aproximadamente 1,500–2,500 tokens. Para 500 conversaciones/mes serían ~1.25M tokens de entrada y ~0.5M de salida. Costo estimado: <strong>menos de $0,30 USD/mes</strong> fuera del tier gratuito.</div>
+      </div>
+    </div>
+
+    <!-- Tabla resumen total -->
+    <p style="font-size: 13px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px;">Resumen total del proyecto</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Componente</th>
+            <th>Servicio</th>
+            <th>Costo mensual</th>
+            <th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>VPS</strong></td>
+            <td>Promoción 12 meses</td>
+            <td><span class="price-highlight">$19.400 ARS</span></td>
+            <td>Todo el stack incluido · $232.800 ARS contado anual</td>
+          </tr>
+          <tr>
+            <td><strong>IA (Gemini 1.5 Flash)</strong></td>
+            <td>Google AI Studio</td>
+            <td><span class="price-highlight">$0</span></td>
+            <td>Tier gratuito cubre el volumen inicial. Si escala: ~$0,30 USD/mes</td>
+          </tr>
+          <tr>
+            <td><strong>Panel frontend</strong></td>
+            <td>Vercel free tier</td>
+            <td><span class="price-highlight">$0</span></td>
+            <td>O deployado en el mismo VPS</td>
+          </tr>
+          <tr>
+            <td><strong>WhatsApp</strong></td>
+            <td>Evolution API (open source)</td>
+            <td><span class="price-highlight">$0</span></td>
+            <td>Incluido en el VPS</td>
+          </tr>
+          <tr>
+            <td><strong>n8n</strong></td>
+            <td>Self-hosted (open source)</td>
+            <td><span class="price-highlight">$0</span></td>
+            <td>Incluido en el VPS · sin límite de ejecuciones</td>
+          </tr>
+          <tr style="background: var(--green-bg);">
+            <td colspan="2"><strong style="color: var(--green);">TOTAL</strong></td>
+            <td><span class="price-highlight">$19.400 ARS/mes</span></td>
+            <td style="color: var(--green);">Equivale solo al VPS. Todo lo demás es gratuito.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert amber" style="margin-top: 10px;">
+      <div class="alert-icon">📌</div>
+      <div><strong>Si se elige la ruta oficial de Meta</strong> (API WhatsApp Business), sumar ~$0.03–0.06 USD por conversación. Para 500 conversaciones/mes serían ~$15–30 USD adicionales. Puede trasladarse al cliente como parte del costo del servicio.</div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); text-align: center; color: var(--text3); font-size: 12px;">
+    Documento estratégico — Automatización WhatsApp Complejo Deportivo · Junio 2026
+  </div>
+
+</main>
+
+<script>
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const navLinks = document.querySelectorAll('.sidenav a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === '#' + entry.target.id) {
+            link.classList.add('active');
+          }
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

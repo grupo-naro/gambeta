@@ -1,0 +1,30 @@
+name: Deploy backend (self-hosted)
+
+# Despliegue tipo Vercel para la VM/VPS: en cada push a main, el runner self-hosted
+# (instalado en la VM) actualiza el código y reconstruye el contenedor del backend.
+# El runner se conecta SALIENTE a GitHub, así que no hace falta IP pública ni puertos abiertos.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest & redeploy
+        run: |
+          set -euo pipefail
+          DIR="${{ vars.DEPLOY_DIR || '/opt/canchitas/canchitas-backend' }}"
+          echo "Desplegando en: $DIR"
+          cd "$DIR"
+          git fetch --all --prune
+          git reset --hard origin/main
+          docker compose -f docker-compose.vm.yml up -d --build
+          docker image prune -f
+          echo "Deploy OK ($(git rev-parse --short HEAD))"

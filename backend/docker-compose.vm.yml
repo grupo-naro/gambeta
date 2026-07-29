@@ -1,0 +1,51 @@
+# Deploy del backend en la VM, REUSANDO el Postgres existente y la red canchitas-network.
+# (El docker-compose.yml normal levanta su propio Postgres; este NO.)
+# Variables (PG_USER, PG_PASSWORD, JWT_SECRET, ...) se leen del archivo .env en este mismo dir.
+services:
+  backend:
+    build: .
+    image: canchitas-backend:latest
+    container_name: canchitas-backend
+    environment:
+      # Apunta al Postgres existente de la VM, base "canchitas" (crearla antes — ver DEPLOY-VM.md)
+      DATABASE_URL: "postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/canchitas?schema=public"
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_EXPIRES_IN: "365d"
+      SERVICE_API_KEY: "${SERVICE_API_KEY}"
+      TZ_NEGOCIO: "America/Argentina/Buenos_Aires"
+      CANCELACION_ANTICIPACION_MINUTOS: "10"
+      REPROGRAMACION_ANTICIPACION_HORAS: "2"
+      SENA_TIMEOUT_MINUTOS: "30"
+      # Datos de seña: el bot los envía al cliente (alias/cbu/titular + monto) en ESPERANDO_SENA.
+      # Si no se declaran acá, NO entran al contenedor aunque estén en el .env → salen vacíos.
+      SENA_MODO: "${SENA_MODO:-porcentaje}"
+      SENA_PORCENTAJE: "${SENA_PORCENTAJE:-50}"
+      SENA_MONTO_FIJO: "${SENA_MONTO_FIJO:-5000}"
+      SENA_CBU: "${SENA_CBU}"
+      SENA_ALIAS: "${SENA_ALIAS}"
+      SENA_TITULAR: "${SENA_TITULAR}"
+      ADMIN_SEED_EMAIL: "${ADMIN_SEED_EMAIL}"
+      ADMIN_SEED_PASSWORD: "${ADMIN_SEED_PASSWORD}"
+      # Google Sheets (espejo). Valores reales en el .env de la VM (gitignored).
+      # Si faltan, la sync queda en no-op (no rompe).
+      GOOGLE_SERVICE_ACCOUNT: "${GOOGLE_SERVICE_ACCOUNT}"
+      SHEETS_SPREADSHEET_ID: "${SHEETS_SPREADSHEET_ID}"
+      # Buffet (mostrador): valida la x-buffet-key que manda /mostrador. MISMO valor que en Vercel.
+      # Si falta acá, el mostrador da 401 ("código incorrecto") aunque el PIN esté bien seteado.
+      BUFFET_API_KEY: "${BUFFET_API_KEY}"
+      # Evolution (WhatsApp): aviso automático al cliente cuando el admin aprueba la seña.
+      # Mismos valores que usa el bot en n8n. Si faltan, el aviso no se manda pero nada más rompe.
+      EVOLUTION_URL: "${EVOLUTION_URL:-http://evolution:8080}"
+      EVOLUTION_API_KEY: "${EVOLUTION_API_KEY}"
+      EVOLUTION_INSTANCE: "${EVOLUTION_INSTANCE}"
+      PORT: "3000"
+    networks:
+      - canchitas-network
+    ports:
+      - "3001:3000" # opcional: acceso desde el host para debug (http://192.168.1.76:3001/health)
+    restart: unless-stopped
+
+# n8n llega al backend por el nombre de servicio interno: http://backend:3000
+networks:
+  canchitas-network:
+    external: true

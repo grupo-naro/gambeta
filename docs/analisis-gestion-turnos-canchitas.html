@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Canchitas Ortigoza — Digitalización de la gestión de turnos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green: #2e7d4f;
+    --green-dark: #245f3d;
+    --green-soft: #e8f3ec;
+    --ink: #1c2620;
+    --muted: #5d6b63;
+    --line: #e4e9e5;
+    --bg: #f6f8f6;
+    --amber: #b8860b;
+    --amber-soft: #fbf3df;
+    --red: #b4453a;
+    --red-soft: #fbeae8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Poppins', system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    background: linear-gradient(135deg, var(--green-dark), var(--green));
+    color: #fff;
+    padding: 56px 0 48px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+  .logo {
+    width: 46px; height: 46px; border-radius: 13px;
+    background: rgba(255,255,255,.15);
+    display: grid; place-items: center;
+    border: 1px solid rgba(255,255,255,.25);
+  }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: .2px; }
+  .brand-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 2.5px; opacity: .8; }
+  header h1 { font-size: 33px; font-weight: 700; letter-spacing: -.5px; max-width: 680px; line-height: 1.2; }
+  header .lead { margin-top: 14px; font-size: 16px; opacity: .92; font-weight: 400; max-width: 640px; }
+  header .meta { margin-top: 26px; font-size: 13px; opacity: .8; }
+
+  /* Sections */
+  section { padding: 44px 0; border-bottom: 1px solid var(--line); }
+  .eyebrow { color: var(--green); font-weight: 700; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  h2 { font-size: 24px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 6px; }
+  h2 + .sub { color: var(--muted); margin-bottom: 22px; font-size: 15px; }
+  p { color: #38453d; }
+
+  /* Executive summary box */
+  .summary {
+    background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--green);
+    border-radius: 14px; padding: 26px 28px; box-shadow: 0 1px 2px rgba(0,0,0,.03);
+  }
+  .summary p { font-size: 17px; color: var(--ink); }
+  .summary strong { color: var(--green-dark); }
+
+  /* Bullets */
+  ul.clean { list-style: none; display: grid; gap: 12px; margin-top: 8px; }
+  ul.clean li { position: relative; padding-left: 26px; color: #38453d; }
+  ul.clean li::before {
+    content: ""; position: absolute; left: 0; top: 9px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--green);
+  }
+
+  /* Risk cards */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 6px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  .card .tag {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .3px;
+    padding: 3px 10px; border-radius: 999px; margin-bottom: 12px;
+    background: var(--red-soft); color: var(--red);
+  }
+  .card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .card p { font-size: 14px; color: var(--muted); }
+
+  /* Comparison table */
+  .compare { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 8px; font-size: 14.5px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .compare th { text-align: left; padding: 14px 18px; font-weight: 600; font-size: 13px; }
+  .compare thead th:nth-child(2) { background: #f1f3f1; color: var(--muted); }
+  .compare thead th:nth-child(3) { background: var(--green-soft); color: var(--green-dark); }
+  .compare thead th:first-child { background: #fff; }
+  .compare td { padding: 14px 18px; border-top: 1px solid var(--line); vertical-align: top; }
+  .compare td:first-child { font-weight: 600; width: 26%; }
+  .compare td:nth-child(2) { color: var(--muted); width: 37%; }
+  .compare td:nth-child(3) { color: #2c4636; background: #fbfdfb; }
+  .compare tbody tr:nth-child(even) td { background: #fafbfa; }
+  .compare tbody tr:nth-child(even) td:nth-child(3) { background: #f4faf6; }
+
+  /* Decisions */
+  .decision { background: var(--amber-soft); border: 1px solid #f0e2bd; border-radius: 14px; padding: 22px 24px; margin-bottom: 14px; }
+  .decision.q { display: flex; gap: 16px; align-items: flex-start; }
+  .qnum {
+    flex: 0 0 auto; width: 30px; height: 30px; border-radius: 9px; background: var(--amber); color: #fff;
+    font-weight: 700; display: grid; place-items: center; font-size: 14px; margin-top: 2px;
+  }
+  .decision h3 { font-size: 15.5px; font-weight: 600; margin-bottom: 3px; }
+  .decision p { font-size: 14px; color: #6b5a2e; }
+
+  /* Roadmap */
+  .roadmap { display: grid; gap: 14px; margin-top: 6px; }
+  .phase { display: flex; gap: 18px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+  .phase .dot {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 700; font-size: 13px; color: #fff;
+  }
+  .phase.done .dot { background: var(--green); }
+  .phase.now .dot { background: var(--amber); }
+  .phase.next .dot { background: #9aa6a0; }
+  .phase h3 { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+  .phase .state { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+  .phase.done .state { color: var(--green); }
+  .phase.now .state { color: var(--amber); }
+  .phase.next .state { color: #9aa6a0; }
+  .phase p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+  footer { padding: 36px 0 60px; color: var(--muted); font-size: 13px; }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+  @media (max-width: 640px) {
+    .cards { grid-template-columns: 1fr; }
+    header h1 { font-size: 26px; }
+    .compare { font-size: 13px; }
+    .compare td:first-child { width: auto; }
+  }
+  @media print {
+    body { background: #fff; }
+    section, .phase, .card, .summary, .decision, .compare { break-inside: avoid; }
+    header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <span class="logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.3H9.2L7.5 10.3 12 7Z"/>
+          <path d="M12 2v5M9.2 21l1.6-4.8M14.8 21l-1.6-4.8M3.6 9.5l4.4 1.1M20.4 9.5 16 10.6"/>
+        </svg>
+      </span>
+      <div>
+        <div class="brand-name">Canchitas Ortigoza</div>
+        <div class="brand-sub">Reservas &middot; Gestión</div>
+      </div>
+    </div>
+    <h1>Digitalización de la gestión de turnos</h1>
+    <p class="lead">Cómo se administra hoy la agenda, qué riesgos tiene el método actual y qué resuelve el nuevo sistema de reservas por WhatsApp y panel de administración.</p>
+    <div class="meta">Documento de análisis &middot; Junio 2026</div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="summary">
+      <p>Hoy la agenda del complejo vive en una <strong>planilla de Excel</strong> que funciona, pero depende de la memoria y del "ojo" de quien anota. El nuevo sistema —un <strong>bot de WhatsApp</strong> que atiende a los clientes y un <strong>panel de administración</strong> para ustedes— toma las reservas solo, <strong>evita los errores de doble reserva</strong>, y deja los <strong>pagos y la caja ordenados y consultables en cualquier momento</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Punto de partida</div>
+    <h2>Cómo se gestiona hoy</h2>
+    <p class="sub">Resumen de lo que vimos en la planilla actual.</p>
+    <ul class="clean">
+      <li>Una <strong>grilla por cada día</strong> de la semana, de <strong>9:00 a 23:00</strong>, en turnos de 1 hora.</li>
+      <li><strong>Canchas 1, 2 y 3</strong>, más la <strong>Cancha 4</strong>, que se puede alquilar entera o dividida en hasta 3 espacios más chicos.</li>
+      <li>En cada turno se anota el <strong>nombre del cliente</strong> y el <strong>monto</strong>; los habitués (turnos fijos) se marcan con una convención propia.</li>
+      <li>El <strong>estado del pago</strong> (seña, pagado, pendiente) se distingue con <strong>colores</strong> y notas sueltas como "mp" (Mercado Pago).</li>
+      <li>Los <strong>totales del día</strong> se suman a mano al pie de cada hoja.</li>
+      <li>Los <strong>torneos y ligas</strong> se llevan en hojas aparte, con sus inscripciones y premios.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Lo que conviene mejorar</div>
+    <h2>Los riesgos del método actual</h2>
+    <p class="sub">No son fallas de quien gestiona: son límites propios de una planilla manual.</p>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">Riesgo de doble reserva</span>
+        <h3>La Cancha 4, entera vs. dividida</h3>
+        <p>Nada impide reservar "la Cancha 4 completa" y, a la vez, una de sus partes. Hoy se evita recordándolo a mano.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Falta de trazabilidad</span>
+        <h3>Los pagos viven en colores</h3>
+        <p>Cuánto se pagó, cómo y cuánto falta depende del color de la celda y de notas sueltas. Difícil de auditar o reconstruir.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Depende de la memoria</span>
+        <h3>Los turnos fijos</h3>
+        <p>Que un horario "es de un habitué" lo sabe quien atiende. Si no está, se puede ofrecer un turno que en realidad está tomado.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Cálculo manual</span>
+        <h3>La caja del día</h3>
+        <p>Los totales se suman a mano, hoja por hoja. Propenso a error y sin reportes por período, cancha o medio de pago.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">La solución</div>
+    <h2>Qué cambia con el sistema nuevo</h2>
+    <p class="sub">Cada riesgo de arriba pasa a estar resuelto automáticamente.</p>
+    <table class="compare">
+      <thead>
+        <tr><th>Tema</th><th>Hoy (Excel)</th><th>Con el sistema</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Tomar reservas</td>
+          <td>El cliente llama o escribe y alguien anota a mano.</td>
+          <td>El bot de WhatsApp atiende solo, 24 hs, y confirma el turno.</td>
+        </tr>
+        <tr>
+          <td>Doble reserva</td>
+          <td>Se evita a ojo; puede pasar con la Cancha 4.</td>
+          <td>El sistema bloquea automáticamente cualquier horario que se pise, incluida la Cancha 4 entera y sus partes.</td>
+        </tr>
+        <tr>
+          <td>Turnos fijos</td>
+          <td>Se recuerdan; no siempre visibles.</td>
+          <td>Se cargan una vez y el bot nunca ofrece esos horarios.</td>
+        </tr>
+        <tr>
+          <td>Seña y pagos</td>
+          <td>Color + nota suelta ("mp", montos parciales).</td>
+          <td>Cada pago queda registrado: monto, medio (efectivo / Mercado Pago / transferencia) y saldo pendiente.</td>
+        </tr>
+        <tr>
+          <td>Caja y reportes</td>
+          <td>Suma manual al pie de cada hoja.</td>
+          <td>Totales automáticos por día, cancha y medio de pago, en el panel.</td>
+        </tr>
+        <tr>
+          <td>Bloqueos (torneo / entrenamiento)</td>
+          <td>Se anota en la celda.</td>
+          <td>Se marca el horario como no disponible sin mezclarlo con las reservas de clientes.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Una duda frecuente</div>
+    <h2>¿Y el Excel que ya usamos?</h2>
+    <p class="sub">Lo pueden seguir teniendo —en el formato de siempre— para organizarse.</p>
+    <div class="summary">
+      <p>El sistema <strong>genera el Excel automáticamente</strong>, siempre actualizado con las reservas reales. Lo siguen viendo, imprimiendo y archivando como hoy, pero con una diferencia clave: <strong>ya no se carga a mano</strong> y <strong>no se edita</strong> — es una foto de solo lectura. Las reservas se toman en el sistema (un único lugar confiable) y el Excel siempre lo refleja.</p>
+    </div>
+    <div style="margin-top:18px; display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; font-size:14px;">
+      <span style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-weight:600;">Sistema<br><small style="font-weight:400;color:var(--muted);">donde se reserva</small></span>
+      <span style="color:var(--green);font-weight:700;font-size:20px;">&rarr;</span>
+      <span style="background:var(--green-soft);border:1px solid #cfe6d7;border-radius:10px;padding:10px 16px;font-weight:600;color:var(--green-dark);">Excel actualizado<br><small style="font-weight:400;">solo lectura, para organizarse</small></span>
+    </div>
+    <p style="margin-top:16px;font-size:13.5px;color:var(--muted);text-align:center;">Lo único que evitamos es cargar las reservas en los dos lados a la vez: ahí es donde se desincronizan y aparecen los errores.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Necesitamos su definición</div>
+    <h2>Decisiones para cerrar el sistema</h2>
+    <p class="sub">Son preguntas de negocio: con sus respuestas dejamos el sistema fiel a cómo trabajan.</p>
+
+    <div class="decision q"><div class="qnum">1</div><div>
+      <h3>La Cancha 4</h3>
+      <p>¿Se alquila entera y también dividida? ¿En 2 o en 3 espacios? ¿Tienen precios distintos? Esto define cómo evitamos los choques de reservas.</p>
+    </div></div>
+    <div class="decision q"><div class="qnum">2</div><div>
+      <h3>Horario de atención</h3>
+      <p>La planilla figura de 9:00 a 23:00. ¿Es ese el horario real, todos los días? (El bot debe ofrecer exactamente esa franja.)</p>
+    </div></div>
+    <div class="decision q"><div class="qnum">3</div><div>
+      <h3>Precios</h3>
+      <p>¿El valor de la hora cambia según el horario (hora pico), el día o la duración? ¿O es un precio único por cancha?</p>
+    </div></div>
+    <div class="decision q"><div class="qnum">4</div><div>
+      <h3>Turnos fijos / habitués</h3>
+      <p>¿Cómo se cobran (por mes, por turno)? ¿Pagan seña? ¿El bot directamente nunca ofrece esos horarios?</p>
+    </div></div>
+    <div class="decision q"><div class="qnum">5</div><div>
+      <h3>Seña</h3>
+      <p>¿Qué monto o porcentaje por cancha? ¿Aceptan efectivo como seña o solo Mercado Pago / transferencia? ¿El saldo siempre se abona en el complejo?</p>
+    </div></div>
+    <div class="decision q"><div class="qnum">6</div><div>
+      <h3>Entrenamientos</h3>
+      <p>¿Se cobran? ¿Son horarios fijos que se repiten todas las semanas?</p>
+    </div></div>
+    <div class="decision q"><div class="qnum">7</div><div>
+      <h3>Torneos y ligas</h3>
+      <p>¿Quieren incluir la gestión de torneos (categorías, fechas, inscripciones, premios) en esta etapa, o la dejamos para una fase posterior?</p>
+    </div></div>
+    <div class="decision q"><div class="qnum">8</div><div>
+      <h3>Cancelaciones</h3>
+      <p>¿Se devuelve la seña? ¿Con cuánta anticipación se puede cancelar un turno?</p>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Plan de trabajo</div>
+    <h2>Cómo seguimos</h2>
+    <p class="sub">Avanzamos por etapas, entregando valor en cada una.</p>
+    <div class="roadmap">
+      <div class="phase done">
+        <span class="dot">✓</span>
+        <div>
+          <div class="state">Listo</div>
+          <h3>Base del sistema</h3>
+          <p>Bot de WhatsApp tomando reservas, con seña y comprobante, recordatorios automáticos, y panel de administración con tablero, gestión de reservas y de canchas.</p>
+        </div>
+      </div>
+      <div class="phase now">
+        <span class="dot">2</span>
+        <div>
+          <div class="state">En definición</div>
+          <h3>Cancha 4 divisible · turnos fijos · bloqueos</h3>
+          <p>Modelar la Cancha 4 (entera y dividida) sin riesgo de doble reserva, cargar los turnos fijos y los bloqueos por torneo/entrenamiento. Requiere sus respuestas de la sección anterior.</p>
+        </div>
+      </div>
+      <div class="phase next">
+        <span class="dot">3</span>
+        <div>
+          <div class="state">Próximo</div>
+          <h3>Pagos y caja completos</h3>
+          <p>Registro de pagos parciales por medio (efectivo / MP / transferencia), saldo pendiente y reportes de caja por día, cancha y medio.</p>
+        </div>
+      </div>
+      <div class="phase next">
+        <span class="dot">4</span>
+        <div>
+          <div class="state">Posterior</div>
+          <h3>Módulo de torneos</h3>
+          <p>Categorías, fechas, equipos, inscripciones, costos (cancha y árbitro) y premios. Es un módulo independiente del alquiler por hora.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Canchitas Ortigoza — Sistema de reservas</span>
+    <span>Documento de análisis · Junio 2026</span>
+  </div>
+</footer>
+
+</body>
+</html>

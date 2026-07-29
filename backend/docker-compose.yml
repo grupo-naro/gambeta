@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: canchitas
+      POSTGRES_PASSWORD: canchitas
+      POSTGRES_DB: canchitas
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U canchitas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://canchitas:canchitas@postgres:5432/canchitas?schema=public
+      JWT_SECRET: change-me-32-chars-minimum-secret-xx
+      JWT_EXPIRES_IN: 365d
+      SERVICE_API_KEY: change-me-service-key
+      TZ_NEGOCIO: America/Argentina/Buenos_Aires
+      CANCELACION_ANTICIPACION_MINUTOS: "10"
+      SENA_TIMEOUT_MINUTOS: "30"
+      ADMIN_SEED_EMAIL: admin@canchitas.com
+      ADMIN_SEED_PASSWORD: change-me-admin
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

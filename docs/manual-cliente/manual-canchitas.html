@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<title>Manual de uso — Canchitas Ortigoza</title>
+<style>
+  :root{
+    --verde:#15803d; --verde-claro:#dcfce7; --verde-borde:#86efac;
+    --tinta:#1f2937; --gris:#6b7280; --gris-claro:#f3f4f6; --linea:#e5e7eb;
+    --ambar:#fef3c7; --ambar-borde:#fcd34d; --azul:#dbeafe; --azul-borde:#93c5fd;
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body{
+    font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--tinta); line-height:1.55; font-size:11.5pt; margin:0;
+  }
+  h1,h2,h3{ line-height:1.2; color:#111827; }
+  h2{ font-size:20pt; border-bottom:3px solid var(--verde); padding-bottom:6px; margin:0 0 14px; }
+  h3{ font-size:14pt; color:var(--verde); margin:22px 0 6px; }
+  h4{ font-size:12pt; margin:16px 0 4px; }
+  p{ margin:0 0 9px; }
+  ul,ol{ margin:0 0 10px; padding-left:22px; }
+  li{ margin:3px 0; }
+  code{ background:var(--gris-claro); padding:1px 5px; border-radius:4px; font-size:10pt; }
+  .pag{ padding:26mm 20mm; }
+  .salto{ page-break-before:always; }
+  .evitar-corte{ page-break-inside:avoid; }
+
+  /* Portada */
+  .portada{
+    height:247mm; display:flex; flex-direction:column; justify-content:center;
+    align-items:center; text-align:center; background:var(--verde); color:white;
+    border-radius:0; padding:20mm;
+  }
+  .portada .logo{ width:96px;height:96px;border-radius:24px;background:rgba(255,255,255,.15);
+    display:flex;align-items:center;justify-content:center;margin-bottom:24px;border:2px solid rgba(255,255,255,.5); }
+  .portada h1{ color:white;font-size:34pt;margin:0 0 8px;letter-spacing:-.5px; }
+  .portada .sub{ font-size:15pt;opacity:.9;margin-bottom:36px; }
+  .portada .meta{ font-size:11pt;opacity:.85;border-top:1px solid rgba(255,255,255,.4);padding-top:16px; }
+
+  /* Cajas de aviso */
+  .caja{ border-radius:10px; padding:12px 16px; margin:12px 0; border:1px solid; page-break-inside:avoid; }
+  .tip{ background:var(--verde-claro); border-color:var(--verde-borde); }
+  .imp{ background:var(--ambar); border-color:var(--ambar-borde); }
+  .info{ background:var(--azul); border-color:var(--azul-borde); }
+  .caja .et{ font-weight:700; display:block; margin-bottom:3px; }
+
+  /* Hueco para captura */
+  .captura{
+    border:2px dashed #9ca3af; background:repeating-linear-gradient(45deg,#fafafa,#fafafa 10px,#f3f4f6 10px,#f3f4f6 20px);
+    border-radius:10px; padding:26px 16px; text-align:center; color:var(--gris);
+    font-size:10pt; margin:12px 0; page-break-inside:avoid;
+  }
+  .captura b{ color:#4b5563; }
+
+  /* Capturas reales */
+  figure{ margin:14px 0; text-align:center; page-break-inside:avoid; }
+  figure img{ max-width:100%; max-height:135mm; border:1px solid var(--linea); border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  figure.diagrama img{ max-height:120mm; }
+  figcaption{ font-size:9.5pt; color:var(--gris); margin-top:5px; }
+
+  /* Pasos */
+  ol.pasos{ counter-reset:p; list-style:none; padding-left:0; }
+  ol.pasos>li{ counter-increment:p; position:relative; padding:6px 0 6px 38px; border-bottom:1px solid var(--linea); }
+  ol.pasos>li:before{ content:counter(p); position:absolute; left:0; top:6px; width:26px;height:26px;
+    background:var(--verde); color:white; border-radius:50%; display:flex;align-items:center;justify-content:center;
+    font-weight:700; font-size:11pt; }
+
+  table{ border-collapse:collapse; width:100%; margin:10px 0; font-size:10.5pt; }
+  th,td{ border:1px solid var(--linea); padding:7px 10px; text-align:left; vertical-align:top; }
+  th{ background:var(--verde-claro); }
+
+  /* Índice */
+  .toc{ list-style:none; padding-left:0; font-size:12pt; }
+  .toc>li{ padding:7px 0; border-bottom:1px solid var(--linea); }
+  .toc .n{ display:inline-block; width:34px; color:var(--verde); font-weight:700; }
+  .toc .sub{ font-size:10.5pt; color:var(--gris); padding-left:34px; }
+
+  .chip{ display:inline-block; padding:1px 9px; border-radius:999px; font-size:9.5pt; font-weight:600; }
+  .chip-verde{ background:var(--verde-claro); color:#166534; border:1px solid var(--verde-borde); }
+  .chip-ambar{ background:var(--ambar); color:#92400e; border:1px solid var(--ambar-borde); }
+  .chip-gris{ background:var(--gris-claro); color:#374151; border:1px solid var(--linea); }
+  .dialogo{ background:#f9fafb; border-left:4px solid var(--verde); border-radius:0 8px 8px 0; padding:10px 14px; margin:10px 0; font-size:10.5pt; }
+  .dialogo .cli{ color:#1d4ed8; } .dialogo .bot{ color:#166534; }
+  .footernote{ color:var(--gris); font-size:9.5pt; margin-top:6px; }
+  @page{ size:A4; margin:0; }
+</style>
+</head>
+<body>
+
+<!-- ===================== PORTADA ===================== -->
+<section class="portada">
+  <div class="logo">
+    <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><path d="m12 7 4.5 3.3-1.7 5.3H9.2L7.5 10.3 12 7Z"/>
+      <path d="M12 2v5M9.2 21l1.6-4.8M14.8 21l-1.6-4.8M3.6 9.5l4.4 1.1M20.4 9.5 16 10.6"/>
+    </svg>
+  </div>
+  <h1>Canchitas Ortigoza</h1>
+  <div class="sub">Manual de uso del sistema</div>
+  <div class="meta">
+    Guía para el dueño y los administradores del complejo<br>
+    Reservas por WhatsApp · Panel de administración · Servidor
+  </div>
+</section>
+
+<!-- ===================== ÍNDICE ===================== -->
+<section class="pag salto">
+  <h2>Índice</h2>
+  <ul class="toc">
+    <li><span class="n">1.</span> ¿Qué es este sistema? <div class="sub">Las tres partes explicadas en criollo</div></li>
+    <li><span class="n">2.</span> El bot de WhatsApp <div class="sub">Qué hace con los clientes, ejemplos y la seña</div></li>
+    <li><span class="n">3.</span> El panel de administración <div class="sub">Cómo entrar, los roles y un mapa de las secciones</div></li>
+    <li><span class="n">4.</span> Cómo usar el panel, día a día <div class="sub">Cobrar, reservar, turnos fijos, bloqueos, caja y más</div></li>
+    <li><span class="n">5.</span> El servidor (el "cerebro") <div class="sub">Dónde vive la información y por qué importa</div></li>
+    <li><span class="n">6.</span> Si algo no anda <div class="sub">Problemas comunes y a quién recurrir</div></li>
+    <li><span class="n">7.</span> Glosario <div class="sub">Las palabras clave, en simple</div></li>
+  </ul>
+  <div class="caja info">
+    <span class="et">Cómo leer este manual</span>
+    Si sos <b>recepción</b>, lo más importante para tu día a día es el <b>capítulo 4</b> (sobre todo "Vista Hoy" y "Cobrar un turno"). Si sos <b>el dueño</b>, te conviene leerlo entero para tener el panorama completo.
+  </div>
+</section>
+
+<!-- ===================== 1. QUÉ ES ===================== -->
+<section class="pag salto">
+  <h2>1. ¿Qué es este sistema?</h2>
+  <p>Es un sistema que <b>automatiza la gestión de turnos del complejo</b>. Antes todo se anotaba a mano (en un Excel) y había que responder cada mensaje de WhatsApp. Ahora hay tres piezas que trabajan juntas:</p>
+
+  <h3>1) El bot de WhatsApp 🤖</h3>
+  <p>Es un asistente automático que atiende a los clientes por WhatsApp <b>las 24 horas</b>. Reserva turnos, cobra la seña, cancela, reprograma y responde preguntas. Si no puede resolver algo, avisa a una persona. Funciona en un <b>número de WhatsApp dedicado del complejo</b> (no el personal del dueño).</p>
+
+  <h3>2) El panel de administración 🖥️</h3>
+  <p>Es la página web donde ustedes (dueño y recepción) <b>ven y manejan todo</b>: la agenda del día, los cobros, las reservas, los turnos fijos, los precios, etc. Es lo que reemplaza al Excel.</p>
+
+  <h3>3) El servidor 🗄️</h3>
+  <p>Es la computadora del complejo donde <b>vive toda la información</b> (reservas, clientes, pagos) y donde están las reglas del negocio (que no se superpongan dos turnos, los precios, la seña). El bot y el panel le piden y le guardan datos a este servidor.</p>
+
+  <div class="caja tip">
+    <span class="et">La idea en una frase</span>
+    El <b>cliente</b> habla con el <b>bot</b>, el bot guarda todo en el <b>servidor</b>, y ustedes ven y controlan todo desde el <b>panel</b>. Las tres partes miran la misma información, siempre actualizada.
+  </div>
+
+  <figure class="diagrama"><img src="image/diagramaSistema.jpg" alt="Diagrama del sistema: Cliente, Bot, Servidor y Panel"><figcaption>Cómo se conectan las partes: el cliente habla con el bot, el bot guarda en el servidor, y el panel lee y gestiona desde ahí.</figcaption></figure>
+</section>
+
+<!-- ===================== 2. EL BOT ===================== -->
+<section class="pag salto">
+  <h2>2. El bot de WhatsApp</h2>
+  <p>El cliente le escribe al número del complejo como si hablara con una persona. El bot entiende lenguaje natural (incluso audios) y resuelve solo la mayoría de los casos.</p>
+
+  <h3>Qué sabe hacer</h3>
+  <table>
+    <tr><th>El cliente quiere…</th><th>Qué hace el bot</th></tr>
+    <tr><td>Reservar un turno</td><td>Pregunta para cuántos jugadores (cancha de 5, 7, 9 u 11), el día y la hora; muestra los horarios libres y las canchas disponibles, y confirma la reserva.</td></tr>
+    <tr><td>Saber el precio</td><td>Responde el precio por hora de cada cancha.</td></tr>
+    <tr><td>Pagar la seña</td><td>Le pasa el alias/CBU, recibe la <b>foto del comprobante</b> y la verifica automáticamente para confirmar el turno.</td></tr>
+    <tr><td>Cancelar</td><td>Cancela el turno (si está dentro del plazo permitido).</td></tr>
+    <tr><td>Reprogramar</td><td>Mueve el turno a otro día/hora, o le cambia la cancha.</td></tr>
+    <tr><td>Ver sus turnos</td><td>Le lista sus reservas <b>y sus turnos fijos</b> (los que tiene todas las semanas).</td></tr>
+    <tr><td>Hablar con una persona</td><td>Avisa al encargado y se hace a un lado para no interferir.</td></tr>
+    <tr><td>Preguntar ubicación, pagos, servicios</td><td>Responde con los datos del complejo (mapa, formas de pago, buffet, etc.).</td></tr>
+  </table>
+
+  <h3>Un ejemplo de reserva</h3>
+  <div class="dialogo">
+    <span class="cli">Cliente:</span> Hola, quiero una cancha de 5 para mañana<br>
+    <span class="bot">Bot:</span> ¡Dale! ¿Para qué hora la buscás?<br>
+    <span class="cli">Cliente:</span> a las 20<br>
+    <span class="bot">Bot:</span> Para mañana a las 20:00 tengo libre la Cancha 3. ¿Te la reservo?<br>
+    <span class="cli">Cliente:</span> sí<br>
+    <span class="bot">Bot:</span> Listo. Para confirmar, transferí la seña de $X al alias <i>dynex3d</i> y mandame la foto del comprobante.
+  </div>
+
+  <h3>La seña: por qué y cómo</h3>
+  <p>Para evitar turnos que después no se usan, el bot pide una <b>seña por transferencia</b>. El cliente manda la foto del comprobante y el bot la lee y verifica el monto y el destino automáticamente. Si todo coincide, el turno queda <span class="chip chip-verde">Confirmado</span>; si no, queda pendiente y avisa a un encargado para que lo revise.</p>
+  <div class="caja info">
+    <span class="et">Clientes de confianza</span>
+    A los clientes que ya cumplieron varias veces, el sistema puede confirmarles el turno <b>sin pedir seña</b>. Esto se maneja solo, a medida que el cliente usa el complejo.
+  </div>
+
+  <h3>Cuando interviene una persona ("derivar a un humano")</h3>
+  <p>Si el cliente pide hablar con alguien, o el bot no entiende un caso especial, el bot le manda un aviso al encargado por <b>WhatsApp Business</b> con el nombre, el número y el mensaje del cliente. A partir de ahí <b>el bot se queda callado en ese chat</b> por un rato, para que la persona pueda responder sin que el bot interfiera. La conversación sigue en el mismo chat de siempre.</p>
+  <div class="caja imp">
+    <span class="et">Importante</span>
+    Respondele al cliente desde el <b>WhatsApp Business del complejo</b> (el del número del bot), no desde tu WhatsApp personal.
+  </div>
+  <figure><img src="image/avisoEncargado.jpeg" alt="Aviso al encargado"><figcaption>El aviso que le llega al encargado cuando un cliente pide ayuda.</figcaption></figure>
+</section>
+
+<!-- ===================== 3. EL PANEL ===================== -->
+<section class="pag salto">
+  <h2>3. El panel de administración</h2>
+
+  <h3>Cómo entrar</h3>
+  <ol class="pasos">
+    <li>Abrí la dirección del panel en el navegador (Chrome, Edge, etc.). <span class="footernote">Te la pasa el soporte técnico; conviene guardarla en favoritos.</span></li>
+    <li>Ingresá tu <b>correo</b> y <b>contraseña</b>.</li>
+    <li>Listo: entrás directo a la <b>Vista "Hoy"</b>, que es la pantalla del día.</li>
+  </ol>
+  <figure><img src="image/inicioSesion.jpg" alt="Pantalla de inicio de sesión"><figcaption>Pantalla de inicio de sesión.</figcaption></figure>
+
+  <h3>Dos tipos de usuario (roles)</h3>
+  <table>
+    <tr><th>Rol</th><th>Qué ve y puede hacer</th></tr>
+    <tr><td><b>Administrador</b><br>(dueño)</td><td>Ve <b>todo</b>: además de la operación, puede tocar canchas, precios, configuración, usuarios y los reportes.</td></tr>
+    <tr><td><b>Recepcionista</b></td><td>Ve lo necesario para el <b>día a día</b>: Hoy, Reservas, Calendario, Caja, Clientes y Turnos fijos. No toca configuración ni precios.</td></tr>
+  </table>
+
+  <h3>Mapa del menú</h3>
+  <p>El menú está agrupado en tres bloques para que sea fácil de encontrar:</p>
+  <table>
+    <tr><th>Bloque</th><th>Secciones</th><th>Para qué</th></tr>
+    <tr><td><b>Operación</b></td><td>Hoy · Reservas · Calendario · Caja · Clientes</td><td>El día a día del mostrador.</td></tr>
+    <tr><td><b>Programación</b></td><td>Canchas · Turnos fijos · Bloqueos</td><td>Cómo está armada la grilla de turnos.</td></tr>
+    <tr><td><b>Administración</b></td><td>Dashboard · Configuración · Usuarios · Actividad</td><td>Gestión y control (solo administrador).</td></tr>
+  </table>
+  <figure><img src="image/menuLateral.jpg" alt="Menú lateral con los tres bloques"><figcaption>El menú lateral, agrupado en Operación, Programación y Administración.</figcaption></figure>
+  <p class="footernote">En el celular, el menú se abre con el botón ☰ (arriba a la izquierda).</p>
+</section>
+
+<!-- ===================== 4. CÓMO USAR ===================== -->
+<section class="pag salto">
+  <h2>4. Cómo usar el panel, día a día</h2>
+
+  <h3>Vista "Hoy" — la pantalla más importante</h3>
+  <p>Es la pantalla de recepción. Muestra <b>todos los turnos del día</b> (reservas, turnos fijos y bloqueos) ordenados por hora, cada uno con la cancha en un <b>color distinto</b> (el mismo del calendario) y un cartelito de pago:</p>
+  <p>
+    <span class="chip chip-verde">Pagado</span>
+    <span class="chip chip-ambar">Debe $X</span>
+    <span class="chip chip-gris">Espera seña</span>
+  </p>
+  <ul>
+    <li>Podés <b>filtrar por cancha</b> tocando los chips de arriba (Todas · Cancha 1 · Cancha 2…).</li>
+    <li>Tocá un turno para abrir sus acciones (cobrar, ver datos, etc.).</li>
+  </ul>
+  <figure><img src="image/vistaHoy.jpg" alt="Vista Hoy"><figcaption>Vista "Hoy" con la lista de turnos y los chips de color.</figcaption></figure>
+
+  <h3>Cobrar un turno (lo más usado)</h3>
+  <ol class="pasos">
+    <li>En <b>Hoy</b>, tocá el turno del cliente.</li>
+    <li>Se abre una hoja con los datos. Tocá <b>Cobrar</b>.</li>
+    <li>Elegí el medio de pago (<b>efectivo</b> o <b>transferencia</b>) y el monto.</li>
+    <li>Confirmá. El cartelito del turno pasa a <span class="chip chip-verde">Pagado</span>.</li>
+  </ol>
+  <div class="caja tip">
+    <span class="et">¿Te equivocaste?</span>
+    Podés <b>anular un cobro</b> desde el mismo turno. El sistema te pide confirmación antes de hacerlo.
+  </div>
+
+  <h3>Crear una reserva a mano</h3>
+  <p>Sirve cuando alguien reserva en persona o por teléfono.</p>
+  <ol class="pasos">
+    <li>Andá a <b>Reservas</b> (o desde el <b>Calendario</b>, tocando un hueco libre).</li>
+    <li>Elegí cancha, día, hora y cargá el nombre y WhatsApp del cliente.</li>
+    <li>Guardá. El turno aparece al instante en Hoy y en el Calendario.</li>
+  </ol>
+
+  <h3>Turnos fijos</h3>
+  <p>Un <b>turno fijo</b> es el cliente que viene <b>todas las semanas</b> el mismo día y hora (por ejemplo, "los sábados a las 20:00"). Se cargan en la sección <b>Turnos fijos</b>.</p>
+  <div class="caja imp">
+    <span class="et">Importante: cargá el WhatsApp</span>
+    Al crear un turno fijo, <b>siempre poné el número de WhatsApp del cliente</b>. Así el bot lo reconoce y, cuando el cliente pregunta "¿qué turnos tengo?", le muestra también su turno fijo.
+  </div>
+  <p>Si un cliente fijo no va a venir una semana puntual, se puede <b>liberar esa fecha</b> (el cliente incluso puede hacerlo solo, escribiéndole al bot). El turno fijo sigue vigente para las demás semanas.</p>
+  <figure><img src="image/altaTurnoFijo.jpg" alt="Alta de un turno fijo"><figcaption>Alta de un turno fijo (acordate de cargar el WhatsApp del cliente).</figcaption></figure>
+
+  <h3>Bloqueos</h3>
+  <p>Un <b>bloqueo</b> cierra una cancha en un horario para que <b>nadie pueda reservarla</b>: por un torneo, mantenimiento, un entrenamiento, etc. Se cargan en <b>Bloqueos</b> y pueden ser para una fecha puntual o repetirse todas las semanas.</p>
+
+  <h3>Calendario</h3>
+  <p>Muestra la <b>semana completa</b> con todas las canchas y turnos, cada cancha en su color. Sirve para ver de un vistazo cómo viene la semana y encontrar huecos.</p>
+  <figure><img src="image/vistaCalendario.jpg" alt="Vista semanal del Calendario"><figcaption>Vista semanal del Calendario, cada cancha en su color.</figcaption></figure>
+
+  <h3>Caja</h3>
+  <p>Reúne los <b>movimientos de plata</b> (los cobros). Sirve para hacer el cierre y ver cuánto entró por efectivo y por transferencia.</p>
+
+  <h3>Clientes</h3>
+  <p>El listado de clientes con sus datos y su historial. Acá se ve quién es <b>cliente de confianza</b> (al que el bot no le pide seña).</p>
+
+  <h3>Secciones solo para el administrador</h3>
+  <table>
+    <tr><th>Sección</th><th>Para qué sirve</th></tr>
+    <tr><td><b>Canchas</b></td><td>Alta/edición de las canchas: nombre, tamaño (5/7/9/11) y precio por hora.</td></tr>
+    <tr><td><b>Configuración</b></td><td>Datos de la seña (<b>alias, CBU, titular</b>, monto/porcentaje), horarios de apertura y cierre, y el número de WhatsApp del encargado para los avisos.</td></tr>
+    <tr><td><b>Usuarios</b></td><td>Dar de alta a los recepcionistas (con su correo y contraseña) y darlos de baja.</td></tr>
+    <tr><td><b>Dashboard</b></td><td>Resumen con métricas: ocupación, ingresos, etc.</td></tr>
+    <tr><td><b>Actividad</b></td><td>Registro de "quién hizo qué" (auditoría): útil para controlar el equipo.</td></tr>
+  </table>
+  <div class="caja imp">
+    <span class="et">Ojo con la Configuración</span>
+    Los datos de la seña (alias/CBU) son los que el bot le pasa a los clientes. Si cambiás de cuenta, <b>actualizalos acá</b> para que el bot mande los datos correctos.
+  </div>
+</section>
+
+<!-- ===================== 5. EL SERVIDOR ===================== -->
+<section class="pag salto">
+  <h2>5. El servidor (el "cerebro")</h2>
+  <p>No hace falta que toquen nada del servidor en el día a día, pero conviene saber qué es, para entender el sistema y para hablar con el soporte si algo pasa.</p>
+
+  <h3>Qué es y qué hace</h3>
+  <ul>
+    <li>Es una <b>computadora del complejo</b> (con Ubuntu) que está siempre encendida.</li>
+    <li>Ahí <b>vive toda la información</b>: reservas, clientes, pagos, turnos fijos, precios.</li>
+    <li>Aplica las <b>reglas del negocio</b>: que dos turnos no se pisen, calcular precios y seña, los plazos para cancelar o reprogramar.</li>
+    <li>Es el <b>punto de encuentro</b>: tanto el bot como el panel le piden y le guardan datos. Por eso todos ven la misma información actualizada.</li>
+  </ul>
+
+  <div class="caja info">
+    <span class="et">¿Por qué un servidor propio?</span>
+    Tener el servidor en el complejo da <b>control y privacidad</b> de los datos, y no depende de pagar un servicio mensual por afuera. La contra: si se corta la luz o internet, hay que esperar a que vuelva (ver el capítulo 6).
+  </div>
+
+  <h3>Qué conviene tener en cuenta</h3>
+  <ul>
+    <li><b>Que no se apague:</b> el sistema funciona mientras el servidor esté encendido y con internet. Conviene tenerlo enchufado a una zapatilla con protección (idealmente un pequeño UPS).</li>
+    <li><b>Respaldos:</b> es muy recomendable hacer copias de seguridad de la información cada tanto. Coordinalo con el soporte técnico.</li>
+    <li><b>Actualizaciones:</b> cuando se agregan mejoras, el soporte las publica y el servidor se actualiza solo (o con un comando). Ustedes no tienen que hacer nada.</li>
+  </ul>
+</section>
+
+<!-- ===================== 6. SI ALGO NO ANDA ===================== -->
+<section class="pag salto">
+  <h2>6. Si algo no anda</h2>
+  <table>
+    <tr><th>Síntoma</th><th>Qué revisar / hacer</th></tr>
+    <tr><td>El bot no responde a los clientes</td><td>1) Verificar que el servidor esté encendido y con internet. 2) Verificar que el número de WhatsApp del bot esté conectado. 3) Si sigue, avisar al soporte técnico.</td></tr>
+    <tr><td>El panel no abre o da error</td><td>Probar refrescar la página (F5). Si no, verificar internet. Si sigue, avisar al soporte.</td></tr>
+    <tr><td>Un cliente dice que pagó la seña pero el turno no se confirmó</td><td>El bot avisa al encargado cuando no puede verificar un comprobante. Revisá el turno en el panel y confirmá/cobrá a mano si corresponde.</td></tr>
+    <tr><td>El bot quedó "callado" con un cliente</td><td>Es porque alguien pidió hablar con una persona. Respondé desde el WhatsApp Business. El bot vuelve a tomar la conversación solo después de un rato.</td></tr>
+    <tr><td>Se cortó la luz</td><td>Cuando vuelve, el sistema se reinicia solo. El bot responde los mensajes pendientes apenas vuelve.</td></tr>
+  </table>
+
+  <div class="caja imp">
+    <span class="et">Contacto de soporte técnico</span>
+    Ante cualquier problema que no puedan resolver con esta guía, escriban a:<br>
+    <b>Nombre:</b> ___________________________  <b>WhatsApp/Tel:</b> ___________________________<br>
+    <b>Email:</b> ___________________________
+  </div>
+  <p class="footernote">Completá estos datos antes de imprimir/entregar el manual.</p>
+</section>
+
+<!-- ===================== 7. GLOSARIO ===================== -->
+<section class="pag salto">
+  <h2>7. Glosario</h2>
+  <table>
+    <tr><th>Palabra</th><th>Qué significa</th></tr>
+    <tr><td><b>Bot</b></td><td>El asistente automático que atiende a los clientes por WhatsApp.</td></tr>
+    <tr><td><b>Panel</b></td><td>La página web donde ustedes gestionan el complejo.</td></tr>
+    <tr><td><b>Servidor</b></td><td>La computadora donde vive la información y corren las reglas del sistema.</td></tr>
+    <tr><td><b>Reserva</b></td><td>Un turno puntual para una fecha y hora.</td></tr>
+    <tr><td><b>Turno fijo</b></td><td>Un cliente que viene todas las semanas el mismo día y hora.</td></tr>
+    <tr><td><b>Bloqueo</b></td><td>Cerrar una cancha en un horario para que no se pueda reservar (torneo, mantenimiento, etc.).</td></tr>
+    <tr><td><b>Seña</b></td><td>El adelanto por transferencia que se pide para confirmar un turno.</td></tr>
+    <tr><td><b>Reprogramar</b></td><td>Mover un turno a otro día u hora.</td></tr>
+    <tr><td><b>Cliente de confianza</b></td><td>Cliente al que el bot le confirma el turno sin pedir seña.</td></tr>
+    <tr><td><b>Derivar a un humano</b></td><td>Cuando el bot pasa la conversación a una persona y se hace a un lado.</td></tr>
+    <tr><td><b>Rol</b></td><td>El tipo de usuario del panel: administrador (ve todo) o recepcionista (lo del día a día).</td></tr>
+  </table>
+
+  <div class="caja tip" style="margin-top:24px">
+    <span class="et">¡Listo!</span>
+    Con esto tenés el panorama completo del sistema. La recomendación: arrancá usando la <b>Vista "Hoy"</b> para el día a día y, a medida que te sientas cómodo, explorá el resto de las secciones. Cualquier duda, el soporte técnico está para ayudarte.
+  </div>
+</section>
+
+</body>
+</html>

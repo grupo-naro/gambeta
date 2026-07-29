@@ -1,0 +1,4 @@
+**/.env
+cliente.env
+traefik/acme.json
+*.log

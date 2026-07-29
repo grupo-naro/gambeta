@@ -1,0 +1,14 @@
+http:
+  routers:
+    backend-http:
+      rule: "Host(`api.CHANGE_ME.com`)"
+      entryPoints:
+        - http
+      service: backend
+      priority: 1000
+
+  services:
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://canchitas-backend:3000"

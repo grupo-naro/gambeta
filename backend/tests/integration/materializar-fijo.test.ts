@@ -1,0 +1,55 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import supertest from 'supertest';
+import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
+
+let app: any; let canchaId: string;
+beforeAll(async () => { await setupTestDb(); const { buildApp } = await import('../../src/app.js'); app = buildApp(); });
+afterAll(teardownTestDb);
+beforeEach(async () => {
+  await resetTables();
+  canchaId = (await getPrisma().cancha.create({ data: { nombre: 'C', tipo: 'f5', precioHora: 12000, jugadores: 5 } })).id;
+});
+
+// 2026-06-24 es MIÉRCOLES (diaSemana 3, 0=Dom).
+async function fijoMiercoles(over: Record<string, unknown> = {}) {
+  return getPrisma().turnoFijo.create({ data: { canchaId, clienteNombre: 'Naro', whatsapp: '5491136620274', diaSemana: 3, horaInicio: '20:00', horaFin: '21:00', activo: true, ...over } });
+}
+const materializar = (id: string, body: Record<string, unknown>) =>
+  supertest(app).post(`/turnos-fijos/${id}/materializar`).set('x-api-key', 'svc').send(body);
+
+describe('POST /turnos-fijos/:id/materializar', () => {
+  it('persiste turnoFijoId en la reserva creada', async () => {
+    const f = await fijoMiercoles();
+    const r = await materializar(f.id, { fecha: '2026-06-24' });
+    expect(r.status).toBe(201);
+    expect(r.body.turnoFijoId).toBe(f.id);
+  });
+  it('crea la reserva con precio de la cancha, CONFIRMADA, y es idempotente', async () => {
+    const f = await fijoMiercoles();
+    const r1 = await materializar(f.id, { fecha: '2026-06-24' });
+    expect(r1.status).toBe(201);
+    expect(r1.body.estado).toBe('CONFIRMADA');
+    expect(Number(r1.body.monto)).toBe(12000); // precioHora de la cancha
+    const r2 = await materializar(f.id, { fecha: '2026-06-24' });
+    expect(r2.body.id).toBe(r1.body.id); // idempotente
+    const n = await getPrisma().reserva.count({ where: { turnoFijoId: f.id } });
+    expect(n).toBe(1);
+  });
+  it('upsert del cliente por whatsapp del fijo', async () => {
+    const f = await fijoMiercoles();
+    await materializar(f.id, { fecha: '2026-06-24' });
+    const cli = await getPrisma().cliente.findUnique({ where: { whatsapp: '5491136620274' } });
+    expect(cli?.nombre).toBe('Naro');
+  });
+  it('rechaza si hay excepción (liberado) en esa fecha', async () => {
+    const f = await fijoMiercoles();
+    await getPrisma().turnoFijoExcepcion.create({ data: { turnoFijoId: f.id, fecha: new Date('2026-06-24T00:00:00.000Z') } });
+    const r = await materializar(f.id, { fecha: '2026-06-24' });
+    expect(r.status).toBe(422);
+  });
+  it('rechaza si la fecha no cae en el día del fijo', async () => {
+    const f = await fijoMiercoles();
+    const r = await materializar(f.id, { fecha: '2026-06-25' }); // jueves
+    expect(r.status).toBe(422);
+  });
+});

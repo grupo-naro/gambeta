@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Configuracion" ADD COLUMN     "alias2" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "cbu2" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "titular2" TEXT NOT NULL DEFAULT '';
