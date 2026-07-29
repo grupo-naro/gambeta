@@ -4,7 +4,7 @@ import { requireRole } from '../middlewares/requireRole.js';
 import { validate } from '../middlewares/validate.js';
 import { suscripcionService } from '../services/suscripcion.service.js';
 import { auditService } from '../services/audit.service.js';
-import { crearSuscripcionSchema } from '../validators/suscripcion.schema.js';
+import { crearSuscripcionSchema, renovarSuscripcionSchema } from '../validators/suscripcion.schema.js';
 
 export const suscripcionRoutes = Router();
 
@@ -19,6 +19,15 @@ suscripcionRoutes.post('/', authJwt, requireRole('ADMIN'), validate(crearSuscrip
     const body = (req as any).valid.body;
     const s = await suscripcionService.crear(body, adminId(req));
     await auditService.log(req, { accion: 'CREAR', entidad: 'Suscripcion', entidadId: s.id, descripcion: 'Dio de alta un socio' });
+    res.status(201).json(s);
+  } catch (e) { next(e); }
+});
+
+suscripcionRoutes.post('/:id/renovar', authJwt, requireRole('ADMIN'), validate(renovarSuscripcionSchema), async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const s = await suscripcionService.renovar(id, (req as any).valid.body, adminId(req));
+    await auditService.log(req, { accion: 'CREAR', entidad: 'Suscripcion', entidadId: s.id, descripcion: 'Renovó la suscripción de un socio' });
     res.status(201).json(s);
   } catch (e) { next(e); }
 });

@@ -1,6 +1,6 @@
 import { getEnv } from '../config/env.js';
 import { suscripcionRepo } from '../repositories/suscripcion.repo.js';
-import { aFechaUtc, deFechaUtc, estadoVista, hoyEnTz } from './suscripcion.vigencia.js';
+import { aFechaUtc, deFechaUtc, estadoVista, hoyEnTz, inicioRenovacion, sumarUnMes } from './suscripcion.vigencia.js';
 import { prisma } from '../db/prisma.js';
 import { clienteRepo } from '../repositories/cliente.repo.js';
 import { cobroRepo } from '../repositories/cobro.repo.js';
@@ -68,6 +68,21 @@ export const suscripcionService = {
       }
       return s;
     });
+  },
+
+  /**
+   * Renovar crea una fila NUEVA, no mueve la fecha de la existente: así queda historial de
+   * períodos y "cliente con múltiples suscripciones" deja de ser un caso borde.
+   */
+  async renovar(id: string, input: { precio?: number; medio?: 'EFECTIVO' | 'TRANSFERENCIA' }, adminId: string | null) {
+    const anterior = await suscripcionRepo.findById(id);
+    if (!anterior) throw NotFound('Suscripción', id);
+    const hoy = hoyEnTz(getEnv().TZ_NEGOCIO);
+    const inicio = inicioRenovacion(deFechaUtc(anterior.vencimiento), hoy);
+    return suscripcionService.crear(
+      { clienteId: anterior.clienteId, inicio, vencimiento: sumarUnMes(inicio), precio: input.precio, medio: input.medio },
+      adminId,
+    );
   },
 
   async listar() {
