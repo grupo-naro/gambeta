@@ -30,4 +30,41 @@ describe('modelo Suscripcion', () => {
     expect(await getPrisma().suscripcion.count()).toBe(0);
     expect(await getPrisma().cliente.count()).toBe(0);
   });
+
+  it('una reserva puede apuntar a una suscripcion y guardar montoLista', async () => {
+    const cliente = await getPrisma().cliente.create({ data: { nombre: 'Caro', whatsapp: '+5491100000003' } });
+    const cancha = await getPrisma().cancha.create({ data: { nombre: 'C1', tipo: 'f5', precioHora: 12000, jugadores: 5 } });
+    const s = await getPrisma().suscripcion.create({
+      data: { clienteId: cliente.id, inicio: new Date('2026-08-01T00:00:00.000Z'), vencimiento: new Date('2026-08-31T00:00:00.000Z') },
+    });
+    const r = await getPrisma().reserva.create({
+      data: {
+        canchaId: cancha.id,
+        clienteId: cliente.id,
+        estado: 'CONFIRMADA',
+        esContacto: false,
+        monto: 0,
+        montoLista: 12000,
+        suscripcionId: s.id,
+        fechaInicio: new Date('2026-08-10T20:00:00.000Z'),
+        fechaFin: new Date('2026-08-10T21:00:00.000Z'),
+      },
+    });
+    expect(r.suscripcionId).toBe(s.id);
+    expect(Number(r.monto)).toBe(0);
+    expect(Number(r.montoLista)).toBe(12000);
+  });
+
+  it('una reserva normal deja suscripcionId y montoLista en null', async () => {
+    const cliente = await getPrisma().cliente.create({ data: { nombre: 'Dani', whatsapp: '+5491100000004' } });
+    const cancha = await getPrisma().cancha.create({ data: { nombre: 'C2', tipo: 'f5', precioHora: 12000, jugadores: 5 } });
+    const r = await getPrisma().reserva.create({
+      data: {
+        canchaId: cancha.id, clienteId: cliente.id, estado: 'CONFIRMADA', esContacto: false, monto: 12000,
+        fechaInicio: new Date('2026-08-11T20:00:00.000Z'), fechaFin: new Date('2026-08-11T21:00:00.000Z'),
+      },
+    });
+    expect(r.suscripcionId).toBeNull();
+    expect(r.montoLista).toBeNull();
+  });
 });

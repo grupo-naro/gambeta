@@ -199,6 +199,9 @@ model Reserva {
   notas       String?
   turnoFijoId String?
   turnoFijo   TurnoFijo?    @relation(fields: [turnoFijoId], references: [id])
+  suscripcionId String?
+  suscripcion   Suscripcion? @relation(fields: [suscripcionId], references: [id])
+  montoLista    Decimal?     @db.Decimal(10, 2)
   creadoEn    DateTime      @default(now())
   pago        Pago?
   sectores    ReservaSector[]
@@ -208,6 +211,7 @@ model Reserva {
   @@index([canchaId, fechaInicio])
   @@index([clienteId])
   @@index([estado])
+  @@index([suscripcionId])
 }
 
 model Pago {
@@ -367,6 +371,7 @@ model Suscripcion {
   creadoPorId String?
   creadoPor   AdminUser?        @relation(fields: [creadoPorId], references: [id])
   creadoEn    DateTime          @default(now())
+  reservas    Reserva[]
 
   @@index([clienteId, vencimiento])
   @@index([estado, vencimiento])
