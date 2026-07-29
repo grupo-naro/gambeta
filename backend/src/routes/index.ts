@@ -17,6 +17,7 @@ import { agendaRoutes } from './agenda.routes.js';
 import { buffetRoutes } from './buffet.routes.js';
 import { pagoRoutes } from './pago.routes.js';
 import { webhookRoutes } from './webhook.routes.js';
+import { suscripcionRoutes } from './suscripcion.routes.js';
 
 export const apiRouter = Router();
 apiRouter.use('/auth', authRoutes);
@@ -37,3 +38,4 @@ apiRouter.use('/agenda', agendaRoutes);
 apiRouter.use('/buffet', buffetRoutes);
 apiRouter.use('/pagos', pagoRoutes);
 apiRouter.use('/webhooks', webhookRoutes);
+apiRouter.use('/suscripciones', suscripcionRoutes);

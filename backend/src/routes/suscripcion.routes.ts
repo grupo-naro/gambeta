@@ -1,0 +1,20 @@
+import { Router } from 'express';
+import { authJwt } from '../middlewares/authJwt.js';
+import { requireRole } from '../middlewares/requireRole.js';
+import { validate } from '../middlewares/validate.js';
+import { suscripcionService } from '../services/suscripcion.service.js';
+import { auditService } from '../services/audit.service.js';
+import { crearSuscripcionSchema } from '../validators/suscripcion.schema.js';
+
+export const suscripcionRoutes = Router();
+
+const adminId = (req: any) => (req.principal?.kind === 'admin' ? req.principal.adminId : null);
+
+suscripcionRoutes.post('/', authJwt, requireRole('ADMIN'), validate(crearSuscripcionSchema), async (req, res, next) => {
+  try {
+    const body = (req as any).valid.body;
+    const s = await suscripcionService.crear(body, adminId(req));
+    await auditService.log(req, { accion: 'CREAR', entidad: 'Suscripcion', entidadId: s.id, descripcion: 'Dio de alta un socio' });
+    res.status(201).json(s);
+  } catch (e) { next(e); }
+});
