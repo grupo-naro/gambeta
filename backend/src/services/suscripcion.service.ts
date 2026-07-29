@@ -85,6 +85,13 @@ export const suscripcionService = {
     );
   },
 
+  /** Cancelar NO recalcula las reservas ya bonificadas: la bonificación se congela al reservar. */
+  async cancelar(id: string) {
+    const s = await suscripcionRepo.findById(id);
+    if (!s) throw NotFound('Suscripción', id);
+    return suscripcionRepo.cancelar(id);
+  },
+
   async listar() {
     const hoy = hoyEnTz(getEnv().TZ_NEGOCIO);
     const filas = await suscripcionRepo.list();
