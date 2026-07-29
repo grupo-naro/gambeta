@@ -25,12 +25,12 @@ export async function eliminarCliente(id: string): Promise<Result> {
 export async function crearCliente(input: { nombre: string; whatsapp: string; confiable: boolean }): Promise<Result> {
   return run(() => apiFetch('/clientes', { method: 'POST', body: JSON.stringify({ ...input, nombreConfirmado: true }) }));
 }
-export async function buscarClientePorWhatsapp(whatsapp: string): Promise<{ nombre: string } | null> {
+export async function buscarClientePorWhatsapp(whatsapp: string): Promise<{ id: string; nombre: string } | null> {
   const canon = aCanonico(whatsapp);
   if (!canon) return null;
   try {
-    const c = await apiFetch<{ nombre: string } | null>(`/clientes/buscar?whatsapp=${encodeURIComponent(canon)}`);
-    return c ? { nombre: c.nombre } : null;
+    const c = await apiFetch<{ id: string; nombre: string } | null>(`/clientes/buscar?whatsapp=${encodeURIComponent(canon)}`);
+    return c ? { id: c.id, nombre: c.nombre } : null;
   } catch {
     return null;
   }

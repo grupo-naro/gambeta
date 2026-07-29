@@ -1,7 +1,11 @@
 'use client';
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { EstadoSuscripcionVista, Suscripcion } from '@/lib/types';
+import { SocioDialog } from './socio-dialog';
 
 const TONO: Record<EstadoSuscripcionVista, string> = {
   ACTIVA: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
@@ -25,10 +29,12 @@ function fmt(ymd: string): string {
 }
 
 export function SociosTable({ socios }: { socios: Suscripcion[] }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
   return (
     <>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Socios</h1>
+        <Button onClick={() => setDialogOpen(true)}><Plus className="mr-1 h-4 w-4" /> Nuevo socio</Button>
       </div>
 
       {socios.length === 0 ? (
@@ -76,6 +82,8 @@ export function SociosTable({ socios }: { socios: Suscripcion[] }) {
           </div>
         </>
       )}
+
+      <SocioDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </>
   );
 }
