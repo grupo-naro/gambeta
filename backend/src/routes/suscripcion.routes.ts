@@ -10,6 +10,10 @@ export const suscripcionRoutes = Router();
 
 const adminId = (req: any) => (req.principal?.kind === 'admin' ? req.principal.adminId : null);
 
+suscripcionRoutes.get('/', authJwt, requireRole('ADMIN'), async (_req, res, next) => {
+  try { res.json(await suscripcionService.listar()); } catch (e) { next(e); }
+});
+
 suscripcionRoutes.post('/', authJwt, requireRole('ADMIN'), validate(crearSuscripcionSchema), async (req, res, next) => {
   try {
     const body = (req as any).valid.body;

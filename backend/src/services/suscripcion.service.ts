@@ -1,6 +1,6 @@
 import { getEnv } from '../config/env.js';
 import { suscripcionRepo } from '../repositories/suscripcion.repo.js';
-import { aFechaUtc, hoyEnTz } from './suscripcion.vigencia.js';
+import { aFechaUtc, deFechaUtc, estadoVista, hoyEnTz } from './suscripcion.vigencia.js';
 import { prisma } from '../db/prisma.js';
 import { clienteRepo } from '../repositories/cliente.repo.js';
 import { cobroRepo } from '../repositories/cobro.repo.js';
@@ -68,5 +68,24 @@ export const suscripcionService = {
       }
       return s;
     });
+  },
+
+  async listar() {
+    const hoy = hoyEnTz(getEnv().TZ_NEGOCIO);
+    const filas = await suscripcionRepo.list();
+    const conteos = await suscripcionRepo.contarReservasPorSuscripcion(filas.map((s) => s.id));
+    return filas.map((s) => ({
+      id: s.id,
+      clienteId: s.clienteId,
+      cliente: { id: s.cliente.id, nombre: s.cliente.nombre, whatsapp: s.cliente.whatsapp },
+      inicio: deFechaUtc(s.inicio),
+      vencimiento: deFechaUtc(s.vencimiento),
+      estado: s.estado,
+      estadoVista: estadoVista(s, hoy),
+      precio: s.precio == null ? null : Number(s.precio),
+      nota: s.nota,
+      turnosBonificados: conteos.get(s.id) ?? 0,
+      creadoEn: s.creadoEn,
+    }));
   },
 };
