@@ -290,8 +290,10 @@ model Configuracion {
 
 model Cobro {
   id              String     @id @default(cuid())
-  reservaId       String
-  reserva         Reserva    @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  reservaId       String?
+  reserva         Reserva?     @relation(fields: [reservaId], references: [id], onDelete: Cascade)
+  suscripcionId   String?
+  suscripcion     Suscripcion? @relation(fields: [suscripcionId], references: [id])
   monto           Decimal    @db.Decimal(10, 2)
   medio           MedioPago
   origen          String     @default("MANUAL")
@@ -301,6 +303,7 @@ model Cobro {
 
   @@index([creadoEn])
   @@index([reservaId])
+  @@index([suscripcionId])
 }
 
 enum EstadoCajaBuffet {
@@ -372,6 +375,7 @@ model Suscripcion {
   creadoPor   AdminUser?        @relation(fields: [creadoPorId], references: [id])
   creadoEn    DateTime          @default(now())
   reservas    Reserva[]
+  cobros      Cobro[]
 
   @@index([clienteId, vencimiento])
   @@index([estado, vencimiento])
