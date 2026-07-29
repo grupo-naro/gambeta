@@ -21,6 +21,7 @@
 - **Auditoría:** se registra desde la **ruta** con `auditService.log(req, {...})`, no desde el service (patrón de `turnoFijo.routes.ts`).
 - **Server actions de Next:** en un archivo `'use server'`, **todos los exports deben ser `async function`**. El compilador RSC rechaza exports no-async aunque tsc y eslint los acepten.
 - **Los tests de integración necesitan Docker corriendo** (Testcontainers). Los de `tests/unit/` no.
+- **`npm test` NO chequea tipos.** Vitest transpila sin type-check, así que un error de TypeScript pasa la suite entera y rompe el build igual. Toda tarea que toque `.ts` del backend termina con **`npm run typecheck`** además de los tests. (Aprendido en la Task 3: volver `Cobro.reservaId` nullable rompió `cobro.service.ts` y los 338 tests siguieron en verde.)
 - **Vencimiento inclusive:** una suscripción cubre `inicio ≤ fecha ≤ vencimiento`.
 - **Rama de trabajo:** `feat/suscripciones` (ya creada, con el spec commiteado).
 
@@ -3065,12 +3066,13 @@ async function reservar(whatsapp: string, fecha: string) {
 }
 
 describe('bordes de suscripcion', () => {
-  it('reserva el ULTIMO dia de vigencia queda bonificada', async () => {
+  it('socio cuya suscripcion vence HOY: el turno de mañana queda bonificado (vencimiento inclusive)', async () => {
     const hoy = hoyEnTz(TZ);
     await socioVigenteHasta(hoy, '5491178100001');
-    // Reservar para hoy no sirve (el horario ya pasó o pasa), así que se valida vigenteDe directo.
-    const c = await getPrisma().cliente.findUnique({ where: { whatsapp: '5491178100001' } });
-    expect(await suscripcionService.vigenteDe(c!.id, hoy)).not.toBeNull();
+    const res = await reservar('5491178100001', enDias(1));
+    expect(res.status).toBe(201);
+    expect(res.body.suscripcionId).not.toBeNull();
+    expect(Number(res.body.monto)).toBe(0);
   });
 
   it('turno para DESPUES del vencimiento queda bonificado igual (congelado al reservar)', async () => {
