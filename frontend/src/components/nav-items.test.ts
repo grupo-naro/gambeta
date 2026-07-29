@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { navAgrupado, GRUPOS } from './nav-items';
+import { nav, navAgrupado, GRUPOS } from './nav-items';
 
 describe('GRUPOS', () => {
   it('define el orden canonico de los grupos', () => {
@@ -11,7 +11,7 @@ describe('navAgrupado', () => {
   it('ADMIN ve los 3 grupos, en orden y con las cantidades correctas', () => {
     const r = navAgrupado('ADMIN');
     expect(r.map((g) => g.grupo)).toEqual(['Operación', 'Programación', 'Administración']);
-    expect(r.map((g) => g.items.length)).toEqual([6, 3, 4]);
+    expect(r.map((g) => g.items.length)).toEqual([6, 3, 5]);
   });
 
   it('RECEPCIONISTA ve solo Operación y Programación (sin Administración)', () => {
@@ -33,5 +33,19 @@ describe('navAgrupado', () => {
     for (const rol of ['ADMIN', 'RECEPCIONISTA'] as const) {
       for (const g of navAgrupado(rol)) expect(g.items.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('socios en el menu', () => {
+  it('es visible para ADMIN dentro de Administración', () => {
+    const grupos = navAgrupado('ADMIN');
+    const admin = grupos.find((g) => g.grupo === 'Administración')!;
+    expect(admin.items.some((i) => i.href === '/socios')).toBe(true);
+  });
+  it('NO es visible para RECEPCIONISTA', () => {
+    expect(navAgrupado('RECEPCIONISTA').flatMap((g) => g.items).some((i) => i.href === '/socios')).toBe(false);
+  });
+  it('esta declarado una sola vez', () => {
+    expect(nav.filter((i) => i.href === '/socios')).toHaveLength(1);
   });
 });
