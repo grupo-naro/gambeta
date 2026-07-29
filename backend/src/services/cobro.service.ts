@@ -56,7 +56,8 @@ export const cobroService = {
   async eliminar(id: string) {
     const c = await cobroRepo.findById(id);
     if (!c) throw NotFound('Cobro', id);
-    const reserva = await reservaRepo.findById(c.reservaId);
+    // Un cobro de cuota de suscripción no tiene reserva: no hay día que marcar sucio en Sheets.
+    const reserva = c.reservaId ? await reservaRepo.findById(c.reservaId) : null;
     await cobroRepo.remove(id);
     if (reserva) sheetsSync.marcarSucio(ymdEnTz(reserva.fechaInicio));
     return { ok: true, monto: Number(c.monto) };

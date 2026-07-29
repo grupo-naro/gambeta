@@ -54,6 +54,7 @@ model CanchaSector {
   sectorId String
   cancha   Cancha @relation(fields: [canchaId], references: [id], onDelete: Cascade)
   sector   Sector @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+
   @@id([canchaId, sectorId])
 }
 
@@ -66,28 +67,29 @@ model ReservaSector {
   estado      EstadoReserva
   fechaInicio DateTime      @db.Timestamptz(3)
   fechaFin    DateTime      @db.Timestamptz(3)
+
   @@index([sectorId])
 }
 
 model Cancha {
-  id          String              @id @default(cuid())
-  nombre      String
-  tipo        String
-  jugadores   Int                 @default(5)
-  destacada   Boolean             @default(false)
+  id             String              @id @default(cuid())
+  nombre         String
+  tipo           String
+  jugadores      Int                 @default(5)
+  destacada      Boolean             @default(false)
   precioHora     Decimal             @db.Decimal(10, 2)
   precioHoraPico Decimal             @default(0) @db.Decimal(10, 2)
   senaMonto      Decimal?            @db.Decimal(10, 2)
   activa         Boolean             @default(true)
-  creadoEn    DateTime            @default(now())
-  grupoId     String?
-  grupo       CanchaGrupo?        @relation(fields: [grupoId], references: [id])
-  esEntera    Boolean             @default(false)
-  sectores    CanchaSector[]
-  reservas    Reserva[]
-  horarios    HorarioDisponible[]
-  turnosFijos TurnoFijo[]
-  bloqueos    Bloqueo[]
+  creadoEn       DateTime            @default(now())
+  grupoId        String?
+  grupo          CanchaGrupo?        @relation(fields: [grupoId], references: [id])
+  esEntera       Boolean             @default(false)
+  sectores       CanchaSector[]
+  reservas       Reserva[]
+  horarios       HorarioDisponible[]
+  turnosFijos    TurnoFijo[]
+  bloqueos       Bloqueo[]
 
   @@index([activa])
 }
@@ -132,19 +134,19 @@ enum MotivoBloqueo {
 }
 
 model Bloqueo {
-  id         String        @id @default(cuid())
-  canchaId   String
-  cancha     Cancha        @relation(fields: [canchaId], references: [id])
+  id          String             @id @default(cuid())
+  canchaId    String
+  cancha      Cancha             @relation(fields: [canchaId], references: [id])
   excepciones BloqueoExcepcion[]
-  motivo     MotivoBloqueo
-  recurrente Boolean       @default(false)
-  diaSemana  Int?
-  fecha      DateTime?     @db.Date
-  horaInicio String
-  horaFin    String
-  nota       String?
-  activo     Boolean       @default(true)
-  creadoEn   DateTime      @default(now())
+  motivo      MotivoBloqueo
+  recurrente  Boolean            @default(false)
+  diaSemana   Int?
+  fecha       DateTime?          @db.Date
+  horaInicio  String
+  horaFin     String
+  nota        String?
+  activo      Boolean            @default(true)
+  creadoEn    DateTime           @default(now())
 
   @@index([canchaId])
 }
@@ -171,41 +173,41 @@ model HorarioDisponible {
 }
 
 model Cliente {
-  id             String    @id @default(cuid())
-  nombre         String
-  whatsapp       String    @unique
-  esContacto     Boolean   @default(false)
-  nombreConfirmado Boolean   @default(false)
-  confiable        Boolean   @default(false)
-  primeraReserva DateTime?
-  totalReservas  Int       @default(0)
-  creadoEn       DateTime  @default(now())
-  reservas       Reserva[]
-  suscripciones Suscripcion[]
+  id               String        @id @default(cuid())
+  nombre           String
+  whatsapp         String        @unique
+  esContacto       Boolean       @default(false)
+  nombreConfirmado Boolean       @default(false)
+  confiable        Boolean       @default(false)
+  primeraReserva   DateTime?
+  totalReservas    Int           @default(0)
+  creadoEn         DateTime      @default(now())
+  reservas         Reserva[]
+  suscripciones    Suscripcion[]
 }
 
 model Reserva {
-  id          String        @id @default(cuid())
-  canchaId    String
-  cancha      Cancha        @relation(fields: [canchaId], references: [id])
-  clienteId   String
-  cliente     Cliente       @relation(fields: [clienteId], references: [id])
-  fechaInicio DateTime      @db.Timestamptz(3)
-  fechaFin    DateTime      @db.Timestamptz(3)
-  estado      EstadoReserva
-  esContacto  Boolean
-  monto       Decimal       @db.Decimal(10, 2)
-  montoSena   Decimal?      @db.Decimal(10, 2)
-  notas       String?
-  turnoFijoId String?
-  turnoFijo   TurnoFijo?    @relation(fields: [turnoFijoId], references: [id])
+  id            String          @id @default(cuid())
+  canchaId      String
+  cancha        Cancha          @relation(fields: [canchaId], references: [id])
+  clienteId     String
+  cliente       Cliente         @relation(fields: [clienteId], references: [id])
+  fechaInicio   DateTime        @db.Timestamptz(3)
+  fechaFin      DateTime        @db.Timestamptz(3)
+  estado        EstadoReserva
+  esContacto    Boolean
+  monto         Decimal         @db.Decimal(10, 2)
+  montoSena     Decimal?        @db.Decimal(10, 2)
+  notas         String?
+  turnoFijoId   String?
+  turnoFijo     TurnoFijo?      @relation(fields: [turnoFijoId], references: [id])
   suscripcionId String?
-  suscripcion   Suscripcion? @relation(fields: [suscripcionId], references: [id])
-  montoLista    Decimal?     @db.Decimal(10, 2)
-  creadoEn    DateTime      @default(now())
-  pago        Pago?
-  sectores    ReservaSector[]
-  cobros      Cobro[]
+  suscripcion   Suscripcion?    @relation(fields: [suscripcionId], references: [id])
+  montoLista    Decimal?        @db.Decimal(10, 2)
+  creadoEn      DateTime        @default(now())
+  pago          Pago?
+  sectores      ReservaSector[]
+  cobros        Cobro[]
 
   @@unique([turnoFijoId, fechaInicio])
   @@index([canchaId, fechaInicio])
@@ -230,17 +232,17 @@ model Pago {
 }
 
 model AdminUser {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  nombre       String
-  rol          Rol        @default(RECEPCIONISTA)
-  esDefault    Boolean    @default(false)
-  creadoEn     DateTime   @default(now())
-  expiraEn     DateTime?
-  pagos        Pago[]
-  auditLogs    AuditLog[]
-  cobros       Cobro[]
+  id            String        @id @default(cuid())
+  email         String        @unique
+  passwordHash  String
+  nombre        String
+  rol           Rol           @default(RECEPCIONISTA)
+  esDefault     Boolean       @default(false)
+  creadoEn      DateTime      @default(now())
+  expiraEn      DateTime?
+  pagos         Pago[]
+  auditLogs     AuditLog[]
+  cobros        Cobro[]
   suscripciones Suscripcion[]
 }
 
@@ -265,41 +267,41 @@ enum SenaModo {
 }
 
 model Configuracion {
-  id             String   @id @default("default")
-  horaApertura   String   @default("16:00")
-  horaCierre     String   @default("23:00")
-  horaAperturaFinde String @default("16:00")
-  horaCierreFinde   String @default("00:00")
-  picoDesde      String   @default("")
-  picoHasta      String   @default("")
-  picoFindeDesde String   @default("")
-  picoFindeHasta String   @default("")
-  adminWhatsapp  String   @default("")
-  senaModo       SenaModo @default(PORCENTAJE)
-  senaPorcentaje Int      @default(50)
-  senaMontoFijo  Decimal  @default(5000) @db.Decimal(10, 2)
-  cbu            String   @default("")
-  alias          String   @default("")
-  titular        String   @default("")
-  cbu2           String   @default("")
-  alias2         String   @default("")
-  titular2       String   @default("")
-  buffetPinHash  String   @default("")
-  actualizadoEn  DateTime @updatedAt
+  id                String   @id @default("default")
+  horaApertura      String   @default("16:00")
+  horaCierre        String   @default("23:00")
+  horaAperturaFinde String   @default("16:00")
+  horaCierreFinde   String   @default("00:00")
+  picoDesde         String   @default("")
+  picoHasta         String   @default("")
+  picoFindeDesde    String   @default("")
+  picoFindeHasta    String   @default("")
+  adminWhatsapp     String   @default("")
+  senaModo          SenaModo @default(PORCENTAJE)
+  senaPorcentaje    Int      @default(50)
+  senaMontoFijo     Decimal  @default(5000) @db.Decimal(10, 2)
+  cbu               String   @default("")
+  alias             String   @default("")
+  titular           String   @default("")
+  cbu2              String   @default("")
+  alias2            String   @default("")
+  titular2          String   @default("")
+  buffetPinHash     String   @default("")
+  actualizadoEn     DateTime @updatedAt
 }
 
 model Cobro {
-  id              String     @id @default(cuid())
+  id              String       @id @default(cuid())
   reservaId       String?
   reserva         Reserva?     @relation(fields: [reservaId], references: [id], onDelete: Cascade)
   suscripcionId   String?
-  suscripcion     Suscripcion? @relation(fields: [suscripcionId], references: [id])
-  monto           Decimal    @db.Decimal(10, 2)
+  suscripcion     Suscripcion? @relation(fields: [suscripcionId], references: [id], onDelete: Restrict)
+  monto           Decimal      @db.Decimal(10, 2)
   medio           MedioPago
-  origen          String     @default("MANUAL")
+  origen          String       @default("MANUAL")
   registradoPorId String?
-  registradoPor   AdminUser? @relation(fields: [registradoPorId], references: [id])
-  creadoEn        DateTime   @default(now())
+  registradoPor   AdminUser?   @relation(fields: [registradoPorId], references: [id])
+  creadoEn        DateTime     @default(now())
 
   @@index([creadoEn])
   @@index([reservaId])
