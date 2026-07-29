@@ -30,6 +30,11 @@ enum VerificadoPor {
   HUMANO
 }
 
+enum EstadoSuscripcion {
+  ACTIVA
+  CANCELADA
+}
+
 model CanchaGrupo {
   id       String   @id @default(cuid())
   nombre   String
@@ -176,6 +181,7 @@ model Cliente {
   totalReservas  Int       @default(0)
   creadoEn       DateTime  @default(now())
   reservas       Reserva[]
+  suscripciones Suscripcion[]
 }
 
 model Reserva {
@@ -231,6 +237,7 @@ model AdminUser {
   pagos        Pago[]
   auditLogs    AuditLog[]
   cobros       Cobro[]
+  suscripciones Suscripcion[]
 }
 
 model AuditLog {
@@ -346,4 +353,21 @@ model VentaBuffet {
   creadoEn   DateTime       @default(now())
 
   @@index([ticketId])
+}
+
+model Suscripcion {
+  id          String            @id @default(cuid())
+  clienteId   String
+  cliente     Cliente           @relation(fields: [clienteId], references: [id])
+  inicio      DateTime          @db.Date
+  vencimiento DateTime          @db.Date
+  estado      EstadoSuscripcion @default(ACTIVA)
+  precio      Decimal?          @db.Decimal(10, 2)
+  nota        String?
+  creadoPorId String?
+  creadoPor   AdminUser?        @relation(fields: [creadoPorId], references: [id])
+  creadoEn    DateTime          @default(now())
+
+  @@index([clienteId, vencimiento])
+  @@index([estado, vencimiento])
 }

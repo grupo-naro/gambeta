@@ -32,6 +32,7 @@ export async function resetTables(): Promise<void> {
     p.pago.deleteMany(),
     p.reservaSector.deleteMany(),
     p.reserva.deleteMany(),
+    p.suscripcion.deleteMany(),
     p.turnoFijoExcepcion.deleteMany(),
     p.turnoFijo.deleteMany(),
     p.bloqueo.deleteMany(),
