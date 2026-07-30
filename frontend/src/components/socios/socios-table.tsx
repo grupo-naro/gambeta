@@ -9,7 +9,8 @@ import { useConfirm } from '@/components/ui/confirm';
 import { cn } from '@/lib/utils';
 import type { EstadoSuscripcionVista, Suscripcion } from '@/lib/types';
 import { SocioDialog } from './socio-dialog';
-import { renovarSuscripcion, cancelarSuscripcion } from '@/lib/suscripciones-actions';
+import { RenovarDialog } from './renovar-dialog';
+import { cancelarSuscripcion } from '@/lib/suscripciones-actions';
 
 const TONO: Record<EstadoSuscripcionVista, string> = {
   ACTIVA: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
@@ -34,9 +35,19 @@ function fmt(ymd: string): string {
 
 export function SociosTable({ socios }: { socios: Suscripcion[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [renovarOpen, setRenovarOpen] = useState(false);
   const [seleccion, setSeleccion] = useState<Suscripcion | null>(null);
   const [pending, start] = useTransition();
   const confirm = useConfirm();
+
+  /**
+   * Todos los períodos del cliente seleccionado, del más nuevo al más viejo.
+   * `GET /suscripciones` ya devuelve todos los períodos de todos los clientes, así que el
+   * historial se arma con lo que ya está en memoria — sin una segunda llamada al backend.
+   */
+  const historial = seleccion
+    ? socios.filter((x) => x.clienteId === seleccion.clienteId).sort((a, b) => b.inicio.localeCompare(a.inicio))
+    : [];
 
   function act(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     start(async () => {
@@ -125,11 +136,26 @@ export function SociosTable({ socios }: { socios: Suscripcion[] }) {
               </p>
               <p className="text-sm text-neutral-600">{seleccion.turnosBonificados} turnos bonificados</p>
             </SheetHeader>
+            {historial.length > 1 && (
+              <div className="mb-4">
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Historial de períodos</p>
+                <ul className="space-y-1">
+                  {historial.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
+                      <span className={cn('text-neutral-600', p.id === seleccion.id && 'font-medium text-neutral-900')}>
+                        {fmt(p.inicio)} – {fmt(p.vencimiento)}
+                      </span>
+                      <EstadoBadge estado={p.estadoVista} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <Button
                 className="h-11 w-full"
                 disabled={pending}
-                onClick={() => act(() => renovarSuscripcion(seleccion.id, {}), 'Suscripción renovada')}
+                onClick={() => setRenovarOpen(true)}
               >
                 Renovar un mes
               </Button>
@@ -147,6 +173,13 @@ export function SociosTable({ socios }: { socios: Suscripcion[] }) {
           </SheetContent>
         )}
       </Sheet>
+
+      <RenovarDialog
+        suscripcion={seleccion}
+        open={renovarOpen}
+        onOpenChange={setRenovarOpen}
+        onRenovada={() => setSeleccion(null)}
+      />
 
       <SocioDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </>

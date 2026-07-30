@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useClienteAutocomplete } from '@/lib/use-cliente-autocomplete';
 import { buscarClientePorWhatsapp, crearCliente } from '@/lib/clientes-actions';
 import { crearSuscripcion } from '@/lib/suscripciones-actions';
+import { parseCuota } from '@/lib/monto';
 
 /** Hoy en formato YYYY-MM-DD, tomando la fecha local del navegador (el negocio opera en AR). */
 function hoyYmd(): string {
@@ -37,6 +38,7 @@ export function SocioDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const [vencimiento, setVencimiento] = useState(() => sumarUnMes(hoyYmd()));
   const [precio, setPrecio] = useState('');
   const [medio, setMedio] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO');
+  const [nota, setNota] = useState('');
   const [pending, start] = useTransition();
 
   const encontrado = useClienteAutocomplete(whatsapp, setNombre);
@@ -50,12 +52,15 @@ export function SocioDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       setVencimiento(sumarUnMes(hoy));
       setPrecio('');
       setMedio('EFECTIVO');
+      setNota('');
     }
     onOpenChange(nextOpen);
   }
 
   function guardar() {
     if (!whatsapp.trim() || !nombre.trim()) { toast.error('Completá WhatsApp y nombre'); return; }
+    const cuota = parseCuota(precio);
+    if (!cuota.ok) { toast.error('El monto de la cuota no es un número válido'); return; }
     start(async () => {
       // El alta de socio necesita un clienteId: si el cliente no existe todavía, se crea primero.
       let cliente = await buscarClientePorWhatsapp(whatsapp);
@@ -66,11 +71,12 @@ export function SocioDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       }
       if (!cliente) { toast.error('No se pudo resolver el cliente'); return; }
 
-      const monto = precio.trim() === '' ? undefined : Number(precio);
+      const monto = cuota.monto;
       const r = await crearSuscripcion({
         clienteId: cliente.id,
         inicio,
         vencimiento,
+        ...(nota.trim() ? { nota: nota.trim() } : {}),
         // El backend rechaza un precio sin medio de pago: un cobro sin medio no tiene sentido en la Caja.
         ...(monto != null && monto > 0 ? { precio: monto, medio } : {}),
       });
@@ -110,7 +116,7 @@ export function SocioDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="socio-precio">Cuota (opcional)</Label>
-              <Input id="socio-precio" inputMode="numeric" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="20000" />
+              <Input id="socio-precio" type="number" min="0" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="20000" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="socio-medio">Medio</Label>
@@ -124,6 +130,10 @@ export function SocioDialog({ open, onOpenChange }: { open: boolean; onOpenChang
                 <option value="TRANSFERENCIA">Transferencia</option>
               </select>
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="socio-nota">Nota (opcional)</Label>
+            <Input id="socio-nota" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej: pagó por transferencia desde otra cuenta" />
           </div>
         </div>
         <DialogFooter>
