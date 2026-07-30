@@ -1,7 +1,7 @@
 import { cobroRepo } from '../repositories/cobro.repo.js';
 import { reservaRepo } from '../repositories/reserva.repo.js';
 import { adminUserRepo } from '../repositories/adminUser.repo.js';
-import { NotFound } from '../utils/errors.js';
+import { NotFound, BusinessRule } from '../utils/errors.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
 import { ymdEnTz } from './sheets/sheetsData.js';
 
@@ -39,6 +39,11 @@ export const cobroService = {
   ) {
     const r = await reservaRepo.findById(reservaId);
     if (!r) throw NotFound('Reserva', reservaId);
+    // La reserva de un socio nace bonificada (monto: 0) por su suscripción vigente al momento
+    // de reservar: no corresponde asentar un cobro manual sobre ella.
+    if (r.suscripcionId != null) {
+      throw BusinessRule('Este turno está bonificado por la suscripción del socio; no corresponde cobrarlo');
+    }
     // Verify admin exists to avoid FK violation; fall back to null (Sistema)
     const adminExists = registradoPorId ? !!(await adminUserRepo.findById(registradoPorId)) : false;
     const cobro = await cobroRepo.create({

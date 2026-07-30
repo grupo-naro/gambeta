@@ -122,3 +122,41 @@ describe('cobros y caja', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('cobro manual sobre reserva de socio (bonificada)', () => {
+  it('rechaza con 422 y no crea ningún Cobro', async () => {
+    const cl = await getPrisma().cliente.create({ data: { nombre: 'Socio', whatsapp: '+3' } });
+    const sus = await getPrisma().suscripcion.create({
+      data: { clienteId: cl.id, inicio: new Date(), vencimiento: new Date(Date.now() + 30 * 86400000) },
+    });
+    const r = await getPrisma().reserva.create({
+      data: {
+        canchaId,
+        clienteId: cl.id,
+        estado: 'CONFIRMADA',
+        esContacto: false,
+        monto: 0,
+        montoLista: 10000,
+        suscripcionId: sus.id,
+        fechaInicio: new Date(),
+        fechaFin: new Date(Date.now() + 3600000),
+      },
+    });
+    const res = await supertest(app)
+      .post(`/reservas/${r.id}/cobros`)
+      .set('authorization', `Bearer ${recep()}`)
+      .send({ monto: 4000, medio: 'EFECTIVO' });
+    expect(res.status).toBe(422);
+    expect(await getPrisma().cobro.count({ where: { reservaId: r.id } })).toBe(0);
+  });
+
+  it('una reserva normal (sin suscripción) sigue admitiendo el cobro manual', async () => {
+    const r = await nuevaReserva(10000);
+    const res = await supertest(app)
+      .post(`/reservas/${r.id}/cobros`)
+      .set('authorization', `Bearer ${recep()}`)
+      .send({ monto: 4000, medio: 'EFECTIVO' });
+    expect(res.status).toBe(201);
+    expect(res.body.saldo).toBe(6000);
+  });
+});

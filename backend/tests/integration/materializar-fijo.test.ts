@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
+import { aFechaUtc, hoyEnTz, sumarUnMes } from '../../src/services/suscripcion.vigencia.js';
+
+const TZ = 'America/Argentina/Buenos_Aires';
 
 let app: any; let canchaId: string;
 beforeAll(async () => { await setupTestDb(); const { buildApp } = await import('../../src/app.js'); app = buildApp(); });
@@ -51,5 +54,30 @@ describe('POST /turnos-fijos/:id/materializar', () => {
     const f = await fijoMiercoles();
     const r = await materializar(f.id, { fecha: '2026-06-25' }); // jueves
     expect(r.status).toBe(422);
+  });
+
+  it('socio con turno fijo: la reserva materializada queda bonificada', async () => {
+    const cliente = await getPrisma().cliente.create({ data: { nombre: 'Naro', whatsapp: '5491136620274' } });
+    const hoy = hoyEnTz(TZ);
+    const sus = await getPrisma().suscripcion.create({
+      data: { clienteId: cliente.id, inicio: aFechaUtc(hoy), vencimiento: aFechaUtc(sumarUnMes(hoy)) },
+    });
+    const f = await fijoMiercoles();
+    const r = await materializar(f.id, { fecha: '2026-06-24' });
+    expect(r.status).toBe(201);
+    expect(r.body.estado).toBe('CONFIRMADA');
+    expect(Number(r.body.monto)).toBe(0);
+    expect(Number(r.body.montoLista)).toBe(12000);
+    expect(r.body.suscripcionId).toBe(sus.id);
+  });
+
+  it('no socio con turno fijo: sigue cobrando el precio completo', async () => {
+    const f = await fijoMiercoles();
+    const r = await materializar(f.id, { fecha: '2026-06-24' });
+    expect(r.status).toBe(201);
+    expect(r.body.estado).toBe('CONFIRMADA');
+    expect(Number(r.body.monto)).toBe(12000);
+    expect(r.body.montoLista).toBeNull();
+    expect(r.body.suscripcionId).toBeNull();
   });
 });

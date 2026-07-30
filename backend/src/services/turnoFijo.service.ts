@@ -7,6 +7,8 @@ import { precioEfectivo } from './precio.service.js';
 import { configService } from './config.service.js';
 import { reservaRepo } from '../repositories/reserva.repo.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
+import { resolverCondiciones } from './reserva.condiciones.js';
+import { suscripcionService } from './suscripcion.service.js';
 
 const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 const assertFecha = (fecha: string) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw BusinessRule('Fecha inválida (YYYY-MM-DD)'); };
@@ -117,8 +119,21 @@ export const turnoFijoService = {
     if (existente) return existente;
     const fechaFin = combineDateTimeUtc(fecha, fijo.horaFin, tz);
     const cfg = await configService.get();
-    const monto = precioEfectivo(fijo.cancha, fecha, fijo.horaInicio, cfg);
+    const precio = precioEfectivo(fijo.cancha, fecha, fijo.horaInicio, cfg);
     const whatsapp = fijo.whatsapp;
+    // Igual que reserva.service.crear: se busca el cliente y su suscripción vigente ANTES de la
+    // transacción, solo para leer si hay que bonificar. El upsert de más abajo (dentro de la
+    // transacción) sigue siendo el que crea/actualiza el cliente real.
+    const clientePrevio = await prisma.cliente.findUnique({ where: { whatsapp } });
+    const suscripcion = clientePrevio ? await suscripcionService.vigenteDe(clientePrevio.id) : null;
+    const cond = resolverCondiciones({
+      esContacto: false,
+      porStaff: true,
+      clienteConfiable: false,
+      precio,
+      senaPorDefecto: 0,
+      suscripcionId: suscripcion?.id ?? null,
+    });
     return prisma.$transaction(async (tx) => {
       const cliente = await tx.cliente.upsert({
         where: { whatsapp },
@@ -127,7 +142,8 @@ export const turnoFijoService = {
       });
       return reservaRepo.create({
         canchaId: fijo.canchaId, clienteId: cliente.id, fechaInicio, fechaFin,
-        estado: 'CONFIRMADA', esContacto: false, monto, montoSena: null, notas: null, turnoFijoId: fijoId,
+        estado: cond.estado, esContacto: false, monto: cond.monto, montoLista: cond.montoLista,
+        suscripcionId: cond.suscripcionId, montoSena: null, notas: null, turnoFijoId: fijoId,
       }, tx);
     });
   },
