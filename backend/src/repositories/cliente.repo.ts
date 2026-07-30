@@ -4,7 +4,7 @@ export interface UpsertClienteInput { whatsapp: string; nombre: string; esContac
 
 export const clienteRepo = {
   list: () => prisma.cliente.findMany({ orderBy: { creadoEn: 'desc' } }),
-  findById: (id: string) => prisma.cliente.findUnique({ where: { id }, include: { reservas: true } }),
+  findById: (id: string) => prisma.cliente.findUnique({ where: { id }, include: { reservas: true, suscripciones: true } }),
   findByWhatsapp: (whatsapp: string) => prisma.cliente.findUnique({ where: { whatsapp } }),
   update: (id: string, data: { nombre?: string; confiable?: boolean; nombreConfirmado?: boolean; whatsapp?: string }) =>
     prisma.cliente.update({ where: { id }, data }),

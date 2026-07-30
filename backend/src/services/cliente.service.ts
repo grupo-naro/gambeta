@@ -33,6 +33,7 @@ export const clienteService = {
     const c = await clienteRepo.findById(id);
     if (!c) throw NotFound('Cliente', id);
     if (c.reservas.length > 0) throw Conflict('No se puede eliminar: el cliente tiene reservas');
+    if (c.suscripciones.length > 0) throw Conflict('No se puede eliminar: el cliente tiene suscripciones');
     await clienteRepo.delete(id);
     return { ok: true };
   },
