@@ -253,8 +253,20 @@ suscripciones.
 
 ### Bot de WhatsApp (n8n)
 
-**Sin cambios.** Fuera de alcance en esta iteración. Un socio que reserve por el bot va a seguir
-el flujo normal con seña; el admin puede corregirlo desde el panel.
+**Sin cambios de código**, pero **su comportamiento SÍ cambia** — corregido tras la revisión final
+de la rama; este párrafo antes afirmaba lo contrario y era falso.
+
+`reservaService.crear` aplica la regla de socio **sin mirar el canal**, y el bot usa el mismo
+`POST /reservas`. Por lo tanto un socio que reserve por WhatsApp **también** queda bonificado.
+Funcionalmente es lo correcto (el socio no paga por ningún canal), pero es un cambio de contrato
+sobre un consumidor externo:
+
+- La respuesta vuelve `CONFIRMADA` con `montoSena: null` y **sin la clave `datosPago`** (solo se
+  agrega en `ESPERANDO_SENA`).
+- **Pendiente de verificar antes de desplegar:** si el workflow de n8n lee `datosPago.alias` o
+  `montoSena` para armar el mensaje, puede mandar un texto roto o pedir una seña inexistente. El
+  workflow no está versionado en este repo (`canchitas-infra/n8n/` solo tiene el compose), así que
+  no se pudo comprobar.
 
 ## Datos / flujo
 
