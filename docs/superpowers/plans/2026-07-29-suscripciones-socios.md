@@ -2482,7 +2482,7 @@ cd backend && npm test
 
 Esperado: **todo verde sin haber tocado ningún test existente.** Si algo falla, el refactor cambió comportamiento y hay que corregirlo antes de seguir.
 
-> Nota: `senaService.montoParaCancha` ahora se llama siempre, incluso cuando la reserva queda `CONFIRMADA`. Es una consulta a `Configuracion`, ya cacheada por `configService`, y mantiene la función pura. Si el costo molestara, se puede pasar como thunk — pero no antes de medirlo.
+> Nota: `senaService.montoParaCancha` ahora se llama siempre, incluso cuando la reserva queda `CONFIRMADA`. Cuesta **un round-trip extra por reserva**: `configService.get()` llama a `configRepo.getOrCreate()`, que es un `upsert` en cada invocación — **no está cacheado** (corregido tras la review de la Task 16; el plan afirmaba lo contrario). La decisión se sostiene igual, pero por otra razón: `configService.get()` **ya se invocaba incondicionalmente una línea antes** para `precioEfectivo`, así que no se agrega ningún modo de falla nuevo, y la llamada queda fuera de la transacción. Si el costo molestara, se puede pasar como thunk — pero no antes de medirlo.
 
 - [ ] **Step 7: Commit**
 
