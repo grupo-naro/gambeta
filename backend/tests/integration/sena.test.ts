@@ -15,22 +15,33 @@ beforeEach(async () => {
   canchaId = (await getPrisma().cancha.create({ data: { nombre: 'C', tipo: 'f5', precioHora: 12000 } })).id;
 });
 
+/**
+ * Fecha RELATIVA a hoy, no literal: `crear()` rechaza reservas en el pasado con 422, así que una
+ * fecha hardcodeada rompe estos tests en cuanto queda atrás. Estos 3 tests estuvieron rojos por
+ * exactamente eso (tenían '2026-06-15').
+ */
+const manana = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
 const body = (over: Partial<any> = {}) => ({
   canchaId,
   whatsapp: '+5491150000000',
   nombreCliente: 'Juan',
   esContacto: false,
-  fecha: '2026-06-15',
+  fecha: manana(),
   horaInicio: '18:00',
   ...over,
 });
 
 describe('seña on create', () => {
-  it('new client (ESPERANDO_SENA) → montoSena computed (50% of 12000) + datosPago', async () => {
+  // La seña ya NO es un porcentaje del precio: `senaService.montoParaPrecio` devuelve siempre el
+  // monto fijo de `Configuracion.senaMontoFijo` (default 5000) e ignora el precio de la cancha —
+  // ver el comentario "el porcentaje quedó anulado" en sena.service.ts. Este test afirmaba 6000
+  // (50% de 12000), la regla vieja, y quedó desactualizado cuando se retiró el porcentaje.
+  it('new client (ESPERANDO_SENA) → montoSena = monto fijo global + datosPago', async () => {
     const res = await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body());
     expect(res.status).toBe(201);
     expect(res.body.estado).toBe('ESPERANDO_SENA');
-    expect(Number(res.body.montoSena)).toBe(6000);
+    expect(Number(res.body.montoSena)).toBe(5000);
     expect(res.body.datosPago).toMatchObject({ alias: 'canchitas.ortigoza', titular: 'Canchitas Ortigoza' });
     expect(res.body.datosPago.cbu).toBeTruthy();
   });
