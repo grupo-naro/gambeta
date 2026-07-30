@@ -40,14 +40,22 @@ reservaRoutes.post('/', authAny, validate(createReservaSchema), async (req, res,
 
     const r = await reservaService.crear(body, { porStaff });
 
+    // Un turno de socio nace saldado (monto 0): cobrarle sería registrar plata contra deuda cero.
+    // No se asienta ningún Cobro, pero tampoco queda silencioso — el staff puede haber recibido
+    // la plata en mano en el mostrador, así que se avisa explícitamente con `cobroOmitido`.
+    let cobroOmitido: boolean | undefined;
     if (porStaff && body.cobroInicial !== 'ninguno') {
-      const precio = Number(r.monto);
-      const monto = body.cobroInicial === 'total' ? precio : (body.montoCobro ?? defaultSena!);
-      const adminId = req.principal?.kind === 'admin' ? req.principal.adminId : null;
-      if (monto > 0) await cobroService.crear(r.id, { monto, medio: body.medioCobro }, adminId);
+      if (r.suscripcionId != null) {
+        cobroOmitido = true;
+      } else {
+        const precio = Number(r.monto);
+        const monto = body.cobroInicial === 'total' ? precio : (body.montoCobro ?? defaultSena!);
+        const adminId = req.principal?.kind === 'admin' ? req.principal.adminId : null;
+        if (monto > 0) await cobroService.crear(r.id, { monto, medio: body.medioCobro }, adminId);
+      }
     }
     await auditService.log(req, { accion: 'CREAR', entidad: 'Reserva', entidadId: r.id, descripcion: 'Creó una reserva' });
-    res.status(201).json(r);
+    res.status(201).json(cobroOmitido !== undefined ? { ...r, cobroOmitido } : r);
   } catch (e) {
     next(e);
   }

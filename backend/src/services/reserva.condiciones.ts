@@ -30,7 +30,7 @@ export function resolverCondiciones(a: CondicionesArgs): Condiciones {
   // Socio: la reserva nace saldada. `monto` significa "lo que el cliente debe pagar", así que
   // va en 0; el precio real se conserva en `montoLista` para poder informar cuánto se bonificó.
   // Gana sobre esContacto/confiable: todos llevan a CONFIRMADA, pero solo la suscripción bonifica.
-  if (a.suscripcionId) {
+  if (a.suscripcionId != null) {
     return { estado: 'CONFIRMADA', monto: 0, montoLista: a.precio, montoSena: null, suscripcionId: a.suscripcionId };
   }
   const confianza = a.porStaff || a.esContacto || a.clienteConfiable;

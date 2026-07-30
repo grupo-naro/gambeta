@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
+import { signAdminToken } from '../../src/services/auth.service.js';
 import { aFechaUtc, hoyEnTz, sumarUnMes } from '../../src/services/suscripcion.vigencia.js';
 
 let app: any;
@@ -25,10 +26,24 @@ function manana(): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Fecha YYYY-MM-DD relativa a hoy (offset en días). Evita literales que envejecen mal. */
+function enDias(offset: number): string {
+  const d = new Date(Date.now() + offset * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
 async function reservar(whatsapp: string) {
   return supertest(app).post('/reservas').set('x-api-key', 'svc').send({
     canchaId, whatsapp, nombreCliente: 'Socio', esContacto: false,
     fecha: manana(), horaInicio: '18:00',
+  });
+}
+
+async function reservarStaff(whatsapp: string, extra: Record<string, unknown> = {}) {
+  const token = signAdminToken({ adminId: 'x', email: 'a@b.com', rol: 'ADMIN' });
+  return supertest(app).post('/reservas').set('authorization', `Bearer ${token}`).send({
+    canchaId, whatsapp, nombreCliente: 'Socio', esContacto: false,
+    fecha: manana(), horaInicio: '18:00', ...extra,
   });
 }
 
@@ -62,12 +77,16 @@ describe('reserva de un socio', () => {
 
   it('con la suscripcion vencida vuelve al flujo con seña', async () => {
     const c = await getPrisma().cliente.create({ data: { nombre: 'Ex socio', whatsapp: '5491178000003' } });
+    // Vencida hace tiempo: relativa a hoy, no una fecha literal (ver enDias más arriba).
     await getPrisma().suscripcion.create({
-      data: { clienteId: c.id, inicio: aFechaUtc('2026-01-01'), vencimiento: aFechaUtc('2026-01-31') },
+      data: { clienteId: c.id, inicio: aFechaUtc(enDias(-210)), vencimiento: aFechaUtc(enDias(-180)) },
     });
     const res = await reservar('5491178000003');
     expect(res.body.estado).toBe('ESPERANDO_SENA');
     expect(Number(res.body.monto)).toBe(12000);
+    expect(res.body.suscripcionId).toBeNull();
+    expect(res.body.montoLista).toBeNull();
+    expect(await getPrisma().pago.count()).toBe(1);
   });
 
   it('la reserva bonificada queda con saldo 0 en el listado', async () => {
@@ -81,5 +100,39 @@ describe('reserva de un socio', () => {
     const lista = await reservaService.list({ fecha: manana() });
     expect(lista[0].pagado).toBe(0);
     expect(lista[0].saldo).toBe(0);
+  });
+});
+
+/** Crea un cliente con una suscripción vigente hoy, para los tests de cobro desde el panel. */
+async function crearSocio(whatsapp: string) {
+  const c = await getPrisma().cliente.create({ data: { nombre: 'Socio', whatsapp } });
+  const hoy = hoyEnTz(TZ);
+  await getPrisma().suscripcion.create({
+    data: { clienteId: c.id, inicio: aFechaUtc(hoy), vencimiento: aFechaUtc(sumarUnMes(hoy)) },
+  });
+}
+
+describe('reserva de un socio creada por staff con cobro inicial (panel)', () => {
+  // Agujero de dinero real: el panel calculaba la seña desde la cancha (`defaultSena`), sin saber
+  // que el turno es de un socio (monto 0). Con cobroInicial='sena' terminaba asentando un Cobro
+  // contra un turno gratis, y `saldo = max(0, 0 - seña) = 0` lo dejaba invisible en el panel.
+  it('cobroInicial=sena no cobra nada y avisa con cobroOmitido', async () => {
+    await crearSocio('5491178000005');
+    const res = await reservarStaff('5491178000005', { cobroInicial: 'sena', medioCobro: 'EFECTIVO' });
+    expect(res.status).toBe(201);
+    expect(res.body.estado).toBe('CONFIRMADA');
+    expect(Number(res.body.monto)).toBe(0);
+    expect(res.body.suscripcionId).toBeTruthy();
+    expect(res.body.cobroOmitido).toBe(true);
+    expect(await getPrisma().cobro.count()).toBe(0);
+  });
+
+  it('cobroInicial=total tampoco cobra nada y avisa con cobroOmitido', async () => {
+    await crearSocio('5491178000006');
+    const res = await reservarStaff('5491178000006', { cobroInicial: 'total', medioCobro: 'EFECTIVO' });
+    expect(res.status).toBe(201);
+    expect(Number(res.body.monto)).toBe(0);
+    expect(res.body.cobroOmitido).toBe(true);
+    expect(await getPrisma().cobro.count()).toBe(0);
   });
 });
