@@ -9,6 +9,7 @@ import { canchaService } from './cancha.service.js';
 import { senaService } from './sena.service.js';
 import { configService } from './config.service.js';
 import { precioEfectivo } from './precio.service.js';
+import { resolverCondiciones } from './reserva.condiciones.js';
 import { combineDateTimeUtc, dayWindowUtc } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
@@ -73,15 +74,17 @@ export const reservaService = {
     if (motivo === 'bloqueo') throw Conflict('Ese horario está bloqueado');
 
     const clientePrevio = await prisma.cliente.findUnique({ where: { whatsapp: input.whatsapp } });
-    // Reserva creada por staff (panel/JWT): se considera confirmada — la seña se cobra en caja (efectivo o transferencia con comprobante a la vista). El flujo de seña queda solo para el bot (autoservicio).
-    const confianza = opts.porStaff || input.esContacto || (!!clientePrevio && clientePrevio.confiable);
-    const estado: EstadoReserva = confianza ? 'CONFIRMADA' : 'ESPERANDO_SENA';
     const cfg = await configService.get();
     const precio = precioEfectivo(cancha, input.fecha, input.horaInicio, cfg);
-    const montoSena =
-      estado === 'ESPERANDO_SENA'
-        ? (input.montoSena ?? (await senaService.montoParaCancha(cancha, precio)))
-        : null;
+    const cond = resolverCondiciones({
+      esContacto: input.esContacto,
+      porStaff: !!opts.porStaff,
+      clienteConfiable: !!clientePrevio?.confiable,
+      precio,
+      montoSenaPedido: input.montoSena,
+      senaPorDefecto: await senaService.montoParaCancha(cancha, precio),
+    });
+    const { estado, montoSena } = cond;
 
     const reserva = await prisma.$transaction(async (tx) => {
       const existente = await tx.cliente.findUnique({ where: { whatsapp: input.whatsapp } });
@@ -112,7 +115,9 @@ export const reservaService = {
           fechaFin,
           estado,
           esContacto: input.esContacto,
-          monto: precio,
+          monto: cond.monto,
+          montoLista: cond.montoLista,
+          suscripcionId: cond.suscripcionId,
           montoSena,
           notas: input.notas ?? null,
         },

@@ -10,7 +10,9 @@ export interface CreateReservaData {
   estado: EstadoReserva;
   esContacto: boolean;
   monto: number;
+  montoLista?: number | null;
   montoSena?: number | null;
+  suscripcionId?: string | null;
   notas?: string | null;
   turnoFijoId?: string | null;
 }
