@@ -25,3 +25,29 @@ describe('resolverCondiciones (sin suscripción)', () => {
     expect(resolverCondiciones({ ...base, montoSenaPedido: 3000 }).montoSena).toBe(3000);
   });
 });
+
+describe('resolverCondiciones (con suscripción)', () => {
+  const conSocio = { ...base, suscripcionId: 'sus_1' };
+
+  it('socio → CONFIRMADA, monto 0, montoLista con el precio real, sin seña', () => {
+    expect(resolverCondiciones(conSocio)).toEqual({
+      estado: 'CONFIRMADA', monto: 0, montoLista: 12000, montoSena: null, suscripcionId: 'sus_1',
+    });
+  });
+
+  it('la suscripción gana sobre el pedido explícito de seña', () => {
+    expect(resolverCondiciones({ ...conSocio, montoSenaPedido: 5000 }).montoSena).toBeNull();
+  });
+
+  it('socio: montoSenaPedido explícito se ignora incluso si es 0', () => {
+    expect(resolverCondiciones({ ...conSocio, montoSenaPedido: 0 }).montoSena).toBeNull();
+  });
+
+  it('socio que además es confiable sigue bonificado', () => {
+    expect(resolverCondiciones({ ...conSocio, clienteConfiable: true }).monto).toBe(0);
+  });
+
+  it('socio reservando desde el panel sigue bonificado', () => {
+    expect(resolverCondiciones({ ...conSocio, porStaff: true }).monto).toBe(0);
+  });
+});

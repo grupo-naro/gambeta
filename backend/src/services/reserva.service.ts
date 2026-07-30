@@ -10,6 +10,7 @@ import { senaService } from './sena.service.js';
 import { configService } from './config.service.js';
 import { precioEfectivo } from './precio.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
+import { suscripcionService } from './suscripcion.service.js';
 import { combineDateTimeUtc, dayWindowUtc } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
@@ -74,6 +75,10 @@ export const reservaService = {
     if (motivo === 'bloqueo') throw Conflict('Ese horario está bloqueado');
 
     const clientePrevio = await prisma.cliente.findUnique({ where: { whatsapp: input.whatsapp } });
+    // Congelado al reservar: vale la vigencia de HOY, no la del día del turno. Un socio vigente
+    // puede agendar un turno más allá de su vencimiento y sigue bonificado. Mismo criterio que
+    // reprogramar, que tampoco recalcula el monto.
+    const suscripcion = clientePrevio ? await suscripcionService.vigenteDe(clientePrevio.id) : null;
     const cfg = await configService.get();
     const precio = precioEfectivo(cancha, input.fecha, input.horaInicio, cfg);
     const cond = resolverCondiciones({
@@ -83,6 +88,7 @@ export const reservaService = {
       precio,
       montoSenaPedido: input.montoSena,
       senaPorDefecto: await senaService.montoParaCancha(cancha, precio),
+      suscripcionId: suscripcion?.id ?? null,
     });
     const { estado, montoSena } = cond;
 
