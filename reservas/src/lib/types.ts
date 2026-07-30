@@ -9,7 +9,7 @@ export interface Grilla {
   precios: Record<string, Record<string, number>>;
 }
 
-export interface ReservaCreada { id: string; montoSena: number | null }
+export interface ReservaCreada { id: string; montoSena: number | null; suscripcionId?: string | null }
 
 export interface PreferenciaPago { checkoutUrl: string }
 

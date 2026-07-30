@@ -28,7 +28,7 @@ export function PantallaReserva() {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [errorForm, setErrorForm] = useState('');
-  const [ok, setOk] = useState<{ senia: number | null; contacto?: string } | null>(null);
+  const [ok, setOk] = useState<{ senia: number | null; contacto?: string; socio?: boolean } | null>(null);
   const [pending, start] = useTransition();
 
   useEffect(() => {
@@ -56,6 +56,9 @@ export function PantallaReserva() {
     start(async () => {
       const r = await crearReserva({ canchaId: sel.canchaId, fecha, horaInicio: sel.hora, nombre: nombre.trim(), telefono });
       if (!r.ok) { setErrorForm(r.error); recargar(); return; }
+      // Socio: la reserva ya vuelve CONFIRMADA y bonificada. No hay seña que cobrar,
+      // así que no se genera preferencia de Mercado Pago.
+      if (r.data.suscripcionId) { setOk({ senia: null, socio: true }); recargar(); return; }
       const senia = r.data.montoSena == null ? null : Number(r.data.montoSena);
       if (senia != null && senia > 0) {
         const pref = await crearPreferenciaPago(r.data.id);
@@ -184,10 +187,12 @@ export function PantallaReserva() {
             {ok ? (
               <div className="flex flex-col items-center gap-3 text-center">
                 <div className="text-5xl">✅</div>
-                <h3 className="text-xl font-bold">¡Reserva registrada!</h3>
+                <h3 className="text-xl font-bold">{ok.socio ? '¡Turno confirmado!' : '¡Reserva registrada!'}</h3>
                 <p className="text-neutral-400">{sel.canchaNombre} · {fechaLarga(fecha)} · {sel.hora}</p>
                 {ok.contacto
                   ? <p className="text-amber-400">{ok.contacto}</p>
+                  : ok.socio
+                  ? <p>Quedó <b>bonificado</b> por tu suscripción. ¡Te esperamos!</p>
                   : ok.senia != null && ok.senia > 0
                   ? <p>Para confirmarla, aboná la seña de <b>{money(ok.senia)}</b>.</p>
                   : <p>Te contactamos para confirmarla.</p>}
