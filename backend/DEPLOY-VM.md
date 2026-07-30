@@ -61,7 +61,7 @@ docker exec n8n node -e "fetch('http://backend:3000/health').then(r=>r.text()).t
 
 # Login admin (usa ADMIN_SEED_*):
 curl -s -X POST http://localhost:3001/auth/login -H 'content-type: application/json' \
-  -d '{"email":"admin@canchitas.com","password":"<ADMIN_SEED_PASSWORD>"}'
+  -d '{"email":"admin@gambeteando.com","password":"<ADMIN_SEED_PASSWORD>"}'
 ```
 
 ## Notas

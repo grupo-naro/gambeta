@@ -1,6 +1,6 @@
 # canchitas-infra
 
-Infraestructura del sistema de reservas Canchitas (bot de WhatsApp + backend + panel).
+Infraestructura del sistema de reservas Gambeteando (bot de WhatsApp + backend + panel).
 Este repo permite instalar el stack completo en un VPS nuevo para un complejo nuevo.
 
 El sistema completo son **3 repos**:

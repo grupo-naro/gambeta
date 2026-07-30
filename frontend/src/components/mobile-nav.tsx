@@ -19,7 +19,7 @@ export function MobileNav({ rol }: { rol: Rol }) {
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/30 duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <Dialog.Popup className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-sidebar p-3 shadow-xl outline-none transition-transform duration-200 data-closed:-translate-x-full data-open:translate-x-0">
           <Dialog.Title className="px-2 py-3 text-[16px] font-semibold tracking-tight text-neutral-900">
-            Grupo <span className="text-[12px] font-semibold uppercase tracking-[0.18em] text-neutral-500">NARO</span>
+            Gambeteando <span className="text-[12px] font-semibold uppercase tracking-[0.18em] text-neutral-500">RESERVAS</span>
           </Dialog.Title>
           {/* onClick en el contenedor: cualquier NavLink tocado cierra el drawer (burbujea) */}
           <nav className="flex-1 space-y-4" onClick={() => setOpen(false)}>

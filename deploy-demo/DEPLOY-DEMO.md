@@ -1,4 +1,4 @@
-# Deploy Demo — Grupo Naro
+# Deploy Demo — Gambeteando
 
 Panel web de demo en `canchas.gruponaro.com.ar`. Stack **autocontenido**: trae su propio
 Traefik con HTTPS (Let's Encrypt), Postgres, backend y frontend. Sin bot de WhatsApp.
@@ -29,7 +29,7 @@ Traefik con HTTPS (Let's Encrypt), Postgres, backend y frontend. Sin bot de What
 5. Esperar ~1 min a que Traefik emita el certificado y abrir `https://canchas.gruponaro.com.ar`.
 
 ## Verificación
-- Login muestra "Grupo Naro" y el candado HTTPS es válido.
+- Login muestra "Gambeteando" y el candado HTTPS es válido.
 - Entrar al panel con el admin de demo (`ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD`): en ningún
   lado dice "Ortigoza".
 - Calendario / Hoy / Caja / Clientes muestran datos ficticios.

@@ -10,7 +10,7 @@ let container: StartedPostgreSqlContainer;
 
 export async function setup() {
   container = await new PostgreSqlContainer('postgres:16-alpine')
-    .withDatabase('canchitas')
+    .withDatabase('gambeteando')
     .start();
 
   const url = container.getConnectionUri();
@@ -28,9 +28,9 @@ export async function setup() {
   process.env['SENA_PORCENTAJE'] = '50';
   process.env['SENA_MONTO_FIJO'] = '5000';
   process.env['SENA_CBU'] = '0000003100000000000001';
-  process.env['SENA_ALIAS'] = 'canchitas.ortigoza';
-  process.env['SENA_TITULAR'] = 'Canchitas Ortigoza';
-  process.env['ADMIN_SEED_EMAIL'] = 'admin@canchitas.com';
+  process.env['SENA_ALIAS'] = 'gambeteando.canchas';
+  process.env['SENA_TITULAR'] = 'Gambeteando';
+  process.env['ADMIN_SEED_EMAIL'] = 'admin@gambeteando.com';
   process.env['ADMIN_SEED_PASSWORD'] = 'pw';
 
   // Apply migrations to the container.

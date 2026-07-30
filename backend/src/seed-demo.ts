@@ -5,8 +5,8 @@ import bcrypt from 'bcrypt';
 // Idempotente por ids `demo-*`. Correr con: npm run seed:demo
 async function main() {
   // 1) Admin de demo
-  const email = process.env.ADMIN_SEED_EMAIL ?? 'admin@gruponaro.com.ar';
-  const password = process.env.ADMIN_SEED_PASSWORD ?? 'Gruponaro2026';
+  const email = process.env.ADMIN_SEED_EMAIL ?? 'admin@gambeteando.com.ar';
+  const password = process.env.ADMIN_SEED_PASSWORD ?? 'Gambeteando2026';
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.adminUser.upsert({
     where: { email },

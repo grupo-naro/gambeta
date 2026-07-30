@@ -29,14 +29,14 @@ export default function LoginPage() {
           <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
             <Logo className="h-6 w-6" />
           </span>
-          <h1 className="text-xl font-semibold tracking-tight">Grupo Naro</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Gambeteando</h1>
           <p className="mt-1 text-sm text-neutral-600">Panel de administración</p>
         </div>
         <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
           <form action={action} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" required autoComplete="email" placeholder="vos@gruponaro.com.ar" />
+              <Input id="email" name="email" type="email" required autoComplete="email" placeholder="vos@gambeteando.com.ar" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
@@ -50,7 +50,7 @@ export default function LoginPage() {
             </Button>
           </form>
         </div>
-        <p className="mt-6 text-center text-xs text-neutral-500">Grupo Naro · Reservas</p>
+        <p className="mt-6 text-center text-xs text-neutral-500">Gambeteando · Reservas</p>
       </div>
     </main>
   );

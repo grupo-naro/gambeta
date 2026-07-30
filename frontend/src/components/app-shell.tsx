@@ -28,8 +28,8 @@ export function AppShell({ email, rol, children }: { email: string; rol: Rol; ch
             <Logo className="h-[18px] w-[18px]" />
           </span>
           <div className="leading-tight">
-            <div className="text-[16px] font-semibold tracking-tight text-neutral-900">Grupo</div>
-            <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-neutral-500">NARO</div>
+            <div className="text-[16px] font-semibold tracking-tight text-neutral-900">Gambeteando</div>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-neutral-500">RESERVAS</div>
           </div>
         </div>
         <nav className="flex-1 space-y-4 px-3 pt-2">
@@ -55,7 +55,7 @@ export function AppShell({ email, rol, children }: { email: string; rol: Rol; ch
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-neutral-200/80 bg-white/75 px-6 backdrop-blur-md">
           <div className="md:hidden"><MobileNav rol={rol} /></div>
           <span className="flex items-center gap-2 font-semibold tracking-tight md:hidden">
-            <Logo className="h-5 w-5 text-primary" /> Grupo Naro
+            <Logo className="h-5 w-5 text-primary" /> Gambeteando
           </span>
           <div className="ml-auto flex items-center gap-3">
             <span className="hidden text-sm text-neutral-600 sm:inline">{email}</span>

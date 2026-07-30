@@ -43,9 +43,9 @@ describe('GET/PATCH /config', () => {
   });
   it('PATCH /config actualiza con JWT admin', async () => {
     const res = await supertest(app).patch('/config').set('authorization', `Bearer ${token}`)
-      .send({ alias: 'canchitas.mp', horaApertura: '09:00', horaCierre: '23:00' });
+      .send({ alias: 'gambeteando.mp', horaApertura: '09:00', horaCierre: '23:00' });
     expect(res.status).toBe(200);
-    expect(res.body.alias).toBe('canchitas.mp');
+    expect(res.body.alias).toBe('gambeteando.mp');
   });
   it('ni GET ni PATCH /config filtran el buffetPinHash', async () => {
     const { buffetPinService } = await import('../../src/services/buffetPin.service.js');
@@ -56,7 +56,7 @@ describe('GET/PATCH /config', () => {
     expect(get.body).not.toHaveProperty('buffetPinHash');
 
     const patch = await supertest(app).patch('/config').set('authorization', `Bearer ${token}`)
-      .send({ alias: 'canchitas.pin-test' });
+      .send({ alias: 'gambeteando.pin-test' });
     expect(patch.status).toBe(200);
     expect(patch.body).not.toHaveProperty('buffetPinHash');
   });
@@ -117,9 +117,9 @@ describe('senaService desde DB', () => {
   it('datosPago refleja alias de la config', async () => {
     const { senaService } = await import('../../src/services/sena.service.js');
     await configService.get();
-    await configService.update({ alias: 'pago.canchitas', cbu: '000', titular: 'Nahuel' });
+    await configService.update({ alias: 'pago.gambeteando', cbu: '000', titular: 'Nahuel' });
     const dp = await senaService.datosPago();
-    expect(dp.alias).toBe('pago.canchitas');
+    expect(dp.alias).toBe('pago.gambeteando');
   });
 });
 

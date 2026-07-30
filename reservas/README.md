@@ -1,6 +1,6 @@
-# reservas — Grupo Naro
+# reservas — Gambeteando
 
-Web pública para que los clientes de Grupo Naro reserven sus canchas de fútbol o pádel online.
+Web pública para que los clientes de Gambeteando reserven sus canchas de fútbol o pádel online.
 
 ## Correr en local
 

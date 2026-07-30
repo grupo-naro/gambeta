@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 // Seed idempotente: admin + 2 canchas + horarios. Reusa el singleton (adapter pg + DATABASE_URL).
 // Dev: `npm run seed` (tsx). Prod/VM: `node dist/seed.js` (sin tsx, ya compilado).
 async function main() {
-  const email = process.env.ADMIN_SEED_EMAIL ?? 'admin@canchitas.com';
+  const email = process.env.ADMIN_SEED_EMAIL ?? 'admin@gambeteando.com';
   const password = process.env.ADMIN_SEED_PASSWORD ?? 'change-me-admin';
   await prisma.adminUser.upsert({
     where: { email },

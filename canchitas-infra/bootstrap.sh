@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap de la infra Canchitas en un VPS nuevo.
+# Bootstrap de la infra Gambeteando en un VPS nuevo.
 # Idempotente: se puede correr varias veces sin romper nada.
 set -euo pipefail
 

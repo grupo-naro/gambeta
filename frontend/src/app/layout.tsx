@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Grupo Naro",
+  title: "Gambeteando",
   description: "Panel de administración",
 };
 

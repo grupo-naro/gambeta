@@ -1,4 +1,4 @@
-# Canchitas Ortigoza — Backend API
+# Gambeteando — Backend API
 
 Source of truth for **canchas** (fields), **availability**, **reservations**, and **seña** (deposit) payments. Consumed by:
 

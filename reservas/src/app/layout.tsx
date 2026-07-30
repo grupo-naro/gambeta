@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Grupo Naro — Reservá tu cancha",
+  title: "Gambeteando — Reservá tu cancha",
   description: "Reservá tu cancha de fútbol o pádel online.",
 };
 

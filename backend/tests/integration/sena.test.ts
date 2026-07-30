@@ -42,7 +42,7 @@ describe('seña on create', () => {
     expect(res.status).toBe(201);
     expect(res.body.estado).toBe('ESPERANDO_SENA');
     expect(Number(res.body.montoSena)).toBe(5000);
-    expect(res.body.datosPago).toMatchObject({ alias: 'canchitas.ortigoza', titular: 'Canchitas Ortigoza' });
+    expect(res.body.datosPago).toMatchObject({ alias: 'gambeteando.canchas', titular: 'Gambeteando' });
     expect(res.body.datosPago.cbu).toBeTruthy();
   });
 
@@ -66,8 +66,8 @@ describe('GET /config/sena', () => {
     expect(res.body).toMatchObject({
       modo: 'fijo',
       porcentaje: 50,
-      alias: 'canchitas.ortigoza',
-      titular: 'Canchitas Ortigoza',
+      alias: 'gambeteando.canchas',
+      titular: 'Gambeteando',
     });
     expect(res.body.cbu).toBeTruthy();
   });

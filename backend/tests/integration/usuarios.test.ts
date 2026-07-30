@@ -10,9 +10,9 @@ beforeEach(resetTables);
 
 async function seedDefaultAdmin() {
   const { hashPassword } = await import('../../src/utils/password.js');
-  return getPrisma().adminUser.create({ data: { email: 'admin@canchitas.com', nombre: 'Admin', passwordHash: await hashPassword('x'), rol: 'ADMIN', esDefault: true } });
+  return getPrisma().adminUser.create({ data: { email: 'admin@gambeteando.com', nombre: 'Admin', passwordHash: await hashPassword('x'), rol: 'ADMIN', esDefault: true } });
 }
-const tok = (id: string) => signAdminToken({ adminId: id, email: 'admin@canchitas.com', rol: 'ADMIN' });
+const tok = (id: string) => signAdminToken({ adminId: id, email: 'admin@gambeteando.com', rol: 'ADMIN' });
 
 describe('/usuarios (ADMIN)', () => {
   it('crea, lista (sin hash) y respeta email único', async () => {
