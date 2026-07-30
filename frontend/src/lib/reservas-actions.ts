@@ -40,6 +40,15 @@ export async function getDisponibilidad(canchaId: string, fecha: string): Promis
   catch { return []; }
 }
 
-export async function crearReserva(input: { canchaId: string; whatsapp: string; nombreCliente: string; fecha: string; horaInicio: string; cobroInicial: 'ninguno' | 'sena' | 'total'; medioCobro: 'EFECTIVO' | 'TRANSFERENCIA'; montoCobro?: number }): Promise<Result> {
-  return run(() => apiFetch('/reservas', { method: 'POST', body: JSON.stringify({ ...input, esContacto: false, nombreConfirmado: true }) }));
+// No usa el helper run(): necesita devolver el flag cobroOmitido (ver materializarFijo en
+// fijos-actions.ts, mismo motivo). Revalida las mismas rutas que run() de este archivo.
+export async function crearReserva(input: { canchaId: string; whatsapp: string; nombreCliente: string; fecha: string; horaInicio: string; cobroInicial: 'ninguno' | 'sena' | 'total'; medioCobro: 'EFECTIVO' | 'TRANSFERENCIA'; montoCobro?: number }): Promise<{ ok: true; cobroOmitido?: boolean } | { ok: false; error: string }> {
+  try {
+    const data = await apiFetch<{ cobroOmitido?: boolean }>('/reservas', { method: 'POST', body: JSON.stringify({ ...input, esContacto: false, nombreConfirmado: true }) });
+    revalidatePath('/reservas');
+    revalidatePath('/calendario');
+    revalidatePath('/hoy');
+    return { ok: true, cobroOmitido: data.cobroOmitido };
+  }
+  catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }

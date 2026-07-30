@@ -80,7 +80,14 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha
     }
     start(async () => {
       const r = await crearReserva({ canchaId, whatsapp, nombreCliente, fecha, horaInicio, cobroInicial: cobro, medioCobro, montoCobro: cobro === 'sena' ? Number(montoSena) : undefined });
-      if (r.ok) { toast.success('Reserva creada'); handleOpenChange(false); }
+      if (r.ok) {
+        if (r.cobroOmitido) {
+          toast.success('Reserva creada', { description: 'Socio: turno bonificado, no se cobró nada.' });
+        } else {
+          toast.success('Reserva creada');
+        }
+        handleOpenChange(false);
+      }
       else toast.error(r.error);
     });
   }
