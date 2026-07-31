@@ -46,7 +46,7 @@ export function Servicios() {
 
       {/* Secundarios: más chicos, no son reservables online. */}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
+        <div className="flex flex-col rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
           <span className="text-2xl" aria-hidden>
             🏆
           </span>
@@ -57,13 +57,13 @@ export function Servicios() {
           <BotonWhatsapp
             mensaje="¡Hola! Quiero información sobre los torneos."
             tamano="chico"
-            className="mt-4"
+            className="mt-auto pt-4"
           >
             Consultar torneos
           </BotonWhatsapp>
         </div>
 
-        <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
+        <div className="flex flex-col rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
           <span className="text-2xl" aria-hidden>
             🍔
           </span>
