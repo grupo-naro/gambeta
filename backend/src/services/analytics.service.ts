@@ -21,6 +21,7 @@ export const analyticsService = {
     return rows.map((r) => ({ canchaId: r.canchaId, reservas: r._count.canchaId }));
   },
 
+  
   horariosPico(desde: Date, hasta: Date) {
     return prisma.$queryRaw<Array<{ hora: number; reservas: bigint }>>`
       SELECT EXTRACT(HOUR FROM "fechaInicio")::int AS hora, COUNT(*) AS reservas
