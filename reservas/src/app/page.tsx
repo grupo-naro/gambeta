@@ -2,6 +2,7 @@ import { Hero } from '@/components/landing/hero';
 import { Servicios } from '@/components/landing/servicios';
 import { ComoReservar } from '@/components/landing/como-reservar';
 import { Ubicacion } from '@/components/landing/ubicacion';
+import { Pie, BarraReservaMobile } from '@/components/landing/pie';
 
 export default function Home() {
   return (
@@ -10,6 +11,8 @@ export default function Home() {
       <Servicios />
       <ComoReservar />
       <Ubicacion />
+      <Pie />
+      <BarraReservaMobile />
     </main>
   );
 }
