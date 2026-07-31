@@ -34,6 +34,7 @@ Por eso el logo va montado sobre una **tarjeta blanca redondeada**, que es exact
 | `src/lib/negocio.ts` (nuevo) | Datos del predio + helpers de URL. Fuente única. |
 | `src/app/globals.css` (modificar) | Corrige el override de Arial; registra el token `--font-display`. |
 | `src/app/layout.tsx` (modificar) | Carga Anton; metadata de la landing. |
+| `src/components/landing/boton-reservar.tsx` (nuevo) | CTA primario a `/reservar`. 3 consumidores. |
 | `src/components/landing/boton-whatsapp.tsx` (nuevo) | CTA de WhatsApp con degradación si falta el número. 3 consumidores. |
 | `src/components/landing/hero.tsx` (nuevo) | Sección 1. |
 | `src/components/landing/servicios.tsx` (nuevo) | Sección 2. |
@@ -281,16 +282,54 @@ el sitio entero renderizaba en Arial."
 
 ---
 
-### Task 3: Botón de WhatsApp reutilizable
+### Task 3: Botones de CTA reutilizables
+
+Los dos CTAs de la landing viven acá. Cada uno aparece en tres secciones: centralizarlos evita
+repetir las clases tres veces y que el estilo se desincronice.
 
 **Files:**
+- Create: `reservas/src/components/landing/boton-reservar.tsx`
 - Create: `reservas/src/components/landing/boton-whatsapp.tsx`
 
 **Interfaces:**
 - Consumes: `whatsappUrl` de `@/lib/negocio` (Task 1).
-- Produces: `BotonWhatsapp({ mensaje?: string; children?: React.ReactNode; tamano?: 'normal' | 'chico'; className?: string })` — server component. Si `whatsappUrl()` da `null`, renderiza un `<span>` no interactivo con el mismo aspecto atenuado en vez de un `<a>` roto.
+- Produces:
+  - `BotonReservar({ children?: React.ReactNode; tamano?: 'normal' | 'ancho'; className?: string })` — server component, siempre linkea a `/reservar`.
+  - `BotonWhatsapp({ mensaje?: string; children?: React.ReactNode; tamano?: 'normal' | 'chico'; className?: string })` — server component. Si `whatsappUrl()` da `null`, renderiza un `<span>` no interactivo con el mismo aspecto atenuado en vez de un `<a>` roto.
 
-- [ ] **Step 1: Crear el componente**
+- [ ] **Step 1: Crear `boton-reservar.tsx`**
+
+```tsx
+import Link from 'next/link';
+
+const BASE =
+  'inline-flex items-center justify-center rounded-full bg-lime-500 font-bold text-black transition hover:bg-lime-400';
+
+// Mismo criterio que en BotonWhatsapp: el tamaño va por prop, no por className.
+const TAMANOS = {
+  normal: 'px-8 py-3 text-base',
+  ancho: 'w-full px-6 py-3 text-base',
+};
+
+/** CTA primario de la landing. Único lugar donde vive el estilo del botón lima. */
+export function BotonReservar({
+  children = 'Reservar ahora',
+  tamano = 'normal',
+  className = '',
+}: {
+  children?: React.ReactNode;
+  tamano?: keyof typeof TAMANOS;
+  className?: string;
+}) {
+  return (
+    <Link href="/reservar" className={`${BASE} ${TAMANOS[tamano]} ${className}`}>
+      {children}
+    </Link>
+  );
+}
+```
+
+- [ ] **Step 2: Crear `boton-whatsapp.tsx`**
 
 ```tsx
 import { whatsappUrl } from '@/lib/negocio';
@@ -348,7 +387,7 @@ export function BotonWhatsapp({
 }
 ```
 
-- [ ] **Step 2: Verificar build y lint**
+- [ ] **Step 3: Verificar build y lint**
 
 ```bash
 pnpm build
@@ -357,11 +396,11 @@ pnpm lint
 
 Esperado: build exitoso; lint sigue en 1 error.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add reservas/src/components/landing/boton-whatsapp.tsx
-git commit -m "feat(reservas): boton de WhatsApp con degradacion si falta el numero"
+git add reservas/src/components/landing/boton-reservar.tsx reservas/src/components/landing/boton-whatsapp.tsx
+git commit -m "feat(reservas): botones de CTA reutilizables de la landing"
 ```
 
 ---
@@ -384,8 +423,8 @@ Releer antes la sección "Restricción de contraste del logo": el logo va sobre 
 
 ```tsx
 import Image from 'next/image';
-import Link from 'next/link';
 import { negocio } from '@/lib/negocio';
+import { BotonReservar } from './boton-reservar';
 import { BotonWhatsapp } from './boton-whatsapp';
 
 export function Hero() {
@@ -422,12 +461,7 @@ export function Hero() {
       </p>
 
       <div className="relative flex w-full max-w-md flex-col gap-3 sm:w-auto sm:flex-row">
-        <Link
-          href="/reservar"
-          className="inline-flex items-center justify-center rounded-full bg-lime-500 px-8 py-3 text-base font-bold text-black transition hover:bg-lime-400"
-        >
-          Reservar ahora
-        </Link>
+        <BotonReservar />
         <BotonWhatsapp />
       </div>
 
@@ -631,7 +665,7 @@ Sección nueva, no existe en la landing del cliente. Desarma el freno de "no sé
 - [ ] **Step 1: Crear `como-reservar.tsx`**
 
 ```tsx
-import Link from 'next/link';
+import { BotonReservar } from './boton-reservar';
 
 const PASOS = [
   {
@@ -672,12 +706,7 @@ export function ComoReservar() {
         </ol>
 
         <div className="mt-10 text-center">
-          <Link
-            href="/reservar"
-            className="inline-flex items-center justify-center rounded-full bg-lime-500 px-8 py-3 text-base font-bold text-black transition hover:bg-lime-400"
-          >
-            Reservar ahora
-          </Link>
+          <BotonReservar />
         </div>
       </div>
     </section>
@@ -839,8 +868,8 @@ Cierra la landing. Las redes van acá a propósito: en la landing del cliente es
 
 ```tsx
 import Image from 'next/image';
-import Link from 'next/link';
 import { negocio } from '@/lib/negocio';
+import { BotonReservar } from './boton-reservar';
 
 const REDES = [
   { nombre: 'Instagram', url: negocio.redes.instagram },
@@ -898,12 +927,7 @@ export function Pie() {
 export function BarraReservaMobile() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-neutral-800 bg-neutral-950/95 p-3 backdrop-blur md:hidden">
-      <Link
-        href="/reservar"
-        className="flex items-center justify-center rounded-full bg-lime-500 px-6 py-3 text-base font-bold text-black"
-      >
-        Reservar ahora
-      </Link>
+      <BotonReservar tamano="ancho" />
     </div>
   );
 }
