@@ -10,7 +10,7 @@ const REDES = [
 export function Pie() {
   return (
     /* pb-28 en mobile deja aire para que la barra fija no tape el contenido. */
-    <footer className="border-t border-neutral-800 px-6 pb-28 pt-12 text-center md:pb-12">
+    <footer className="border-t border-neutral-800 bg-neutral-950 px-6 pb-28 pt-12 text-center text-neutral-100 md:pb-12">
       {/* Misma razón que en el hero: el wordmark es gris oscuro y necesita fondo claro. */}
       <div className="mx-auto mb-8 w-fit rounded-2xl bg-white p-3">
         <Image
@@ -38,7 +38,7 @@ export function Pie() {
           ) : (
             <span
               key={r.nombre}
-              className="rounded-full border border-neutral-800 px-5 py-2 text-sm text-neutral-600"
+              className="rounded-full border border-neutral-800 px-5 py-2 text-sm text-neutral-500"
               title={`Falta cargar la URL de ${r.nombre} en negocio.ts`}
             >
               {r.nombre}
@@ -47,7 +47,7 @@ export function Pie() {
         )}
       </div>
 
-      <p className="mt-8 text-xs uppercase tracking-[0.2em] text-neutral-500">
+      <p className="mt-8 text-xs uppercase tracking-[0.2em] text-neutral-400">
         {negocio.nombre} · {negocio.rubro}
       </p>
     </footer>

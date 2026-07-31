@@ -5,7 +5,7 @@ import { BotonWhatsapp } from './boton-whatsapp';
 
 export function Hero() {
   return (
-    <section className="relative flex min-h-[100svh] flex-col items-center justify-center gap-8 overflow-hidden px-6 py-16 text-center">
+    <section className="relative flex min-h-[100svh] flex-col items-center justify-center gap-6 overflow-hidden px-6 py-10 text-center sm:gap-8 sm:py-16">
       {/* Halo lima detrás del contenido. Puro CSS, sin imagen. */}
       <div
         aria-hidden
@@ -21,7 +21,7 @@ export function Hero() {
           height={1877}
           priority
           sizes="(min-width: 640px) 260px, 190px"
-          className="h-auto w-[190px] sm:w-[260px]"
+          className="h-auto w-[150px] sm:w-[260px]"
         />
       </div>
 
@@ -41,7 +41,7 @@ export function Hero() {
         <BotonWhatsapp />
       </div>
 
-      <p className="relative text-sm text-neutral-500">
+      <p className="relative text-sm text-neutral-400">
         Reservá online en menos de un minuto.
       </p>
     </section>

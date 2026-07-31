@@ -51,13 +51,13 @@ export function Servicios() {
             🏆
           </span>
           <h3 className="mt-3 text-lg font-bold text-neutral-100">Torneos</h3>
-          <p className="mt-1 text-sm text-neutral-400">
+          <p className="mt-1 mb-4 text-sm text-neutral-400">
             Competencia, diversión y comunidad. Consultá fechas y cupos.
           </p>
           <BotonWhatsapp
             mensaje="¡Hola! Quiero información sobre los torneos."
             tamano="chico"
-            className="mt-auto pt-4"
+            className="mt-auto"
           >
             Consultar torneos
           </BotonWhatsapp>

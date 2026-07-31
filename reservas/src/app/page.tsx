@@ -6,13 +6,15 @@ import { Pie, BarraReservaMobile } from '@/components/landing/pie';
 
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col bg-neutral-950 text-neutral-100">
-      <Hero />
-      <Servicios />
-      <ComoReservar />
-      <Ubicacion />
+    <>
+      <main className="flex flex-1 flex-col bg-neutral-950 text-neutral-100">
+        <Hero />
+        <Servicios />
+        <ComoReservar />
+        <Ubicacion />
+      </main>
       <Pie />
       <BarraReservaMobile />
-    </main>
+    </>
   );
 }

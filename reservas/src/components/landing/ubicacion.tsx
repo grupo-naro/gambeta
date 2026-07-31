@@ -21,13 +21,13 @@ export function Ubicacion() {
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 inline-block text-sm font-semibold text-neutral-100 hover:text-lime-400"
+              className="mt-4 inline-block py-1.5 text-sm font-semibold text-neutral-100 hover:text-lime-400"
             >
               Cómo llegar →
             </a>
           ) : (
             <span
-              className="mt-4 inline-block text-sm text-neutral-600"
+              className="mt-4 inline-block py-1.5 text-sm text-neutral-500"
               title="Falta cargar mapsUrl en negocio.ts"
             >
               Cómo llegar →

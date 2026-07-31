@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Anton } from "next/font/google";
+import { Geist, Anton } from "next/font/google";
+import { negocio } from "@/lib/negocio";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -21,8 +17,7 @@ const anton = Anton({
 
 export const metadata: Metadata = {
   title: "Gambeteando — Reservá tu cancha",
-  description:
-    "Canchas de pádel y fútbol en General Rodríguez. Reservá online en minutos, sin llamados.",
+  description: `Canchas de pádel y fútbol en ${negocio.direccion.localidad}. Reservá online en minutos, sin llamados.`,
 };
 
 export default function RootLayout({
@@ -33,7 +28,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${anton.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${anton.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

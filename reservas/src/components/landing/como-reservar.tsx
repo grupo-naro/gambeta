@@ -26,7 +26,7 @@ export function ComoReservar() {
           Reservar es <span className="text-lime-400">así de simple</span>
         </h2>
 
-        <ol className="mt-10 grid gap-6 sm:grid-cols-3">
+        <ol role="list" className="mt-10 grid gap-6 sm:grid-cols-3">
           {PASOS.map((p) => (
             <li key={p.n} className="text-center sm:text-left">
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-lime-500 font-display text-xl text-black">
