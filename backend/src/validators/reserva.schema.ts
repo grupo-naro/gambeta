@@ -10,6 +10,7 @@ export const createReservaSchema = z.object({
     esContacto: z.boolean().default(false),
     fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     horaInicio: z.string().regex(/^\d{2}:\d{2}$/),
+    duracionMin: z.union([z.literal(60), z.literal(90), z.literal(120)]).optional(),
     montoSena: z.number().nonnegative().optional(),
     montoCobro: z.number().nonnegative().optional(),
     nombreConfirmado: z.boolean().default(false),

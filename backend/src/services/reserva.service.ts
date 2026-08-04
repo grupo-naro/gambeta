@@ -11,7 +11,7 @@ import { configService } from './config.service.js';
 import { precioDeRango } from './precio.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
-import { combineDateTimeUtc, dayWindowUtc } from '../utils/tz.js';
+import { combineDateTimeUtc, dayWindowUtc, hhmmAMin, cierreMin, dayOfWeekInTz } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
@@ -56,6 +56,7 @@ export interface CreateReservaInput {
   esContacto: boolean;
   fecha: string;
   horaInicio: string;
+  duracionMin?: number;
   montoSena?: number;
   nombreConfirmado?: boolean;
   notas?: string;
@@ -65,12 +66,23 @@ export const reservaService = {
   async crear(input: CreateReservaInput, opts: { porStaff?: boolean } = {}) {
     const cancha = await canchaService.get(input.canchaId);
     const tz = getEnv().TZ_NEGOCIO;
+    const duracionMin = input.duracionMin ?? 60;
     const fechaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
-    const fechaFin = new Date(fechaInicio.getTime() + 60 * 60 * 1000);
+    const fechaFin = new Date(fechaInicio.getTime() + duracionMin * 60 * 1000);
     if (fechaInicio.getTime() <= Date.now()) throw BusinessRule('No se puede reservar en el pasado');
 
-    const iniMin = Number(input.horaInicio.split(':')[0]) * 60 + Number(input.horaInicio.split(':')[1]);
-    const motivo = await ocupacionService.conflictoReserva(input.canchaId, input.fecha, iniMin, iniMin + 60);
+    const iniMin = hhmmAMin(input.horaInicio);
+    const finMin = iniMin + duracionMin;
+
+    // La reserva tiene que terminar antes o justo en el cierre. Antes no hacía falta:
+    // todos los turnos medían lo mismo y la grilla ya no ofrecía horarios inválidos.
+    const cfg = await configService.get();
+    const dow = dayOfWeekInTz(input.fecha, tz);
+    const esFinde = dow === 0 || dow === 6;
+    const cierre = cierreMin(esFinde ? cfg.horaCierreFinde : cfg.horaCierre);
+    if (finMin > cierre) throw BusinessRule('La reserva termina después del horario de cierre');
+
+    const motivo = await ocupacionService.conflictoReserva(input.canchaId, input.fecha, iniMin, finMin);
     if (motivo === 'fijo') throw Conflict('Ese horario está tomado por un turno fijo');
     if (motivo === 'bloqueo') throw Conflict('Ese horario está bloqueado');
 
@@ -79,8 +91,7 @@ export const reservaService = {
     // puede agendar un turno más allá de su vencimiento y sigue bonificado. Mismo criterio que
     // reprogramar, que tampoco recalcula el monto.
     const suscripcion = clientePrevio ? await suscripcionService.vigenteDe(clientePrevio.id) : null;
-    const cfg = await configService.get();
-    const precio = precioDeRango(cancha, input.fecha, input.horaInicio, 60, cfg);
+    const precio = precioDeRango(cancha, input.fecha, input.horaInicio, duracionMin, cfg);
     const cond = resolverCondiciones({
       esContacto: input.esContacto,
       porStaff: !!opts.porStaff,
