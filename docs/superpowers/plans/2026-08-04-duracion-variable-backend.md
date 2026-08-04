@@ -36,16 +36,24 @@
 
 ## Nota sobre el orden
 
-Las tareas 1 y 2 cambian **plata en producción** (los turnos fijos de más de una hora pasan a cobrar lo que corresponde, y la franja pico que termina a medianoche empieza a aplicarse). Está aprobado explícitamente por el dueño del proyecto y documentado en el spec. No lo "suavices" ni agregues flags para mantener el comportamiento viejo.
+La Task 1 cambia **plata en producción** (los turnos fijos de más de una hora pasan a cobrar lo que corresponde, y la franja pico que termina a medianoche empieza a aplicarse). Está aprobada explícitamente por el dueño del proyecto y documentado en el spec. No lo "suavices" ni agregues flags para mantener el comportamiento viejo.
 
 ---
 
-### Task 1: `precioDeRango()` — prorrateo por minutos
+### Task 1: `precioDeRango()` y migración de sus cuatro consumidores
 
-Función pura, sin consumidores nuevos todavía. `precioEfectivo` sigue existiendo hasta la Task 2.
+Se hace todo junto **a propósito**: `precioDeRango` reemplaza a `precioEfectivo`, así que si la
+función nueva entrara sin migrar a los consumidores, ese commit no compilaría. Un solo commit,
+verde de punta a punta.
+
+Acá los turnos fijos empiezan a cobrarse por su duración real.
 
 **Files:**
 - Modify: `backend/src/services/precio.service.ts`
+- Modify: `backend/src/services/reserva.service.ts:83`
+- Modify: `backend/src/services/turnoFijo.service.ts:122`
+- Modify: `backend/src/services/agenda.service.ts:40`
+- Modify: `backend/src/services/disponibilidad.service.ts:101`
 - Test: `backend/tests/unit/precio.service.test.ts`
 
 **Interfaces:**
@@ -184,32 +192,10 @@ npx vitest run tests/unit/precio.service.test.ts
 
 Esperado: PASS, 8 tests.
 
-Nota: en este punto `npm run typecheck` **va a fallar** porque los cuatro consumidores todavía importan `precioEfectivo`, que ya no existe. Es lo esperado; se arregla en la Task 2. No agregues un alias ni dejes la función vieja para "no romper": la Task 2 migra a todos.
+En este punto `npm run typecheck` todavía falla, porque los cuatro consumidores importan
+`precioEfectivo`, que ya no existe. **No commitees acá**: los pasos 5 y 6 lo dejan verde.
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add backend/src/services/precio.service.ts backend/tests/unit/precio.service.test.ts
-git commit -m "feat(precio): precioDeRango con prorrateo por tramo y arreglo de franja a medianoche"
-```
-
----
-
-### Task 2: Migrar los cuatro consumidores
-
-Acá los turnos fijos empiezan a cobrarse por su duración real.
-
-**Files:**
-- Modify: `backend/src/services/reserva.service.ts:83`
-- Modify: `backend/src/services/turnoFijo.service.ts:122`
-- Modify: `backend/src/services/agenda.service.ts:40`
-- Modify: `backend/src/services/disponibilidad.service.ts:101`
-
-**Interfaces:**
-- Consumes: `precioDeRango(...)` (Task 1).
-- Produces: el árbol vuelve a compilar; `precioEfectivo` ya no se referencia en ningún lado.
-
-- [ ] **Step 1: Confirmar el alcance real**
+- [ ] **Step 5: Confirmar el alcance real de la migración**
 
 ```bash
 grep -rn "precioEfectivo" backend/src/
@@ -217,11 +203,11 @@ grep -rn "precioEfectivo" backend/src/
 
 Esperado: exactamente cuatro líneas — `reserva.service.ts:83`, `turnoFijo.service.ts:122`, `agenda.service.ts:40`, `disponibilidad.service.ts:101`. Si aparece alguna más, migrala también.
 
-- [ ] **Step 2: Migrar los cuatro**
+- [ ] **Step 6: Migrar los cuatro**
 
 En cada archivo, cambiar el import de `precioEfectivo` por `precioDeRango` y la llamada:
 
-- **`reserva.service.ts:83`** — por ahora sigue siendo una hora fija; la duración real llega en la Task 3:
+- **`reserva.service.ts:83`** — por ahora sigue siendo una hora fija; la duración real llega en la Task 2:
   ```ts
   const precio = precioDeRango(cancha, input.fecha, input.horaInicio, 60, cfg);
   ```
@@ -244,7 +230,7 @@ En cada archivo, cambiar el import de `precioEfectivo` por `precioDeRango` y la 
   precios[pc.id][h] = precioDeRango({ precioHora: pc.precioHora, precioHoraPico: pc.precioHoraPico }, fecha, h, 60, cfg);
   ```
 
-- [ ] **Step 3: Verificar que compila y que no quedan referencias**
+- [ ] **Step 7: Verificar que compila y que no quedan referencias**
 
 ```bash
 npm run typecheck
@@ -253,35 +239,35 @@ grep -rn "precioEfectivo" backend/src/ ; echo "exit=$?"
 
 Esperado: typecheck sin errores; el grep sin resultados (exit=1).
 
-- [ ] **Step 4: Correr los tests que no necesitan Docker**
+- [ ] **Step 8: Correr la suite completa**
 
 ```bash
 npm run test:unit
-```
-
-Esperado: todo pasa.
-
-- [ ] **Step 5: Correr la suite completa**
-
-```bash
 npm test
 ```
 
-Esperado: todo pasa. **Requiere Docker levantado.** Si Docker no está disponible, no inventes el resultado: dejalo asentado en el informe como no verificado y seguí.
+Esperado: todo pasa. `npm test` **requiere Docker levantado**. Si algún test de integración
+existente falla porque los turnos fijos ahora cobran su duración real, **ese test viejo es el que
+hay que actualizar** — el cambio está aprobado en el spec. Dejá asentado en el informe cuáles
+tocaste y por qué.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add backend/src/services/
-git commit -m "fix(precio): cobrar los turnos fijos por su duracion real
+git add backend/src/services/ backend/tests/
+git commit -m "feat(precio): prorratear por tramo y cobrar los fijos por su duracion real
 
-turnoFijo.service y agenda.service llamaban a precioEfectivo, que ignora
-horaFin: un fijo de dos horas se cobraba como si fuera de una."
+precioDeRango reemplaza a precioEfectivo: cobra precioHora x duracion y
+prorratea cuando el rango cruza el borde de la franja pico.
+
+Arregla dos bugs preexistentes: una franja que termina a medianoche nunca
+se aplicaba (comparacion de strings, "18:00" >= "00:00"), y turnoFijo y
+agenda cobraban los fijos de mas de una hora como si fueran de una."
 ```
 
 ---
 
-### Task 3: `duracionMin` al crear una reserva
+### Task 2: `duracionMin` al crear una reserva
 
 **Files:**
 - Modify: `backend/src/validators/reserva.schema.ts`
@@ -427,7 +413,7 @@ git commit -m "feat(reservas): aceptar duraciones de 60, 90 y 120 minutos"
 
 ---
 
-### Task 4: Preservar la duración al reprogramar
+### Task 3: Preservar la duración al reprogramar
 
 **Ojo con esto:** no existe un método `moverDeCancha` en el servicio. `reservaService.reprogramar`
 (línea 275) resuelve **los dos casos** — cambiar de horario y cambiar de cancha — según venga o no
@@ -439,7 +425,7 @@ tiempos. O sea: hay **un solo lugar** que arreglar, con dos líneas hardcodeadas
 - Test: `backend/tests/integration/duracion.test.ts` (agregar casos)
 
 **Interfaces:**
-- Consumes: lo de la Task 3.
+- Consumes: lo de la Task 2.
 - Produces: nada nuevo para tareas posteriores.
 
 - [ ] **Step 1: Agregar los tests que fallan**
@@ -513,7 +499,7 @@ const motivo = await ocupacionService.conflictoReserva(canchaDestino, input.fech
 
 Reemplazar de paso el cálculo manual de `iniMin` de la línea 296
 (`Number(input.horaInicio.split(':')[0]) * 60 + …`) por `hhmmAMin`, que hace exactamente eso y ya
-se importa en este archivo desde la Task 3.
+se importa en este archivo desde la Task 2.
 
 **No recalcular el monto.** El precio queda congelado al reservar, igual que hoy: lo dice el
 comentario de la línea 276 (`el monto NO se recalcula al reprogramar`). Una reserva de dos horas
@@ -537,7 +523,7 @@ git commit -m "fix(reservas): preservar la duracion al reprogramar y al mover de
 
 ---
 
-### Task 5: Disponibilidad cada 30 minutos, con duraciones viables
+### Task 4: Disponibilidad cada 30 minutos, con duraciones viables
 
 **Files:**
 - Modify: `backend/src/services/disponibilidad.service.ts`
@@ -702,14 +688,14 @@ git commit -m "feat(disponibilidad): turnos cada 30 minutos con duraciones viabl
 
 ---
 
-### Task 6: `grilla()` publica las duraciones, sin romper el contrato
+### Task 5: `grilla()` publica las duraciones, sin romper el contrato
 
 **Files:**
 - Modify: `backend/src/services/disponibilidad.service.ts` (método `grilla`, ~línea 72)
 - Test: `backend/tests/unit/grilla.test.ts` (revisar) y `backend/tests/integration/disponibilidad-duracion.test.ts` (agregar caso)
 
 **Interfaces:**
-- Consumes: `listar` con `duraciones` (Task 5).
+- Consumes: `listar` con `duraciones` (Task 4).
 - Produces: la respuesta de `grilla` suma `duraciones: Record<canchaId, Record<hora, { min: number; horaFin: string; precio: number }[]>>`. **`horas`, `libres`, `canchas` y `precios` no cambian de forma ni de significado.**
 
 - [ ] **Step 1: Escribir el test que falla**
