@@ -134,13 +134,26 @@ corresponda (para `turnoFijo.service.ts`, la que sale de `horaInicio`/`horaFin`)
 
 ### 3. Disponibilidad
 
-`SLOT_MIN` pasa de 60 a **30**, y el contrato del slot cambia de forma.
+`SLOT_MIN` pasa de 60 a **30**, y el contrato del slot **se amplía de forma aditiva**.
 
 Hoy `Grilla` es una matriz por hora (`horas: string[]`, `precios[canchaId][hora] = número`). Con
-duración, el precio deja de ser función de `(cancha, hora)` y pasa a serlo de
-`(cancha, hora, duración)`; esa matriz no lo puede expresar.
+duración, el precio pasa a ser función de `(cancha, hora, duración)`, que esa matriz no expresa.
 
-Cada slot declara qué duraciones entran y cuánto sale cada una:
+**La matriz no se elimina: se le agrega un campo al lado.** `precios[canchaId][hora]` no está mal,
+está incompleto — es el precio de 60 minutos, y sigue siendo correcto. Manteniéndolo, el contrato
+queda retrocompatible y la web pública sigue funcionando sin tocar una línea mientras el backend
+ya sirve las duraciones nuevas.
+
+Esto permite partir el trabajo en **dos planes independientes**, cada uno entregando software que
+funciona por sí solo:
+
+- **Plan A (backend):** precio prorrateado, duración en reservas, disponibilidad cada 30 minutos y
+  `grilla` con el campo `duraciones` agregado. Mergeable y deployable solo: n8n, el bot de WhatsApp
+  y la web pública siguen andando igual que hoy.
+- **Plan B (frontends):** selector de duración en el panel y en la web pública, y calendario
+  semanal con bloques proporcionales.
+
+El campo nuevo, por cancha y hora, declara qué duraciones entran y cuánto sale cada una:
 
 ```jsonc
 {
@@ -167,9 +180,11 @@ esta última consumida por la web pública.
 
 ### 4. UI
 
+Todo esto es **Plan B**; el backend (Plan A) se mergea antes y sin ello.
+
 - **Web pública** (`reservas/src/components/pantalla-reserva.tsx`): elegido el horario, aparece el
   selector de duración con los precios que mandó el backend. `Grilla` en
-  `reservas/src/lib/types.ts` cambia de forma junto con el contrato.
+  `reservas/src/lib/types.ts` suma el campo `duraciones`; los campos existentes no se tocan.
 - **Panel**: el diálogo de nueva reserva suma el mismo selector.
 - **Calendario semanal** (`frontend/src/components/calendario/calendario-semana.tsx` y
   `frontend/src/lib/calendario.ts`, que tiene tests): hoy dibuja una fila por hora; pasa a dibujar
