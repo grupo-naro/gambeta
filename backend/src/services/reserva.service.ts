@@ -296,7 +296,8 @@ export const reservaService = {
     }
     const tz = getEnv().TZ_NEGOCIO;
     const nuevaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
-    const nuevaFin = new Date(nuevaInicio.getTime() + 60 * 60 * 1000);
+    const duracionMs = r.fechaFin.getTime() - r.fechaInicio.getTime();
+    const nuevaFin = new Date(nuevaInicio.getTime() + duracionMs);
     if (nuevaInicio.getTime() <= Date.now()) {
       throw BusinessRule('No se puede reprogramar a un horario en el pasado');
     }
@@ -304,8 +305,8 @@ export const reservaService = {
     const cambiaCancha = !!input.canchaId && input.canchaId !== r.canchaId;
     const canchaDestino = input.canchaId ?? r.canchaId;
     if (cambiaCancha) await canchaService.get(canchaDestino); // 404 si no existe
-    const iniMin = Number(input.horaInicio.split(':')[0]) * 60 + Number(input.horaInicio.split(':')[1]);
-    const motivo = await ocupacionService.conflictoReserva(canchaDestino, input.fecha, iniMin, iniMin + 60);
+    const iniMin = hhmmAMin(input.horaInicio);
+    const motivo = await ocupacionService.conflictoReserva(canchaDestino, input.fecha, iniMin, iniMin + duracionMs / 60000);
     if (motivo === 'fijo') throw Conflict('Ese horario está tomado por un turno fijo');
     if (motivo === 'bloqueo') throw Conflict('Ese horario está bloqueado');
     const reprogramado = await prisma.$transaction(async (tx) => {

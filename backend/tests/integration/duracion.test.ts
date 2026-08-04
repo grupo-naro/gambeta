@@ -60,3 +60,41 @@ describe('duración variable', () => {
     expect((await reservar(c.id, '22:30', 120)).status).toBe(422); // terminaría 00:30
   });
 });
+
+// La ruta es PATCH (verificado en src/routes/reserva.routes.ts:134) y el cuerpo acepta
+// { fecha, horaInicio, canchaId? }: con canchaId, el mismo endpoint mueve de cancha.
+describe('reprogramar preserva la duración', () => {
+  it('reprogramar mantiene las dos horas', async () => {
+    const c = await crearCancha();
+    const creada = await reservar(c.id, '17:00', 120);
+    expect(creada.status).toBe(201);
+
+    const res = await supertest(app).patch(`/reservas/${creada.body.id}/reprogramar`)
+      .set('x-api-key', 'svc').send({ fecha, horaInicio: '09:00' });
+    expect(res.status).toBe(200);
+
+    const r = await getPrisma().reserva.findUnique({ where: { id: creada.body.id } });
+    expect(r!.fechaFin.getTime() - r!.fechaInicio.getTime()).toBe(120 * 60 * 1000);
+  });
+
+  it('la reserva reprogramada sigue ocupando su rango completo', async () => {
+    const c = await crearCancha();
+    const creada = await reservar(c.id, '17:00', 120);
+    await supertest(app).patch(`/reservas/${creada.body.id}/reprogramar`)
+      .set('x-api-key', 'svc').send({ fecha, horaInicio: '09:00' });
+    // 09:00-11:00 ocupado: una reserva a las 10:30 pisa la última media hora.
+    expect((await reservar(c.id, '10:30', 60)).status).toBe(409);
+  });
+
+  it('mover de cancha también preserva la duración', async () => {
+    const c1 = await crearCancha();
+    const c2 = await getPrisma().cancha.create({ data: { nombre: 'Pádel 2', tipo: 'padel', precioHora: 30000, precioHoraPico: 36000 } });
+    const creada = await reservar(c1.id, '17:00', 120);
+    const res = await supertest(app).patch(`/reservas/${creada.body.id}/reprogramar`)
+      .set('x-api-key', 'svc').send({ fecha, horaInicio: '17:00', canchaId: c2.id });
+    expect(res.status).toBe(200);
+    const r = await getPrisma().reserva.findUnique({ where: { id: creada.body.id } });
+    expect(r!.canchaId).toBe(c2.id);
+    expect(r!.fechaFin.getTime() - r!.fechaInicio.getTime()).toBe(120 * 60 * 1000);
+  });
+});
