@@ -133,6 +133,8 @@ describe('disponibilidad usa horario global', () => {
     const { disponibilidadService } = await import('../../src/services/disponibilidad.service.js');
     const fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
     const r = await disponibilidadService.listar(cancha.id, fecha);
-    expect(r.slots.map((s) => s.horaInicio)).toEqual(['09:00', '10:00', '11:00']);
+    // Granularidad de 30 minutos (Task 4): el rango 09:00-12:00 produce turnos cada media
+    // hora; 11:30 queda afuera porque ninguna duración (mínimo 60') entra antes del cierre.
+    expect(r.slots.map((s) => s.horaInicio)).toEqual(['09:00', '09:30', '10:00', '10:30', '11:00']);
   });
 });

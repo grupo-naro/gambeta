@@ -35,7 +35,9 @@ describe('GET /disponibilidad/por-tamano', () => {
     const res = await supertest(app).get('/disponibilidad/por-tamano?jugadores=5&fecha=2026-06-12').set('x-api-key', 'svc');
     expect(res.status).toBe(200);
     expect(res.body.jugadores).toBe(5);
-    expect(res.body.slots).toHaveLength(3);
+    // Granularidad de 30 minutos (Task 4): 18:00-21:00 produce 5 turnos (20:30 queda afuera
+    // porque ninguna duración entra antes del cierre).
+    expect(res.body.slots).toHaveLength(5);
     // a las 18:00 ambas canchas de 5 están libres; la de 11 nunca aparece
     expect(res.body.slots[0].canchas.map((c: any) => c.nombre).sort()).toEqual(['A5', 'B5']);
   });

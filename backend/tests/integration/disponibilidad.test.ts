@@ -25,10 +25,12 @@ beforeEach(async () => {
 });
 
 describe('GET /disponibilidad', () => {
-  it('returns 3 hourly slots when nothing is booked', async () => {
+  it('returns 5 slots every 30 minutes when nothing is booked', async () => {
     const res = await supertest(app).get(`/disponibilidad?canchaId=${canchaId}&fecha=2026-06-12`).set('x-api-key', 'svc');
     expect(res.status).toBe(200);
-    expect(res.body.slots).toHaveLength(3);
+    // Granularidad de 30 minutos (Task 4): 18:00-21:00 produce 5 turnos (20:30 queda afuera
+    // porque ninguna duración entra antes del cierre).
+    expect(res.body.slots).toHaveLength(5);
     expect(res.body.slots[0].horaInicio).toBe('18:00');
   });
 

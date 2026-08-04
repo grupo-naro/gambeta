@@ -34,7 +34,9 @@ describe('GET /disponibilidad/grilla', () => {
     const res = await mostrador(supertest(app).get('/disponibilidad/grilla?deporte=futbol&fecha=2099-06-12'));
     expect(res.status).toBe(200);
     expect(res.body.canchas.map((c: any) => c.nombre).sort()).toEqual(['Futbol 1', 'Futbol 2']);
-    expect(res.body.horas).toEqual(['18:00', '19:00', '20:00']);
+    // Granularidad de 30 minutos (Task 4): 20:30 queda afuera porque ninguna duración entra
+    // antes del cierre (21:00).
+    expect(res.body.horas).toEqual(['18:00', '18:30', '19:00', '19:30', '20:00']);
     expect(res.body.libres[f1]['18:00']).toBe(true);
     expect(res.body.canchas.find((c: any) => c.nombre === 'Futbol 1').precioHora).toBe(1000);
     expect(res.body.canchas.find((c: any) => c.nombre === 'Futbol 2').precioHora).toBe(2000);

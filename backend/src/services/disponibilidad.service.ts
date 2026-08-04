@@ -7,7 +7,8 @@ import { ocupacionService } from './ocupacion.service.js';
 import { canchaRepo } from '../repositories/cancha.repo.js';
 import { precioDeRango } from './precio.service.js';
 
-const SLOT_MIN = 60;
+const SLOT_MIN = 30;
+const DURACIONES = [60, 90, 120] as const;
 const pad = (n: number) => String(n).padStart(2, '0');
 const toHHMM = (mins: number) => `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
 const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
@@ -20,11 +21,12 @@ function horarioDe(fecha: string, tz: string, cfg: { horaApertura: string; horaC
     : { apertura: cfg.horaApertura, cierre: cfg.horaCierre };
 }
 
-export interface Slot { horaInicio: string; horaFin: string; inicioUtc: string; finUtc: string; }
+export interface DuracionSlot { min: number; horaFin: string; precio: number }
+export interface Slot { horaInicio: string; horaFin: string; inicioUtc: string; finUtc: string; duraciones: DuracionSlot[] }
 
 export const disponibilidadService = {
   async listar(canchaId: string, fecha: string): Promise<{ canchaId: string; fecha: string; slots: Slot[] }> {
-    await canchaService.get(canchaId);
+    const cancha = await canchaService.get(canchaId);
     const tz = getEnv().TZ_NEGOCIO;
     const cfg = await configService.get();
     const { start, end } = dayWindowUtc(fecha, tz);
@@ -40,15 +42,37 @@ export const disponibilidadService = {
 
     const slots: Slot[] = [];
     const { apertura, cierre } = horarioDe(fecha, tz, cfg);
-    for (let t = fromHHMM(apertura); t + SLOT_MIN <= cierreMin(cierre); t += SLOT_MIN) {
+    const cierreM = cierreMin(cierre);
+    // `libre` responde si el rango [ini, fin) en minutos está libre de reservas y de plantillas.
+    const libre = (ini: number, fin: number) => {
+      const iniUtc = combineDateTimeUtc(fecha, toHHMM(ini), tz);
+      const finUtc = combineDateTimeUtc(fecha, toHHMM(fin), tz);
+      const pisaReserva = ocup.some((r) => r.fechaInicio < finUtc && iniUtc < r.fechaFin);
+      const pisaPlantilla = plantillas.some((p) => p.ini < fin && ini < p.fin);
+      return !pisaReserva && !pisaPlantilla;
+    };
+
+    for (let t = fromHHMM(apertura); t + SLOT_MIN <= cierreM; t += SLOT_MIN) {
+      const duraciones: DuracionSlot[] = [];
+      for (const min of DURACIONES) {
+        if (t + min > cierreM) continue; // no puede pasar del cierre
+        if (!libre(t, t + min)) continue; // no puede pisar nada
+        duraciones.push({
+          min,
+          horaFin: toHHMM(t + min),
+          precio: precioDeRango(cancha, fecha, toHHMM(t), min, cfg),
+        });
+      }
+      if (duraciones.length === 0) continue; // un slot sin duraciones viables no se publica
       const horaInicio = toHHMM(t);
-      const horaFin = toHHMM(t + SLOT_MIN);
-      const inicioUtc = combineDateTimeUtc(fecha, horaInicio, tz);
-      const finUtc = combineDateTimeUtc(fecha, horaFin, tz);
-      const minIni = fromHHMM(horaInicio); const minFin = fromHHMM(horaFin);
-      const taken = ocup.some((r) => r.fechaInicio < finUtc && inicioUtc < r.fechaFin)
-        || plantillas.some((p) => p.ini < minFin && minIni < p.fin);
-      if (!taken) slots.push({ horaInicio, horaFin, inicioUtc: inicioUtc.toISOString(), finUtc: finUtc.toISOString() });
+      const horaFin = toHHMM(t + 60);
+      slots.push({
+        horaInicio,
+        horaFin,
+        inicioUtc: combineDateTimeUtc(fecha, horaInicio, tz).toISOString(),
+        finUtc: combineDateTimeUtc(fecha, horaFin, tz).toISOString(),
+        duraciones,
+      });
     }
     return { canchaId, fecha, slots };
   },
