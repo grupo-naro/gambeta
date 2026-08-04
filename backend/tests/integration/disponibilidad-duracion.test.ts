@@ -54,3 +54,22 @@ describe('disponibilidad con duraciones', () => {
     expect(slots.find((s) => s.horaInicio === '19:00')).toBeUndefined();
   });
 });
+
+describe('grilla: contrato aditivo', () => {
+  it('mantiene los campos viejos y agrega duraciones', async () => {
+    const { cancha, disponibilidadService } = await escenario();
+    const g = await disponibilidadService.grilla('padel', fecha);
+
+    // Contrato viejo intacto: la web pública lo sigue consumiendo tal cual.
+    expect(Array.isArray(g.horas)).toBe(true);
+    expect(g.libres[cancha.id]['17:00']).toBe(true);
+    expect(g.precios[cancha.id]['17:00']).toBe(30000); // sigue siendo el precio de 60 minutos
+
+    // Campo nuevo.
+    expect(g.duraciones[cancha.id]['17:00']).toEqual([
+      { min: 60, horaFin: '18:00', precio: 30000 },
+      { min: 90, horaFin: '18:30', precio: 48000 },
+      { min: 120, horaFin: '19:00', precio: 66000 },
+    ]);
+  });
+});

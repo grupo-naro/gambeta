@@ -99,32 +99,38 @@ export const disponibilidadService = {
     horas: string[];
     libres: Record<string, Record<string, boolean>>;
     precios: Record<string, Record<string, number>>;
+    duraciones: Record<string, Record<string, DuracionSlot[]>>;
   }> {
     const todas = await canchaRepo.list(true);
     const canchas = todas.filter((c) =>
       deporte === 'futbol' ? c.tipo.toLowerCase().startsWith('futbol') : c.tipo.toLowerCase() === 'padel',
     );
     const cfg = await configService.get();
-    const perCancha: { id: string; nombre: string; precioHora: number; precioHoraPico: number; free: Set<string> }[] = [];
+    const perCancha: { id: string; nombre: string; precioHora: number; precioHoraPico: number; free: Set<string>; porHora: Map<string, DuracionSlot[]> }[] = [];
     const horasSet = new Set<string>();
     for (const c of canchas) {
       const { slots } = await this.listar(c.id, fecha);
       const futuros = slots.filter((s) => new Date(s.inicioUtc).getTime() > Date.now());
       const free = new Set(futuros.map((s) => s.horaInicio));
-      perCancha.push({ id: c.id, nombre: c.nombre, precioHora: Number(c.precioHora), precioHoraPico: Number(c.precioHoraPico), free });
+      const porHora = new Map<string, DuracionSlot[]>();
+      for (const s of futuros) porHora.set(s.horaInicio, s.duraciones);
+      perCancha.push({ id: c.id, nombre: c.nombre, precioHora: Number(c.precioHora), precioHoraPico: Number(c.precioHoraPico), free, porHora });
       for (const h of free) horasSet.add(h);
     }
     const horas = [...horasSet].sort();
     const libres: Record<string, Record<string, boolean>> = {};
     const precios: Record<string, Record<string, number>> = {};
+    const duraciones: Record<string, Record<string, DuracionSlot[]>> = {};
     for (const pc of perCancha) {
       libres[pc.id] = {};
       precios[pc.id] = {};
+      duraciones[pc.id] = {};
       for (const h of horas) {
         libres[pc.id][h] = pc.free.has(h);
         precios[pc.id][h] = precioDeRango({ precioHora: pc.precioHora, precioHoraPico: pc.precioHoraPico }, fecha, h, 60, cfg);
+        duraciones[pc.id][h] = pc.porHora.get(h) ?? [];
       }
     }
-    return { deporte, fecha, canchas: perCancha.map((pc) => ({ id: pc.id, nombre: pc.nombre, precioHora: pc.precioHora })), horas, libres, precios };
+    return { deporte, fecha, canchas: perCancha.map((pc) => ({ id: pc.id, nombre: pc.nombre, precioHora: pc.precioHora })), horas, libres, precios, duraciones };
   },
 };
