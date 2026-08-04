@@ -187,9 +187,27 @@ Todo esto es **Plan B**; el backend (Plan A) se mergea antes y sin ello.
   `reservas/src/lib/types.ts` suma el campo `duraciones`; los campos existentes no se tocan.
 - **Panel**: el diálogo de nueva reserva suma el mismo selector.
 - **Calendario semanal** (`frontend/src/components/calendario/calendario-semana.tsx` y
-  `frontend/src/lib/calendario.ts`, que tiene tests): hoy dibuja una fila por hora; pasa a dibujar
-  bloques de alto proporcional a la duración. **Es la parte más laboriosa del frontend** y no se
-  puede evitar: sin eso una reserva de 2 horas se ve igual que una de 1 y el mostrador se confunde.
+  `frontend/src/lib/calendario.ts`, que tiene tests). El problema concreto: el calendario es una
+  grilla de celdas con clave `${fecha}|${horaNum}` y el detalle imprime literalmente
+  `${horaNum}:00`, así que una reserva de 18:30 se le muestra al mostrador como **"18:00"**, y dos
+  turnos 18:00 y 18:30 caen en la misma celda como si fueran duplicados.
+
+  **Solución elegida: expandir por hora, como ya hacen los turnos fijos.** Una reserva de dos horas
+  entra en las dos celdas que toca — que es exactamente lo que hace `materializar` en
+  `calendario.ts:106` para los fijos — y cada chip muestra su hora real y su duración. Se descartó
+  reescribir la grilla a bloques de alto proporcional: se ve mejor, pero implica rehacer el
+  componente entero junto con su lógica de apilado y de "+N más", a cambio de un beneficio estético
+  sobre un problema que la expansión por hora ya resuelve.
+
+**El Plan B se divide en dos planes independientes:**
+
+- **Plan B1 — web pública (`reservas/`):** el selector de duración que ve el cliente. Es el que
+  entrega el valor visible.
+- **Plan B2 — panel (`frontend/`):** selector de duración en el alta de reserva, y el calendario
+  semanal expandiendo por hora.
+
+Ambos hacen falta antes de deployar: el backend solo ya habilita turnos de :30 en la web pública,
+y sin el panel corregido el mostrador los ve mal.
 
 ## Migración
 
