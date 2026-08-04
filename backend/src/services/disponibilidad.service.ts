@@ -5,10 +5,9 @@ import { configService } from './config.service.js';
 import { combineDateTimeUtc, dayWindowUtc, cierreMin, dayOfWeekInTz } from '../utils/tz.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { canchaRepo } from '../repositories/cancha.repo.js';
-import { precioDeRango } from './precio.service.js';
+import { precioDeRango, DURACIONES_MIN, DURACION_DEFAULT_MIN } from './precio.service.js';
 
 const SLOT_MIN = 30;
-const DURACIONES = [60, 90, 120] as const;
 const pad = (n: number) => String(n).padStart(2, '0');
 const toHHMM = (mins: number) => `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
 const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
@@ -43,10 +42,19 @@ export const disponibilidadService = {
     const slots: Slot[] = [];
     const { apertura, cierre } = horarioDe(fecha, tz, cfg);
     const cierreM = cierreMin(cierre);
+    // combineDateTimeUtc instancia un Intl.DateTimeFormat por llamada (~90µs); con 8 canchas
+    // y slots de 30' en un día completo son miles de llamadas por request de grilla. Memoizado
+    // por minuto: dentro de un mismo `listar` el resultado para un mismo minuto es siempre igual.
+    const cacheUtc = new Map<number, Date>();
+    const utcDe = (m: number) => {
+      let d = cacheUtc.get(m);
+      if (!d) { d = combineDateTimeUtc(fecha, toHHMM(m), tz); cacheUtc.set(m, d); }
+      return d;
+    };
     // `libre` responde si el rango [ini, fin) en minutos está libre de reservas y de plantillas.
     const libre = (ini: number, fin: number) => {
-      const iniUtc = combineDateTimeUtc(fecha, toHHMM(ini), tz);
-      const finUtc = combineDateTimeUtc(fecha, toHHMM(fin), tz);
+      const iniUtc = utcDe(ini);
+      const finUtc = utcDe(fin);
       const pisaReserva = ocup.some((r) => r.fechaInicio < finUtc && iniUtc < r.fechaFin);
       const pisaPlantilla = plantillas.some((p) => p.ini < fin && ini < p.fin);
       return !pisaReserva && !pisaPlantilla;
@@ -54,7 +62,7 @@ export const disponibilidadService = {
 
     for (let t = fromHHMM(apertura); t + SLOT_MIN <= cierreM; t += SLOT_MIN) {
       const duraciones: DuracionSlot[] = [];
-      for (const min of DURACIONES) {
+      for (const min of DURACIONES_MIN) {
         if (t + min > cierreM) continue; // no puede pasar del cierre
         if (!libre(t, t + min)) continue; // no puede pisar nada
         duraciones.push({
@@ -65,12 +73,15 @@ export const disponibilidadService = {
       }
       if (duraciones.length === 0) continue; // un slot sin duraciones viables no se publica
       const horaInicio = toHHMM(t);
-      const horaFin = toHHMM(t + 60);
+      // horaFin es el campo legado que consumen el bot y el panel: SIEMPRE una hora fija (60'),
+      // sin relación con SLOT_MIN (30'). NO reemplazar por SLOT_MIN: pasaría a publicar
+      // "18:00–18:30" en vez de "18:00–19:00".
+      const horaFin = toHHMM(t + DURACION_DEFAULT_MIN);
       slots.push({
         horaInicio,
         horaFin,
-        inicioUtc: combineDateTimeUtc(fecha, horaInicio, tz).toISOString(),
-        finUtc: combineDateTimeUtc(fecha, horaFin, tz).toISOString(),
+        inicioUtc: utcDe(t).toISOString(),
+        finUtc: utcDe(t + DURACION_DEFAULT_MIN).toISOString(),
         duraciones,
       });
     }

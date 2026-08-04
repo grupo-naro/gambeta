@@ -1,7 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound, BusinessRule } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
-import { combineDateTimeUtc, dayOfWeekInTz, hhmmAMin } from '../utils/tz.js';
+import { combineDateTimeUtc, dayOfWeekInTz, hhmmAMin, cierreMin } from '../utils/tz.js';
 import { getEnv } from '../config/env.js';
 import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
@@ -119,7 +119,9 @@ export const turnoFijoService = {
     if (existente) return existente;
     const fechaFin = combineDateTimeUtc(fecha, fijo.horaFin, tz);
     const cfg = await configService.get();
-    const duracion = hhmmAMin(fijo.horaFin) - hhmmAMin(fijo.horaInicio);
+    // cierreMin() mapea "00:00" a 1440: un fijo que cierra a medianoche no debe dar duración
+    // negativa (hoy inalcanzable por validación zod, pero queda como riesgo con datos legacy).
+    const duracion = cierreMin(fijo.horaFin) - hhmmAMin(fijo.horaInicio);
     const precio = precioDeRango(fijo.cancha, fecha, fijo.horaInicio, duracion, cfg);
     const whatsapp = fijo.whatsapp;
     // Igual que reserva.service.crear: se busca el cliente y su suscripción vigente ANTES de la

@@ -8,7 +8,7 @@ import { cobroRepo } from '../repositories/cobro.repo.js';
 import { canchaService } from './cancha.service.js';
 import { senaService } from './sena.service.js';
 import { configService } from './config.service.js';
-import { precioDeRango } from './precio.service.js';
+import { precioDeRango, DURACION_DEFAULT_MIN } from './precio.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { combineDateTimeUtc, dayWindowUtc, hhmmAMin, cierreMin, dayOfWeekInTz } from '../utils/tz.js';
@@ -66,7 +66,7 @@ export const reservaService = {
   async crear(input: CreateReservaInput, opts: { porStaff?: boolean } = {}) {
     const cancha = await canchaService.get(input.canchaId);
     const tz = getEnv().TZ_NEGOCIO;
-    const duracionMin = input.duracionMin ?? 60;
+    const duracionMin = input.duracionMin ?? DURACION_DEFAULT_MIN;
     const fechaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
     const fechaFin = new Date(fechaInicio.getTime() + duracionMin * 60 * 1000);
     if (fechaInicio.getTime() <= Date.now()) throw BusinessRule('No se puede reservar en el pasado');
@@ -306,6 +306,15 @@ export const reservaService = {
     const canchaDestino = input.canchaId ?? r.canchaId;
     if (cambiaCancha) await canchaService.get(canchaDestino); // 404 si no existe
     const iniMin = hhmmAMin(input.horaInicio);
+
+    // Mismo chequeo que `crear`: la reserva reprogramada tiene que terminar antes o justo en el
+    // cierre. Sin esto, reprogramar una reserva larga a un horario tardío la desborda al día
+    // siguiente sin que nada lo impida.
+    const cfg = await configService.get();
+    const dowNuevo = dayOfWeekInTz(input.fecha, tz);
+    const cierre = cierreMin(dowNuevo === 0 || dowNuevo === 6 ? cfg.horaCierreFinde : cfg.horaCierre);
+    if (iniMin + duracionMs / 60000 > cierre) throw BusinessRule('La reserva termina después del horario de cierre');
+
     const motivo = await ocupacionService.conflictoReserva(canchaDestino, input.fecha, iniMin, iniMin + duracionMs / 60000);
     if (motivo === 'fijo') throw Conflict('Ese horario está tomado por un turno fijo');
     if (motivo === 'bloqueo') throw Conflict('Ese horario está bloqueado');

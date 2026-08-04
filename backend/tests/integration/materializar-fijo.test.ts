@@ -80,4 +80,14 @@ describe('POST /turnos-fijos/:id/materializar', () => {
     expect(r.body.montoLista).toBeNull();
     expect(r.body.suscripcionId).toBeNull();
   });
+
+  // El spec pedía explícitamente cubrir la cadena real materializar → hhmmAMin(horaFin) -
+  // hhmmAMin(horaInicio) → monto, no solo el test unitario de precioDeRango: es el cálculo
+  // que mueve plata en producción para los turnos fijos de más de una hora.
+  it('un turno fijo de dos horas cobra el monto de dos horas, no de una', async () => {
+    const f = await fijoMiercoles({ horaInicio: '20:00', horaFin: '22:00' });
+    const r = await materializar(f.id, { fecha: '2026-06-24' });
+    expect(r.status).toBe(201);
+    expect(Number(r.body.monto)).toBe(24000); // 2 horas a precioHora=12000
+  });
 });

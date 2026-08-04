@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { whatsappCanonico } from './whatsapp.field.js';
+import { DURACIONES_MIN } from '../services/precio.service.js';
 const empty = z.looseObject({});
+
+// Deriva del mismo conjunto que usa la grilla de disponibilidad (precio.service.ts). Si alguien
+// agrega una duración en un solo lugar, esto deja de coincidir y falla en review, en vez de que
+// la grilla ofrezca una duración que `crear` rechaza con 400.
+const duracionesValidas: readonly number[] = DURACIONES_MIN;
+const duracionMinSchema = z.number().refine((n) => duracionesValidas.includes(n), {
+  message: `duracionMin debe ser una de: ${DURACIONES_MIN.join(', ')}`,
+});
 
 export const createReservaSchema = z.object({
   body: z.object({
@@ -10,7 +19,7 @@ export const createReservaSchema = z.object({
     esContacto: z.boolean().default(false),
     fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     horaInicio: z.string().regex(/^\d{2}:\d{2}$/),
-    duracionMin: z.union([z.literal(60), z.literal(90), z.literal(120)]).optional(),
+    duracionMin: duracionMinSchema.optional(),
     montoSena: z.number().nonnegative().optional(),
     montoCobro: z.number().nonnegative().optional(),
     nombreConfirmado: z.boolean().default(false),

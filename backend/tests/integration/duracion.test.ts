@@ -97,4 +97,18 @@ describe('reprogramar preserva la duración', () => {
     expect(r!.canchaId).toBe(c2.id);
     expect(r!.fechaFin.getTime() - r!.fechaInicio.getTime()).toBe(120 * 60 * 1000);
   });
+
+  it('reprogramar a un horario que desborda el cierre se rechaza con 422', async () => {
+    const c = await crearCancha();
+    // El cierre por defecto de la config es 23:00 en semana y 00:00 el finde.
+    const { configService } = await import('../../src/services/config.service.js');
+    await configService.get();
+    await configService.update({ horaApertura: '08:00', horaCierre: '23:00', horaAperturaFinde: '08:00', horaCierreFinde: '23:00' });
+    const creada = await reservar(c.id, '10:00', 120); // 10:00-12:00, lejos del cierre
+    expect(creada.status).toBe(201);
+
+    const res = await supertest(app).patch(`/reservas/${creada.body.id}/reprogramar`)
+      .set('x-api-key', 'svc').send({ fecha, horaInicio: '22:30' }); // 120' terminaría 00:30
+    expect(res.status).toBe(422);
+  });
 });
