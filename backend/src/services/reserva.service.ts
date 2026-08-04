@@ -8,7 +8,7 @@ import { cobroRepo } from '../repositories/cobro.repo.js';
 import { canchaService } from './cancha.service.js';
 import { senaService } from './sena.service.js';
 import { configService } from './config.service.js';
-import { precioEfectivo } from './precio.service.js';
+import { precioDeRango } from './precio.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { combineDateTimeUtc, dayWindowUtc } from '../utils/tz.js';
@@ -80,7 +80,7 @@ export const reservaService = {
     // reprogramar, que tampoco recalcula el monto.
     const suscripcion = clientePrevio ? await suscripcionService.vigenteDe(clientePrevio.id) : null;
     const cfg = await configService.get();
-    const precio = precioEfectivo(cancha, input.fecha, input.horaInicio, cfg);
+    const precio = precioDeRango(cancha, input.fecha, input.horaInicio, 60, cfg);
     const cond = resolverCondiciones({
       esContacto: input.esContacto,
       porStaff: !!opts.porStaff,

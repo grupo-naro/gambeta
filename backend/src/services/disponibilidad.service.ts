@@ -5,7 +5,7 @@ import { configService } from './config.service.js';
 import { combineDateTimeUtc, dayWindowUtc, cierreMin, dayOfWeekInTz } from '../utils/tz.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { canchaRepo } from '../repositories/cancha.repo.js';
-import { precioEfectivo } from './precio.service.js';
+import { precioDeRango } from './precio.service.js';
 
 const SLOT_MIN = 60;
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -98,7 +98,7 @@ export const disponibilidadService = {
       precios[pc.id] = {};
       for (const h of horas) {
         libres[pc.id][h] = pc.free.has(h);
-        precios[pc.id][h] = precioEfectivo({ precioHora: pc.precioHora, precioHoraPico: pc.precioHoraPico }, fecha, h, cfg);
+        precios[pc.id][h] = precioDeRango({ precioHora: pc.precioHora, precioHoraPico: pc.precioHoraPico }, fecha, h, 60, cfg);
       }
     }
     return { deporte, fecha, canchas: perCancha.map((pc) => ({ id: pc.id, nombre: pc.nombre, precioHora: pc.precioHora })), horas, libres, precios };

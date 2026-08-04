@@ -1,7 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { getEnv } from '../config/env.js';
-import { dayOfWeekInTz, combineDateTimeUtc } from '../utils/tz.js';
-import { precioEfectivo } from './precio.service.js';
+import { dayOfWeekInTz, combineDateTimeUtc, hhmmAMin } from '../utils/tz.js';
+import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
 import { reservaService } from './reserva.service.js';
 
@@ -37,7 +37,7 @@ export const agendaService = {
         whatsapp: f.whatsapp,
         horaInicio: f.horaInicio,
         horaFin: f.horaFin,
-        precio: precioEfectivo(f.cancha, fecha, f.horaInicio, cfg),
+        precio: precioDeRango(f.cancha, fecha, f.horaInicio, hhmmAMin(f.horaFin) - hhmmAMin(f.horaInicio), cfg),
       }));
 
     const bloqueosRaw = await prisma.bloqueo.findMany({

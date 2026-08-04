@@ -1,9 +1,9 @@
 import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound, BusinessRule } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
-import { combineDateTimeUtc, dayOfWeekInTz } from '../utils/tz.js';
+import { combineDateTimeUtc, dayOfWeekInTz, hhmmAMin } from '../utils/tz.js';
 import { getEnv } from '../config/env.js';
-import { precioEfectivo } from './precio.service.js';
+import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
 import { reservaRepo } from '../repositories/reserva.repo.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
@@ -119,7 +119,8 @@ export const turnoFijoService = {
     if (existente) return existente;
     const fechaFin = combineDateTimeUtc(fecha, fijo.horaFin, tz);
     const cfg = await configService.get();
-    const precio = precioEfectivo(fijo.cancha, fecha, fijo.horaInicio, cfg);
+    const duracion = hhmmAMin(fijo.horaFin) - hhmmAMin(fijo.horaInicio);
+    const precio = precioDeRango(fijo.cancha, fecha, fijo.horaInicio, duracion, cfg);
     const whatsapp = fijo.whatsapp;
     // Igual que reserva.service.crear: se busca el cliente y su suscripción vigente ANTES de la
     // transacción, solo para leer si hay que bonificar. El upsert de más abajo (dentro de la

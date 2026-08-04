@@ -1,18 +1,43 @@
 import { getEnv } from '../config/env.js';
-import { dayOfWeekInTz } from '../utils/tz.js';
+import { dayOfWeekInTz, hhmmAMin, cierreMin } from '../utils/tz.js';
 
 interface CanchaPrecio { precioHora: unknown; precioHoraPico: unknown }
 interface PicoCfg { picoDesde: string; picoHasta: string; picoFindeDesde: string; picoFindeHasta: string }
 
-/** Precio efectivo (base o pico) para una reserva que empieza en `horaInicio` (HH:MM) el `fecha` (YYYY-MM-DD). */
-export function precioEfectivo(cancha: CanchaPrecio, fecha: string, horaInicio: string, cfg: PicoCfg): number {
+/**
+ * Precio de una reserva de `duracionMin` minutos que arranca a `horaInicio` (HH:MM) el `fecha`
+ * (YYYY-MM-DD). Prorratea: cobra a precio pico solo los minutos que caen dentro de la franja,
+ * así una reserva de 17:00 a 19:00 sale 1 hora base + 1 hora pico y no una de las dos cosas.
+ */
+export function precioDeRango(
+  cancha: CanchaPrecio,
+  fecha: string,
+  horaInicio: string,
+  duracionMin: number,
+  cfg: PicoCfg,
+): number {
   const base = Number(cancha.precioHora);
   const pico = Number(cancha.precioHoraPico);
-  if (!(pico > 0)) return base;
+  // Se divide por 60 una sola vez, al final, sobre la suma de minuto-pesos: dividir cada
+  // término por separado (duracionMin * (base / 60)) arrastra error de punto flotante
+  // (60 * (1000/60) === 1000.0000000000001) y rompe comparaciones exactas de plata.
+  if (!(pico > 0)) return (duracionMin * base) / 60;
+
   const wd = dayOfWeekInTz(fecha, getEnv().TZ_NEGOCIO); // 0=domingo..6=sábado
   const esFinde = wd === 0 || wd === 6;
-  const desde = esFinde ? cfg.picoFindeDesde : cfg.picoDesde;
-  const hasta = esFinde ? cfg.picoFindeHasta : cfg.picoHasta;
-  if (!desde || !hasta || desde >= hasta) return base;
-  return desde <= horaInicio && horaInicio < hasta ? pico : base;
+  const desdeStr = esFinde ? cfg.picoFindeDesde : cfg.picoDesde;
+  const hastaStr = esFinde ? cfg.picoFindeHasta : cfg.picoHasta;
+  if (!desdeStr || !hastaStr) return (duracionMin * base) / 60;
+
+  // cierreMin() mapea "00:00" a 1440. Sin esto, la comparación de strings del código viejo
+  // daba "18:00" >= "00:00" === true y anulaba el pico de toda franja que cerrara a medianoche.
+  const desde = hhmmAMin(desdeStr);
+  const hasta = cierreMin(hastaStr);
+  if (desde >= hasta) return (duracionMin * base) / 60;
+
+  const ini = hhmmAMin(horaInicio);
+  const fin = ini + duracionMin;
+  const minutosPico = Math.max(0, Math.min(fin, hasta) - Math.max(ini, desde));
+  const minutosBase = duracionMin - minutosPico;
+  return (minutosPico * pico + minutosBase * base) / 60;
 }
