@@ -206,19 +206,43 @@ pnpm test
 
 Esperado: PASS. **Los ~20 tests que ya existían tienen que seguir pasando sin tocarlos** — en particular el que dice "un fijo aparece en su weekday y se expande a las horas cubiertas (18-20 → 18 y 19)", que verifica que la expansión por minutos da el mismo resultado que la vieja para horas enteras. Si ese test falla, la implementación está mal: no lo actualices, arreglá el código.
 
-- [ ] **Step 5: Typecheck y lint**
+- [ ] **Step 5: Dejar el árbol compilando**
+
+`EventoCal` ahora exige cuatro campos nuevos, y `calendario-semana.tsx:71` construye un literal de
+`EventoCal` para las reservas que no los tiene: sin esto el commit no compilaría. **La expansión por
+hora es la Task 2**; acá solo completás los campos preservando el comportamiento actual de una
+celda por reserva.
+
+En `calendario-semana.tsx`, dentro del bucle de reservas, antes del `eventos.push`:
+
+```tsx
+    const iniMin = horaNum * 60 + minuto;
+    const duracionMin = Math.round((new Date(r.fechaFin).getTime() - new Date(r.fechaInicio).getTime()) / 60000);
+```
+
+Y el `push` suma los cuatro campos:
+
+```tsx
+    eventos.push({ key: `r${r.id}`, tipo: 'reserva', fecha, horaNum, horaTexto: hhmmDeMinutos(iniMin), finTexto: hhmmDeMinutos(iniMin + duracionMin), duracionMin, esContinuacion: false, canchaId: r.cancha?.id ?? '', titulo: r.cancha?.nombre ?? '', subtitulo: r.cliente?.nombre ?? '', estado: r.estado, refId: r.id });
+```
+
+Cambiar el destructuring de la línea 65 a `const { fecha, horaNum, minuto } = ubicarEnTz(r.fechaInicio);` y agregar `hhmmDeMinutos` al import de `@/lib/calendario`.
+
+- [ ] **Step 6: Tests, build y lint**
 
 ```bash
+pnpm test
 pnpm build
 pnpm lint
 ```
 
-Esperado: `pnpm build` **va a fallar** en `calendario-semana.tsx`, porque ahora `EventoCal` exige campos que ese componente todavía no completa. Es lo esperado y se arregla en la Task 2. Anotalo en el informe y seguí.
+Esperado: todos los tests pasan, build exitoso, lint en el baseline (**4 problemas / 3 errores**).
+Cada commit tiene que quedar verde: si el build falla, no commitees.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/lib/calendario.ts frontend/src/lib/calendario.test.ts
+git add frontend/src/lib/calendario.ts frontend/src/lib/calendario.test.ts frontend/src/components/calendario/calendario-semana.tsx
 git commit -m "feat(calendario): la logica entiende minutos y duracion de turno"
 ```
 
@@ -322,7 +346,7 @@ pnpm build
 pnpm lint
 ```
 
-Esperado: los tests siguen pasando; `pnpm build` ahora **sí** compila (la Task 1 lo dejaba roto a propósito); lint en el baseline: **4 problemas / 3 errores**, ni uno más.
+Esperado: los tests siguen pasando, build exitoso, lint en el baseline: **4 problemas / 3 errores**, ni uno más.
 
 - [ ] **Step 6: Commit**
 
