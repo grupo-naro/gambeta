@@ -241,6 +241,18 @@ es negociable**. Como mínimo:
 - `npm run typecheck` y `npm test` en `backend/`; `pnpm build` y `pnpm test` en `frontend/`;
   `pnpm build` en `reservas/`.
 
+## Socios: la bonificación no tiene tope
+
+`reserva.condiciones.ts:32-34` pone `monto: 0` sin mirar la duración, y `Suscripcion` no tiene tope
+de turnos ni de horas. Hasta esta feature la bonificación estaba acotada **de hecho** a una hora,
+porque no existía otra opción. Con el selector de duración, **un socio puede reservar dos horas
+bonificadas**, duplicando lo que el complejo regala por socio.
+
+**Decisión del dueño del proyecto: se bonifica todo, sin límite.** No se cambia el código. Queda
+escrito acá para que no vuelva a aparecer como una sorpresa, y para que el día que el complejo
+quiera acotarlo se sepa dónde está: el arreglo más barato sería cobrar el excedente sobre la
+primera hora en `reserva.condiciones.ts`.
+
 ## Fuera de alcance
 
 - **Descuentos por duración.** Confirmado que no existen. Si algún día el complejo quiere 2 horas a
