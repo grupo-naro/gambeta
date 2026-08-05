@@ -1,5 +1,11 @@
 export type Deporte = 'futbol' | 'padel';
 
+export interface DuracionSlot {
+  min: number;
+  horaFin: string;
+  precio: number;
+}
+
 export interface Grilla {
   deporte: Deporte;
   fecha: string;
@@ -7,6 +13,8 @@ export interface Grilla {
   horas: string[];
   libres: Record<string, Record<string, boolean>>;
   precios: Record<string, Record<string, number>>;
+  /** Duraciones reservables por cancha y hora, con el precio ya calculado por el backend. */
+  duraciones: Record<string, Record<string, DuracionSlot[]>>;
 }
 
 export interface ReservaCreada { id: string; montoSena: number | null; suscripcionId?: string | null }

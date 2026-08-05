@@ -9,7 +9,7 @@ export async function getGrilla(deporte: Deporte, fecha: string): Promise<Result
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : 'Error' }; }
 }
 
-export async function crearReserva(input: { canchaId: string; fecha: string; horaInicio: string; nombre: string; telefono: string }): Promise<Resultado<ReservaCreada>> {
+export async function crearReserva(input: { canchaId: string; fecha: string; horaInicio: string; nombre: string; telefono: string; duracionMin?: number }): Promise<Resultado<ReservaCreada>> {
   try {
     const data = await apiReservas<ReservaCreada>('/reservas', {
       method: 'POST',
@@ -20,6 +20,7 @@ export async function crearReserva(input: { canchaId: string; fecha: string; hor
         fecha: input.fecha,
         horaInicio: input.horaInicio,
         esContacto: false,
+        ...(input.duracionMin != null ? { duracionMin: input.duracionMin } : {}),
       }),
     });
     return { ok: true, data };

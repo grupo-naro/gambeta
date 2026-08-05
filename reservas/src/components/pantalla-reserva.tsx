@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useState, useTransition } from 'react';
 import { getGrilla, crearReserva, crearPreferenciaPago } from '@/lib/actions';
-import type { Deporte, Grilla } from '@/lib/types';
+import type { Deporte, DuracionSlot, Grilla } from '@/lib/types';
 import { Calendario } from './calendario';
 import { SelectorFechaMobile } from './selector-fecha-mobile';
 
 const money = (n: number | null) => (n == null ? '' : '$' + Number(n).toLocaleString('es-AR'));
+const etiquetaDuracion = (min: number) => (min === 60 ? '1 hora' : min === 90 ? '1½ horas' : `${min / 60} horas`);
 const hoyISO = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date());
 const fechaLarga = (fecha: string) => {
   const [y, m, d] = fecha.split('-').map(Number);
@@ -24,7 +25,8 @@ export function PantallaReserva() {
   const [grilla, setGrilla] = useState<Grilla | null>(null);
   const [cargando, setCargando] = useState(false);
   const [errorGrilla, setErrorGrilla] = useState('');
-  const [sel, setSel] = useState<{ canchaId: string; canchaNombre: string; hora: string } | null>(null);
+  const [sel, setSel] = useState<{ canchaId: string; canchaNombre: string; hora: string; duraciones: DuracionSlot[] } | null>(null);
+  const [duracionSel, setDuracionSel] = useState(60);
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [errorForm, setErrorForm] = useState('');
@@ -43,8 +45,10 @@ export function PantallaReserva() {
   }, [deporte, fecha]);
 
   function recargar() { getGrilla(deporte, fecha).then((r) => { if (r.ok) setGrilla(r.data); }); }
-  function abrirForm(canchaId: string, canchaNombre: string, hora: string) {
-    setSel({ canchaId, canchaNombre, hora }); setNombre(''); setTelefono(''); setErrorForm(''); setOk(null);
+  function abrirForm(canchaId: string, canchaNombre: string, hora: string, duraciones: DuracionSlot[]) {
+    setSel({ canchaId, canchaNombre, hora, duraciones });
+    setDuracionSel(duraciones[0]?.min ?? 60);
+    setNombre(''); setTelefono(''); setErrorForm(''); setOk(null);
   }
   function cerrarModal() { setSel(null); setOk(null); setErrorForm(''); }
 
@@ -54,7 +58,7 @@ export function PantallaReserva() {
     if (telefono.replace(/\D/g, '').length < 10) { setErrorForm('Ingresá un teléfono válido (10 dígitos)'); return; }
     setErrorForm('');
     start(async () => {
-      const r = await crearReserva({ canchaId: sel.canchaId, fecha, horaInicio: sel.hora, nombre: nombre.trim(), telefono });
+      const r = await crearReserva({ canchaId: sel.canchaId, fecha, horaInicio: sel.hora, nombre: nombre.trim(), telefono, duracionMin: duracionSel });
       if (!r.ok) { setErrorForm(r.error); recargar(); return; }
       // Socio: la reserva ya vuelve CONFIRMADA y bonificada. No hay seña que cobrar,
       // así que no se genera preferencia de Mercado Pago.
@@ -123,7 +127,7 @@ export function PantallaReserva() {
                           const libre = grilla!.libres[c.id]?.[h];
                           return (
                             <td key={c.id} className="p-1">
-                              <button type="button" disabled={!libre} onClick={() => abrirForm(c.id, c.nombre, h)}
+                              <button type="button" disabled={!libre} onClick={() => abrirForm(c.id, c.nombre, h, grilla!.duraciones?.[c.id]?.[h] ?? [])}
                                 className={`h-9 w-full rounded ${libre ? 'bg-lime-500 font-semibold text-black hover:bg-lime-400 active:scale-95' : 'cursor-not-allowed bg-neutral-800 text-neutral-600'}`}>
                                 {libre ? 'Libre' : '—'}
                               </button>
@@ -163,7 +167,7 @@ export function PantallaReserva() {
                         <div key={h} className="flex items-center gap-3 border-b border-neutral-800 py-3">
                           <span className="w-14 font-semibold tabular-nums text-neutral-300">{h}</span>
                           {libre ? (
-                            <button type="button" onClick={() => abrirForm(canchaSel.id, canchaSel.nombre, h)}
+                            <button type="button" onClick={() => abrirForm(canchaSel.id, canchaSel.nombre, h, grilla!.duraciones?.[canchaSel.id]?.[h] ?? [])}
                               className="flex-1 rounded-full bg-lime-500 py-3 text-center font-bold uppercase text-black active:scale-95">
                               Disponible
                             </button>
@@ -202,6 +206,24 @@ export function PantallaReserva() {
               <>
                 <h3 className="text-lg font-bold">Reservar</h3>
                 <p className="mt-1 text-sm text-neutral-400">{sel.canchaNombre} · {fechaLarga(fecha)} · {sel.hora}</p>
+                {sel.duraciones.length > 1 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-semibold text-neutral-300">¿Cuánto tiempo?</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {sel.duraciones.map((d) => (
+                        <button
+                          key={d.min}
+                          type="button"
+                          onClick={() => setDuracionSel(d.min)}
+                          className={`rounded-xl border-2 p-2 text-center ${duracionSel === d.min ? 'border-lime-500 bg-neutral-800' : 'border-neutral-700 bg-neutral-900'}`}
+                        >
+                          <span className="block text-sm font-bold text-neutral-100">{etiquetaDuracion(d.min)}</span>
+                          <span className="block text-xs text-lime-400">{money(d.precio)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="mt-4 space-y-3">
                   <input placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full rounded-xl border border-neutral-700 bg-neutral-800 p-3 text-neutral-100 placeholder:text-neutral-500" />
                   <input placeholder="Teléfono (ej: 11 3662 0274)" inputMode="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} className="w-full rounded-xl border border-neutral-700 bg-neutral-800 p-3 text-neutral-100 placeholder:text-neutral-500" />
