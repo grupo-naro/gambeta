@@ -17,6 +17,7 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha
   const [canchaId, setCanchaId] = useState('');
   const [fecha, setFecha] = useState('');
   const [horaInicio, setHora] = useState('');
+  const [duracionMin, setDuracionMin] = useState(60);
   const [nombreCliente, setNombre] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const clienteEncontrado = useClienteAutocomplete(whatsapp, setNombre);
@@ -39,6 +40,7 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha
     setCanchaId('');
     setFecha('');
     setHora('');
+    setDuracionMin(60);
     setNombre('');
     setWhatsapp('');
     setCobro('sena');
@@ -79,7 +81,7 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha
       if (!m || m < def) { toast.error(`La seña no puede ser menor a $${def.toLocaleString('es-AR')}`); return; }
     }
     start(async () => {
-      const r = await crearReserva({ canchaId, whatsapp, nombreCliente, fecha, horaInicio, cobroInicial: cobro, medioCobro, montoCobro: cobro === 'sena' ? Number(montoSena) : undefined });
+      const r = await crearReserva({ canchaId, whatsapp, nombreCliente, fecha, horaInicio, duracionMin, cobroInicial: cobro, medioCobro, montoCobro: cobro === 'sena' ? Number(montoSena) : undefined });
       if (r.ok) {
         if (r.cobroOmitido) {
           toast.success('Reserva creada', { description: 'Socio: turno bonificado, no se cobró nada.' });
@@ -113,13 +115,30 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha
           </div>
           <div className="space-y-1">
             <Label htmlFor="nueva-hora">Hora</Label>
-            <select id="nueva-hora" value={horaInicio} onChange={(e) => setHora(e.target.value)} className="w-full rounded-md border px-2 py-1.5" disabled={slotsLoading || !slots.length}>
+            <select id="nueva-hora" value={horaInicio} onChange={(e) => { setHora(e.target.value); setDuracionMin(60); }} className="w-full rounded-md border px-2 py-1.5" disabled={slotsLoading || !slots.length}>
               <option value="">
                 {slotsLoading ? 'Cargando horarios…' : slots.length ? 'Elegí un horario' : 'Elegí cancha y fecha'}
               </option>
               {slots.map((s) => <option key={s.horaInicio} value={s.horaInicio}>{s.horaInicio}</option>)}
             </select>
           </div>
+          {(() => {
+            const slotSel = slots.find((s) => s.horaInicio === horaInicio);
+            const opciones = slotSel?.duraciones ?? [];
+            if (opciones.length < 2) return null;
+            return (
+              <div className="space-y-1">
+                <Label htmlFor="nueva-duracion">Duración</Label>
+                <select id="nueva-duracion" value={duracionMin} onChange={(e) => setDuracionMin(Number(e.target.value))} className="w-full rounded-md border px-2 py-1.5">
+                  {opciones.map((d) => (
+                    <option key={d.min} value={d.min}>
+                      {d.min === 60 ? '1 hora' : d.min === 90 ? '1½ horas' : `${d.min / 60} horas`} — hasta {d.horaFin} — ${d.precio.toLocaleString('es-AR')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })()}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="nueva-whatsapp">WhatsApp</Label>

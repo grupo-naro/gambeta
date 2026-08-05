@@ -13,7 +13,8 @@ export interface Reserva {
   montoLista?: number | null;
   cancha: Pick<Cancha, 'id' | 'nombre'>; cliente: Cliente;
 }
-export interface Slot { horaInicio: string; inicioUtc: string }
+export interface DuracionSlot { min: number; horaFin: string; precio: number }
+export interface Slot { horaInicio: string; inicioUtc: string; duraciones?: DuracionSlot[] }
 export interface LoginResult { token: string; admin: { id: string; email: string; nombre: string; rol: Rol } }
 export interface Usuario { id: string; email: string; nombre: string; rol: Rol; esDefault: boolean; expiraEn: string | null }
 
