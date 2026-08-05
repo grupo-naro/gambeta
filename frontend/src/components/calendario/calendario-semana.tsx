@@ -20,13 +20,15 @@ function EventoBtn({ ev, canchas, onEvento }: { ev: EventoCal; canchas: Cancha[]
     ev.tipo === 'fijo' ? ESTILO_TIPO.fijo.cal
     : ev.tipo === 'bloqueo' ? ESTILO_TIPO.bloqueo.cal
     : `${col.bg} ${col.text} ${col.border}`;
-  const cuerpo = `${ev.titulo}${ev.subtitulo ? ' · ' + ev.subtitulo : ''}`;
+  const dur = ev.duracionMin === 60 ? '' : ev.duracionMin === 90 ? ' · 1½ h' : ` · ${ev.duracionMin / 60} h`;
+  const cuerpo = `${ev.horaTexto}${dur} · ${ev.titulo}${ev.subtitulo ? ' · ' + ev.subtitulo : ''}`;
   return (
     <button
       onClick={() => onEvento(ev)}
-      className={`block w-full truncate rounded border px-1.5 py-0.5 text-left text-[12px] leading-tight ${clasesColor} ${esReserva ? '' : 'border-dashed'} ${esperando ? 'opacity-60' : ''}`}
+      className={`block w-full truncate rounded border px-1.5 py-0.5 text-left text-[12px] leading-tight ${clasesColor} ${esReserva ? '' : 'border-dashed'} ${esperando ? 'opacity-60' : ''} ${ev.esContinuacion ? 'opacity-50' : ''}`}
       title={`${cuerpo}${tag ? ' · ' + tag : ''}${esperando ? ' (seña)' : ''}`}
     >
+      {ev.esContinuacion && <span className="opacity-60">↳ </span>}
       {tag && <span className="font-semibold uppercase tracking-wide opacity-70">{tag}: </span>}
       {cuerpo}{esperando ? ' (seña)' : ''}
     </button>
@@ -70,7 +72,18 @@ export function CalendarioSemana({
     }
     const iniMin = horaNum * 60 + minuto;
     const duracionMin = Math.round((new Date(r.fechaFin).getTime() - new Date(r.fechaInicio).getTime()) / 60000);
-    eventos.push({ key: `r${r.id}`, tipo: 'reserva', fecha, horaNum, horaTexto: hhmmDeMinutos(iniMin), finTexto: hhmmDeMinutos(iniMin + duracionMin), duracionMin, esContinuacion: false, canchaId: r.cancha?.id ?? '', titulo: r.cancha?.nombre ?? '', subtitulo: r.cliente?.nombre ?? '', estado: r.estado, refId: r.id });
+    const finMin = iniMin + duracionMin;
+    // Una reserva de 18:30 a 20:00 se dibuja en las celdas de 18 y de 19: si solo apareciera
+    // en la primera, la de las 19 se vería libre cuando no lo está.
+    for (let h = Math.floor(iniMin / 60); h < Math.ceil(finMin / 60); h++) {
+      eventos.push({
+        key: `r${r.id}-${h}`, tipo: 'reserva', fecha, horaNum: h,
+        horaTexto: hhmmDeMinutos(iniMin), finTexto: hhmmDeMinutos(finMin), duracionMin,
+        esContinuacion: h > Math.floor(iniMin / 60),
+        canchaId: r.cancha?.id ?? '', titulo: r.cancha?.nombre ?? '',
+        subtitulo: r.cliente?.nombre ?? '', estado: r.estado, refId: r.id,
+      });
+    }
   }
   eventos.push(...materializar(dias, fijos, bloqueos, matPorDia));
 
@@ -167,7 +180,9 @@ export function CalendarioSemana({
           <SheetContent>
             <SheetHeader>
               <SheetTitle>{selInfo.tipo === 'fijo' ? 'Turno fijo' : 'Bloqueo'}</SheetTitle>
-              <p className="text-sm text-neutral-600">{selInfo.titulo} · {String(selInfo.horaNum).padStart(2, '0')}:00</p>
+              <p className="text-sm text-neutral-600">
+                {selInfo.titulo} · {selInfo.horaTexto} a {selInfo.finTexto}
+              </p>
             </SheetHeader>
             <div className="text-sm text-neutral-600">
               <p><span className="text-xs text-neutral-500">{selInfo.tipo === 'fijo' ? 'Cliente' : 'Motivo'}</span> {selInfo.subtitulo}</p>
