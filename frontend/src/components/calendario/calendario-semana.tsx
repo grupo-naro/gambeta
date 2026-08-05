@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import type { Reserva, Cancha, TurnoFijo, Bloqueo } from '@/lib/types';
-import { colorDeCancha, ubicarEnTz, horasDelDia, materializar, etiquetaMotivo, ESTILO_TIPO, dividirCelda, type EventoCal } from '@/lib/calendario';
+import { colorDeCancha, ubicarEnTz, horasDelDia, materializar, etiquetaMotivo, ESTILO_TIPO, dividirCelda, hhmmDeMinutos, type EventoCal } from '@/lib/calendario';
 import { ReprogramarDialog } from '@/components/reservas/reprogramar-dialog';
 import { AccionReservaSheet } from '@/components/reservas/accion-reserva-sheet';
 
@@ -62,13 +62,15 @@ export function CalendarioSemana({
   const matPorDia = new Map<string, Set<string>>();
   for (const r of reservas) {
     if (r.estado === 'CANCELADA') continue;
-    const { fecha, horaNum } = ubicarEnTz(r.fechaInicio);
+    const { fecha, horaNum, minuto } = ubicarEnTz(r.fechaInicio);
     if (r.turnoFijoId) {
       const ids = matPorDia.get(fecha) ?? new Set<string>();
       ids.add(r.turnoFijoId);
       matPorDia.set(fecha, ids);
     }
-    eventos.push({ key: `r${r.id}`, tipo: 'reserva', fecha, horaNum, canchaId: r.cancha?.id ?? '', titulo: r.cancha?.nombre ?? '', subtitulo: r.cliente?.nombre ?? '', estado: r.estado, refId: r.id });
+    const iniMin = horaNum * 60 + minuto;
+    const duracionMin = Math.round((new Date(r.fechaFin).getTime() - new Date(r.fechaInicio).getTime()) / 60000);
+    eventos.push({ key: `r${r.id}`, tipo: 'reserva', fecha, horaNum, horaTexto: hhmmDeMinutos(iniMin), finTexto: hhmmDeMinutos(iniMin + duracionMin), duracionMin, esContinuacion: false, canchaId: r.cancha?.id ?? '', titulo: r.cancha?.nombre ?? '', subtitulo: r.cliente?.nombre ?? '', estado: r.estado, refId: r.id });
   }
   eventos.push(...materializar(dias, fijos, bloqueos, matPorDia));
 

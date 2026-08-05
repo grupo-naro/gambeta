@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda } from './calendario';
+import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda, hhmmDeMinutos } from './calendario';
 import type { TurnoFijo, Bloqueo } from './types';
 
 const dow = (ymd: string) => new Date(ymd + 'T12:00:00Z').getUTCDay(); // 1 = lunes
@@ -145,5 +145,51 @@ describe('dividirCelda', () => {
   });
   it('maneja lista vacia', () => {
     expect(dividirCelda([], 3)).toEqual({ visibles: [], ocultos: [] });
+  });
+});
+
+describe('ubicarEnTz con minutos', () => {
+  it('devuelve el minuto real, no solo la hora', () => {
+    // 2026-06-10T21:30:00Z = 18:30 en Argentina (UTC-3)
+    const r = ubicarEnTz('2026-06-10T21:30:00.000Z');
+    expect(r.fecha).toBe('2026-06-10');
+    expect(r.horaNum).toBe(18);
+    expect(r.minuto).toBe(30);
+  });
+  it('una hora en punto tiene minuto 0', () => {
+    expect(ubicarEnTz('2026-06-10T21:00:00.000Z').minuto).toBe(0);
+  });
+});
+
+describe('hhmmDeMinutos', () => {
+  it('formatea minutos desde medianoche', () => {
+    expect(hhmmDeMinutos(0)).toBe('00:00');
+    expect(hhmmDeMinutos(1110)).toBe('18:30');
+    expect(hhmmDeMinutos(1200)).toBe('20:00');
+  });
+});
+
+describe('materializar con duración', () => {
+  const cancha = { id: 'c1', nombre: '1' };
+  const fijo2h: TurnoFijo = {
+    id: 'f1', canchaId: 'c1', cancha, clienteNombre: 'Ana', whatsapp: null, precio: 1000, activo: true,
+    diaSemana: 3, horaInicio: '18:00', horaFin: '20:00', excepciones: [],
+  };
+
+  it('un fijo de 2 horas expande a dos celdas, la segunda marcada como continuación', () => {
+    const evs = materializar(['2026-06-10'], [fijo2h], []);
+    expect(evs.map((e) => e.horaNum)).toEqual([18, 19]);
+    expect(evs.map((e) => e.esContinuacion)).toEqual([false, true]);
+    // Las dos celdas informan el mismo turno: arranca 18:00, termina 20:00, dura 120 minutos.
+    expect(evs.every((e) => e.horaTexto === '18:00' && e.finTexto === '20:00' && e.duracionMin === 120)).toBe(true);
+  });
+
+  it('un fijo que arranca a las 18:30 conserva el minuto y cae en la celda de las 18', () => {
+    const fijoMedia = { ...fijo2h, horaInicio: '18:30', horaFin: '20:00' };
+    const evs = materializar(['2026-06-10'], [fijoMedia], []);
+    expect(evs.map((e) => e.horaNum)).toEqual([18, 19]);
+    expect(evs[0].horaTexto).toBe('18:30');
+    expect(evs[0].finTexto).toBe('20:00');
+    expect(evs[0].duracionMin).toBe(90);
   });
 });

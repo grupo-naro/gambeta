@@ -45,14 +45,21 @@ export function semanaDe(ancla: string): { lunes: string; domingo: string; dias:
   return { lunes: dias[0], domingo: dias[6], dias };
 }
 
-export function ubicarEnTz(iso: string): { fecha: string; horaNum: number } {
+export function ubicarEnTz(iso: string): { fecha: string; horaNum: number; minuto: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false,
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
   }).formatToParts(new Date(iso));
   const get = (t: string) => parts.find((p) => p.type === t)!.value;
   let horaNum = Number(get('hour'));
   if (horaNum === 24) horaNum = 0;
-  return { fecha: `${get('year')}-${get('month')}-${get('day')}`, horaNum };
+  return { fecha: `${get('year')}-${get('month')}-${get('day')}`, horaNum, minuto: Number(get('minute')) };
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+/** 1110 -> "18:30". Minutos desde la medianoche. */
+export function hhmmDeMinutos(min: number): string {
+  return `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
 }
 
 // Lista de horas (números) de apertura..(cierre-1), una por turno de 1h.
@@ -69,7 +76,16 @@ export interface EventoCal {
   key: string;
   tipo: 'reserva' | 'fijo' | 'bloqueo';
   fecha: string;
+  /** Celda de la grilla donde se dibuja: la hora entera. */
   horaNum: number;
+  /** Hora real de inicio del turno, "18:30". Es lo que se le muestra al mostrador. */
+  horaTexto: string;
+  /** Hora real de fin, "20:00". Se calcula al crear el evento, donde ya están los minutos:
+      así la vista no tiene que re-parsear `horaTexto` para mostrar el rango. */
+  finTexto: string;
+  duracionMin: number;
+  /** true en las celdas posteriores a la primera, para turnos que cruzan de hora. */
+  esContinuacion: boolean;
   canchaId: string;
   titulo: string;     // nombre de la cancha
   subtitulo: string;  // cliente (reserva/fijo) o motivo (+nota) (bloqueo)
@@ -88,7 +104,13 @@ export function etiquetaMotivo(m: MotivoBloqueo): string {
 function weekdayDe(dia: string): number {
   return new Date(dia + 'T12:00:00Z').getUTCDay(); // 0 = domingo
 }
-const hNum = (hhmm: string) => Number(hhmm.slice(0, 2));
+const aMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+/** Las horas enteras que toca el rango [ini, fin) en minutos. 18:30-20:00 -> [18, 19]. */
+const horasQueToca = (ini: number, fin: number) => {
+  const out: number[] = [];
+  for (let h = Math.floor(ini / 60); h < Math.ceil(fin / 60); h++) out.push(h);
+  return out;
+};
 
 /**
  * `matPorDia`: por día (YYYY-MM-DD), los ids de turnos fijos que ya tienen una reserva
@@ -103,18 +125,22 @@ export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqu
       if (!f.activo || f.diaSemana !== wd) continue;
       if (f.excepciones?.some((e) => e.fecha.slice(0, 10) === dia)) continue;
       if (matPorDia?.get(dia)?.has(f.id)) continue;
-      for (let h = hNum(f.horaInicio); h < hNum(f.horaFin); h++) {
-        out.push({ key: `f${f.id}@${dia}-${h}`, tipo: 'fijo', fecha: dia, horaNum: h, canchaId: f.canchaId, titulo: f.cancha?.nombre ?? '', subtitulo: f.clienteNombre, refId: f.id });
-      }
+      const ini = aMin(f.horaInicio); const fin = aMin(f.horaFin);
+      const horas = horasQueToca(ini, fin);
+      horas.forEach((h, i) => {
+        out.push({ key: `f${f.id}@${dia}-${h}`, tipo: 'fijo', fecha: dia, horaNum: h, horaTexto: hhmmDeMinutos(ini), finTexto: hhmmDeMinutos(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: f.canchaId, titulo: f.cancha?.nombre ?? '', subtitulo: f.clienteNombre, refId: f.id });
+      });
     }
     for (const b of bloqueos) {
       const aplica = b.recurrente ? b.diaSemana === wd : (b.fecha ?? '').slice(0, 10) === dia;
       if (!aplica) continue;
       if (b.excepciones?.some((e) => e.fecha.slice(0, 10) === dia)) continue;
       const sub = b.nota ? `${etiquetaMotivo(b.motivo)} · ${b.nota}` : etiquetaMotivo(b.motivo);
-      for (let h = hNum(b.horaInicio); h < hNum(b.horaFin); h++) {
-        out.push({ key: `b${b.id}@${dia}-${h}`, tipo: 'bloqueo', fecha: dia, horaNum: h, canchaId: b.canchaId, titulo: b.cancha?.nombre ?? '', subtitulo: sub, motivo: b.motivo, refId: b.id });
-      }
+      const ini = aMin(b.horaInicio); const fin = aMin(b.horaFin);
+      const horas = horasQueToca(ini, fin);
+      horas.forEach((h, i) => {
+        out.push({ key: `b${b.id}@${dia}-${h}`, tipo: 'bloqueo', fecha: dia, horaNum: h, horaTexto: hhmmDeMinutos(ini), finTexto: hhmmDeMinutos(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: b.canchaId, titulo: b.cancha?.nombre ?? '', subtitulo: sub, motivo: b.motivo, refId: b.id });
+      });
     }
   }
   return out;
