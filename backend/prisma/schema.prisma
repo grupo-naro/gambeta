@@ -103,11 +103,20 @@ model TurnoFijo {
   diaSemana     Int
   horaInicio    String
   horaFin       String
+  /// OBSOLETO: no lo usa nadie para cobrar. `materializar` toma el precio de la cancha.
+  /// Se conserva porque la lista del panel todavía lo muestra. Para el abono existe `montoAbono`.
   precio        Decimal?             @db.Decimal(10, 2)
+  /// Abono: período pagado y su monto. Los tres van juntos o ninguno. Si están, los turnos
+  /// de este fijo se materializan en $0. El período NO corta la generación: vencido, el fijo
+  /// sigue generando turnos y solo se enciende un aviso en el panel.
+  vigenciaDesde DateTime?            @db.Date
+  vigenciaHasta DateTime?            @db.Date
+  montoAbono    Decimal?             @db.Decimal(10, 2)
   activo        Boolean              @default(true)
   creadoEn      DateTime             @default(now())
   excepciones   TurnoFijoExcepcion[]
   reservas      Reserva[]
+  cobros        Cobro[]
 
   @@index([canchaId, diaSemana])
 }
@@ -296,6 +305,8 @@ model Cobro {
   reserva         Reserva?     @relation(fields: [reservaId], references: [id], onDelete: Cascade)
   suscripcionId   String?
   suscripcion     Suscripcion? @relation(fields: [suscripcionId], references: [id], onDelete: Restrict)
+  turnoFijoId     String?
+  turnoFijo       TurnoFijo?   @relation(fields: [turnoFijoId], references: [id], onDelete: Restrict)
   monto           Decimal      @db.Decimal(10, 2)
   medio           MedioPago
   origen          String       @default("MANUAL")
@@ -306,6 +317,7 @@ model Cobro {
   @@index([creadoEn])
   @@index([reservaId])
   @@index([suscripcionId])
+  @@index([turnoFijoId])
 }
 
 enum EstadoCajaBuffet {
