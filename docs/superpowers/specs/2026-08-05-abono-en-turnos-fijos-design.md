@@ -18,7 +18,7 @@ fijo lo único que le faltaba para cumplir ese rol.
 |---|---|---|
 | Qué representa el monto | **Un abono**: paga el período, los turnos salen 0 | Es el reemplazo directo de la suscripción. |
 | Cobro | **Se registra al cargar el abono** | Sin esto la plata no aparece en caja: los turnos salen 0 y el ingreso se perdería. |
-| Al vencer el período | **Deja de generar turnos** | La cancha vuelve a estar disponible para otros. |
+| Al vencer el período | **Sigue generando turnos, en $0, con aviso de renovar** | El horario sigue siendo del cliente: no pierde su lugar de siempre por atrasarse unos días. El período no controla nada, solo enciende un aviso. |
 | Campos del abono | **Opcionales** | Un fijo sin ellos se comporta exactamente como hoy. Restricción, no elección: hacerlos obligatorios rompería todos los fijos existentes. |
 | Renovar | **Fuera de alcance** | Se carga un fijo nuevo con el período siguiente. Si resulta frecuente, se agrega después. |
 
@@ -74,19 +74,31 @@ Es **una sola migración** de Prisma, con los cuatro campos.
 
 ## Comportamiento
 
-**Dentro del período** (`vigenciaDesde <= fecha <= vigenciaHasta`):
-`materializar` crea la reserva con **`monto: 0`** y el precio real en **`montoLista`** — el mismo
-par que usaba la bonificación de socios, para que la caja pueda informar cuánto se bonificó.
+**Un fijo con abono materializa siempre en `monto: 0`**, con el precio real en `montoLista` — el
+mismo par que usaba la bonificación de socios, para que la caja pueda informar cuánto se bonificó.
 
-**Fuera del período:** no se materializa nada y **la cancha queda libre para otros**.
+**El período NO es una compuerta.** Vencido el abono, el fijo sigue generando turnos en $0 y sigue
+ocupando la cancha: el horario sigue siendo del cliente y no lo pierde por atrasarse unos días.
+Lo único que cambia es que se enciende un **aviso de abono vencido**.
+
+Esto es una decisión deliberada y tiene una consecuencia que hay que tener presente: **el único
+freno es que alguien mire el aviso.** No se genera deuda ni se bloquea nada. Si el cliente no
+renueva y nadie lo nota, sigue jugando sin pagar por tiempo indefinido. Por eso el aviso tiene que
+ser prominente, no un texto gris al costado.
+
+Consecuencia técnica importante: como el período no controla la generación, **no hay que tocar
+`ocupacion.service.rangosPlantilla` ni el calendario del panel**. Una versión anterior de este
+diseño hacía que el fijo dejara de generar turnos al vencer, lo que obligaba a filtrar por rango en
+tres lugares independientes; el riesgo principal era olvidarse en `rangosPlantilla` y dejar la
+cancha ocupada para siempre. Con esta decisión ese riesgo desaparece.
 
 **Al crear el fijo con abono:** se genera un `Cobro` por `montoAbono`, con `origen: "ABONO"`,
 `turnoFijoId` apuntando al fijo, y el medio de pago elegido (`EFECTIVO` o `TRANSFERENCIA`).
 
-**Un abono vencido no desactiva el fijo.** El fijo queda `activo: true` pero inerte: no materializa
-y no ocupa la cancha. Se decidió así para no confundir dos cosas distintas — `activo` significa
-"este acuerdo existe", y el período significa "está pagado hasta acá". El panel muestra el rango en
-la lista, así que un abono vencido se ve; no se agrega un estado nuevo ni un badge.
+**Un abono vencido no desactiva el fijo ni lo detiene.** El fijo sigue `activo: true` y sigue
+funcionando igual: genera turnos y ocupa la cancha. Los dos conceptos son distintos y quedan
+separados a propósito — `activo` significa "este acuerdo existe" y el período significa "está
+pagado hasta acá". Para dejar de generar turnos hay que desactivar el fijo, como siempre.
 
 **Editar el abono de un fijo existente (`PATCH`) NO genera un cobro.** El cobro se crea una sola
 vez, al dar de alta el fijo con abono. Si alguien corrige el monto o las fechas después, el cobro
@@ -96,14 +108,23 @@ las tres es obviamente correcta: es una decisión de negocio que nadie tomó tod
 
 ## Dónde impacta
 
-El rango debe respetarse en **tres lugares que expanden turnos fijos por separado**. Es el riesgo
-central de esta feature: son tres caminos independientes y olvidarse de uno no rompe nada visible.
+**No se toca la disponibilidad.** Ni `ocupacion.service.rangosPlantilla`, ni el calendario del
+panel, ni la web pública, ni el bot de WhatsApp: el fijo ocupa la cancha igual que hoy, vencido o
+no. Toda la superficie del cambio es el alta del abono y el aviso.
 
-| Lugar | Si se olvida |
-|---|---|
-| `turnoFijo.service.materializar` | Genera turnos fuera del abono. |
-| `ocupacion.service.rangosPlantilla` | **La cancha figura ocupada para siempre.** Es lo que consultan la web pública y el bot de WhatsApp: vencido el abono el fijo deja de generar turnos, pero el horario nunca vuelve a venderse. **Es el más grave: se pierde plata en silencio**, porque nadie mira una celda que aparece ocupada. |
-| `frontend/src/lib/calendario.ts` (`materializar`) | El calendario del panel sigue dibujando el fijo después de vencido. |
+### El aviso de abono vencido
+
+Un fijo está vencido cuando tiene abono cargado y `vigenciaHasta < hoy` (en `TZ_NEGOCIO`).
+
+- **Pantalla Hoy** (`frontend/src/components/hoy/`): es la vista que mira recepción durante el
+  turno, y es donde el usuario pidió el aviso. La tarjeta del turno muestra de forma prominente que
+  el abono está vencido y desde cuándo. Prominente en serio: es el único control que existe, así
+  que va con color de alerta y no como texto secundario.
+- **Lista de turnos fijos**: marca cuáles están vencidos, para ver de un vistazo quién tiene que
+  renovar sin depender de cruzarse el turno.
+
+**El backend expone el dato, no la decisión.** La API devuelve `vigenciaHasta` y las pantallas
+derivan el estado, en vez de que cada una recalcule qué significa "vencido" con su propio criterio.
 
 **Resto de la superficie:**
 
@@ -119,8 +140,9 @@ central de esta feature: son tres caminos independientes y olvidarse de uno no r
 ## Manejo de errores
 
 - Campos del abono incompletos, o `vigenciaDesde > vigenciaHasta` → `BadRequest` desde zod.
-- Materializar una fecha fuera del período → `BusinessRule` (422), con el mismo criterio que los
-  errores que ya existen (`'Ese turno fijo no aplica a esa fecha'`).
+- Materializar fuera del período **no es un error**: el fijo genera el turno igual, en $0, y la
+  pantalla Hoy muestra el aviso. Los errores de materialización que ya existen (fecha que no cae en
+  el día del fijo, fecha liberada por excepción, fijo inactivo) no cambian.
 - Solapamiento con otra reserva → lo sigue atajando la restricción de exclusión de Postgres, que
   `reserva.repo.ts` convierte en `Conflict` (409). No se agrega chequeo previo.
 
@@ -130,9 +152,10 @@ El backend tiene suite real (vitest + Testcontainers). Esto es aritmética de pl
 rangos de fecha: lleva tests propios.
 
 - Un turno dentro del período materializa con `monto: 0` y `montoLista` igual al precio real.
-- Una fecha fuera del período **no** materializa.
-- Después del vencimiento, **el horario vuelve a estar libre** en `/disponibilidad` — es el caso
-  que protege contra la pérdida de plata silenciosa.
+- Un turno **posterior** al vencimiento **también** materializa en `monto: 0`: el abono vencido no
+  cambia el precio, solo enciende el aviso.
+- El horario **sigue ocupado** en `/disponibilidad` después del vencimiento — un tercero no puede
+  tomarlo. Es la contracara de la decisión y conviene tenerla cubierta por un test.
 - El cobro del abono aparece en caja con `origen: "ABONO"`.
 - **Regresión**: un fijo sin abono sigue cobrando el precio de la cancha, como hoy.
 
