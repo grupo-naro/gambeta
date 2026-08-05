@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { LogOut } from 'lucide-react';
 import { logout } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -8,15 +9,11 @@ import { MobileNav } from '@/components/mobile-nav';
 import { ConfirmProvider } from '@/components/ui/confirm';
 import type { Rol } from '@/lib/types';
 
-function Logo({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="9" />
-      <path d="m12 7 4.5 3.3-1.7 5.3H9.2L7.5 10.3 12 7Z" />
-      <path d="M12 2v5M9.2 21l1.6-4.8M14.8 21l-1.6-4.8M3.6 9.5l4.4 1.1M20.4 9.5 16 10.6" />
-    </svg>
-  );
-}
+// El PNG es 1695x1877 (retrato) y con fondo transparente. Se le fija el alto y se deja el
+// ancho automático para no deformarlo; el panel es de tema claro, así que no necesita
+// fondo propio como sí hace la web pública, que es oscura.
+// `alt` va explícito en cada uso: con el spread, jsx-a11y/alt-text no puede verificarlo.
+const LOGO = { src: '/logo.png', width: 1695, height: 1877 };
 
 export function AppShell({ email, rol, children }: { email: string; rol: Rol; children: React.ReactNode }) {
   const initial = (email?.[0] ?? 'A').toUpperCase();
@@ -24,9 +21,7 @@ export function AppShell({ email, rol, children }: { email: string; rol: Rol; ch
     <div className="flex min-h-screen bg-neutral-50">
       <aside className="hidden w-64 flex-col border-r border-neutral-200/80 bg-sidebar md:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm shadow-primary/30">
-            <Logo className="h-[18px] w-[18px]" />
-          </span>
+          <Image {...LOGO} alt="Gambeteando" priority sizes="40px" className="h-9 w-auto" />
           <div className="leading-tight">
             <div className="text-[16px] font-semibold tracking-tight text-neutral-900">Gambeteando</div>
             <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-neutral-500">RESERVAS</div>
@@ -55,7 +50,7 @@ export function AppShell({ email, rol, children }: { email: string; rol: Rol; ch
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-neutral-200/80 bg-white/75 px-6 backdrop-blur-md">
           <div className="md:hidden"><MobileNav rol={rol} /></div>
           <span className="flex items-center gap-2 font-semibold tracking-tight md:hidden">
-            <Logo className="h-5 w-5 text-primary" /> Gambeteando
+            <Image {...LOGO} alt="" sizes="32px" className="h-7 w-auto" /> Gambeteando
           </span>
           <div className="ml-auto flex items-center gap-3">
             <span className="hidden text-sm text-neutral-600 sm:inline">{email}</span>
