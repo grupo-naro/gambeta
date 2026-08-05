@@ -33,6 +33,14 @@ export function PantallaReserva() {
   const [ok, setOk] = useState<{ senia: number | null; contacto?: string; socio?: boolean } | null>(null);
   const [pending, start] = useTransition();
 
+  // Resumen del turno elegido: "Cancha 1 · lunes 4 de agosto · 17:00 a 19:00 · 2 horas".
+  // `sel` puede ser null hasta que el usuario abre el modal.
+  const opcionSel = sel?.duraciones.find((d) => d.min === duracionSel) ?? null;
+  const resumenTurno = sel
+    ? `${sel.canchaNombre} · ${fechaLarga(fecha)} · ${sel.hora}` +
+      (opcionSel ? ` a ${opcionSel.horaFin} · ${etiquetaDuracion(opcionSel.min)}` : '')
+    : '';
+
   useEffect(() => {
     let vivo = true;
     setCargando(true); setErrorGrilla('');
@@ -192,7 +200,7 @@ export function PantallaReserva() {
               <div className="flex flex-col items-center gap-3 text-center">
                 <div className="text-5xl">✅</div>
                 <h3 className="text-xl font-bold">{ok.socio ? '¡Turno confirmado!' : '¡Reserva registrada!'}</h3>
-                <p className="text-neutral-400">{sel.canchaNombre} · {fechaLarga(fecha)} · {sel.hora}</p>
+                <p className="text-neutral-400">{resumenTurno}</p>
                 {ok.contacto
                   ? <p className="text-amber-400">{ok.contacto}</p>
                   : ok.socio
@@ -205,7 +213,7 @@ export function PantallaReserva() {
             ) : (
               <>
                 <h3 className="text-lg font-bold">Reservar</h3>
-                <p className="mt-1 text-sm text-neutral-400">{sel.canchaNombre} · {fechaLarga(fecha)} · {sel.hora}</p>
+                <p className="mt-1 text-sm text-neutral-400">{resumenTurno}</p>
                 {sel.duraciones.length > 1 && (
                   <div className="mt-4">
                     <p className="mb-2 text-sm font-semibold text-neutral-300">¿Cuánto tiempo?</p>
