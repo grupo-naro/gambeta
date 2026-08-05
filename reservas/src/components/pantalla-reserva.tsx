@@ -25,7 +25,7 @@ export function PantallaReserva() {
   const [grilla, setGrilla] = useState<Grilla | null>(null);
   const [cargando, setCargando] = useState(false);
   const [errorGrilla, setErrorGrilla] = useState('');
-  const [sel, setSel] = useState<{ canchaId: string; canchaNombre: string; hora: string; duraciones: DuracionSlot[] } | null>(null);
+  const [sel, setSel] = useState<{ canchaId: string; canchaNombre: string; hora: string; fecha: string; duraciones: DuracionSlot[] } | null>(null);
   const [duracionSel, setDuracionSel] = useState(60);
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -37,7 +37,7 @@ export function PantallaReserva() {
   // `sel` puede ser null hasta que el usuario abre el modal.
   const opcionSel = sel?.duraciones.find((d) => d.min === duracionSel) ?? null;
   const resumenTurno = sel
-    ? `${sel.canchaNombre} · ${fechaLarga(fecha)} · ${sel.hora}` +
+    ? `${sel.canchaNombre} · ${fechaLarga(sel.fecha)} · ${sel.hora}` +
       (opcionSel ? ` a ${opcionSel.horaFin} · ${etiquetaDuracion(opcionSel.min)}` : '')
     : '';
 
@@ -52,10 +52,12 @@ export function PantallaReserva() {
     return () => { vivo = false; };
   }, [deporte, fecha]);
 
-  function recargar() { getGrilla(deporte, fecha).then((r) => { if (r.ok) setGrilla(r.data); }); }
+  function recargar() {
+    return getGrilla(deporte, fecha).then((r) => { if (r.ok) { setGrilla(r.data); return r.data; } return null; });
+  }
   function abrirForm(canchaId: string, canchaNombre: string, hora: string, duraciones: DuracionSlot[]) {
-    setSel({ canchaId, canchaNombre, hora, duraciones });
-    setDuracionSel(duraciones[0]?.min ?? 60);
+    setSel({ canchaId, canchaNombre, hora, fecha, duraciones });
+    setDuracionSel(duraciones.length ? Math.min(...duraciones.map((d) => d.min)) : 60);
     setNombre(''); setTelefono(''); setErrorForm(''); setOk(null);
   }
   function cerrarModal() { setSel(null); setOk(null); setErrorForm(''); }
@@ -66,22 +68,35 @@ export function PantallaReserva() {
     if (telefono.replace(/\D/g, '').length < 10) { setErrorForm('Ingresá un teléfono válido (10 dígitos)'); return; }
     setErrorForm('');
     start(async () => {
-      const r = await crearReserva({ canchaId: sel.canchaId, fecha, horaInicio: sel.hora, nombre: nombre.trim(), telefono, duracionMin: duracionSel });
-      if (!r.ok) { setErrorForm(r.error); recargar(); return; }
+      const r = await crearReserva({ canchaId: sel.canchaId, fecha: sel.fecha, horaInicio: sel.hora, nombre: nombre.trim(), telefono, duracionMin: duracionSel });
+      if (!r.ok) {
+        // El backend rechazó por concurrencia (otro cliente ocupó el turno mientras
+        // este completaba el formulario). Re-derivamos las duraciones que siguen
+        // disponibles en vez de forzar al cliente a cerrar el modal y empezar de cero.
+        const g = await recargar();
+        const nuevas = g?.duraciones?.[sel.canchaId]?.[sel.hora] ?? [];
+        setSel({ ...sel, duraciones: nuevas });
+        if (nuevas.length === 0) setErrorForm('Ese turno se acaba de ocupar. Elegí otro horario.');
+        else if (!nuevas.some((d) => d.min === duracionSel)) {
+          setDuracionSel(nuevas[0].min);
+          setErrorForm(`Ya no queda lugar para ${etiquetaDuracion(duracionSel)}. Todavía podés reservar ${etiquetaDuracion(nuevas[0].min)}.`);
+        } else setErrorForm(r.error);
+        return;
+      }
       // Socio: la reserva ya vuelve CONFIRMADA y bonificada. No hay seña que cobrar,
       // así que no se genera preferencia de Mercado Pago.
-      if (r.data.suscripcionId) { setOk({ senia: null, socio: true }); recargar(); return; }
+      if (r.data.suscripcionId) { setOk({ senia: null, socio: true }); void recargar(); return; }
       const senia = r.data.montoSena == null ? null : Number(r.data.montoSena);
       if (senia != null && senia > 0) {
         const pref = await crearPreferenciaPago(r.data.id);
         if (pref.ok) { window.location.href = pref.data.checkoutUrl; return; }
         // La reserva quedó registrada igual; avisamos que no se pudo generar el link de pago.
         setOk({ senia, contacto: 'No pudimos generar el link de pago. Te contactaremos para coordinarlo.' });
-        recargar();
+        void recargar();
         return;
       }
       setOk({ senia });
-      recargar();
+      void recargar();
     });
   }
 
@@ -182,7 +197,9 @@ export function PantallaReserva() {
                           ) : (
                             <span className="flex-1 rounded-full bg-neutral-800 py-3 text-center font-semibold uppercase text-neutral-600">Ocupado</span>
                           )}
-                          <span className="w-24 text-right font-semibold text-lime-400">{money(precio)}</span>
+                          <span className="w-24 text-right font-semibold text-lime-400">
+                            {money(precio)} <span className="text-xs text-neutral-500">/ 1 h</span>
+                          </span>
                         </div>
                       );
                     })}
@@ -214,22 +231,38 @@ export function PantallaReserva() {
               <>
                 <h3 className="text-lg font-bold">Reservar</h3>
                 <p className="mt-1 text-sm text-neutral-400">{resumenTurno}</p>
-                {sel.duraciones.length > 1 && (
+                {sel.duraciones.length > 0 && (
                   <div className="mt-4">
                     <p className="mb-2 text-sm font-semibold text-neutral-300">¿Cuánto tiempo?</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {sel.duraciones.map((d) => (
-                        <button
-                          key={d.min}
-                          type="button"
-                          onClick={() => setDuracionSel(d.min)}
-                          className={`rounded-xl border-2 p-2 text-center ${duracionSel === d.min ? 'border-lime-500 bg-neutral-800' : 'border-neutral-700 bg-neutral-900'}`}
-                        >
-                          <span className="block text-sm font-bold text-neutral-100">{etiquetaDuracion(d.min)}</span>
-                          <span className="block text-xs text-lime-400">{money(d.precio)}</span>
-                        </button>
-                      ))}
-                    </div>
+                    {sel.duraciones.length === 1 ? (
+                      sel.duraciones.map((d) => (
+                        <p key={d.min} className="mt-3 text-sm text-neutral-300">
+                          {etiquetaDuracion(d.min)} · <span className="text-lime-400">{money(d.precio)}</span>
+                        </p>
+                      ))
+                    ) : (
+                      <div
+                        role="radiogroup"
+                        aria-label="Duración del turno"
+                        className={`grid gap-2 ${sel.duraciones.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+                      >
+                        {sel.duraciones.map((d) => (
+                          <button
+                            key={d.min}
+                            type="button"
+                            role="radio"
+                            aria-checked={duracionSel === d.min}
+                            aria-label={`${etiquetaDuracion(d.min)}, ${money(d.precio)}`}
+                            onClick={() => setDuracionSel(d.min)}
+                            className={`rounded-xl border-2 p-2 text-center ${duracionSel === d.min ? 'border-lime-500 bg-neutral-800' : 'border-neutral-700 bg-neutral-900'}`}
+                          >
+                            <span className="block text-sm font-bold text-neutral-100">{etiquetaDuracion(d.min)}</span>
+                            <span className="block text-xs text-lime-400">{money(d.precio)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-2 text-xs text-neutral-500">Total del turno. Para confirmar se abona solo la seña.</p>
                   </div>
                 )}
                 <div className="mt-4 space-y-3">
