@@ -8,7 +8,7 @@ import { cobroRepo } from '../repositories/cobro.repo.js';
 import { canchaService } from './cancha.service.js';
 import { senaService } from './sena.service.js';
 import { configService } from './config.service.js';
-import { precioDeRango, DURACION_DEFAULT_MIN } from './precio.service.js';
+import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { combineDateTimeUtc, dayWindowUtc, hhmmAMin, cierreMin, dayOfWeekInTz } from '../utils/tz.js';
@@ -73,6 +73,18 @@ export const reservaService = {
 
     const iniMin = hhmmAMin(input.horaInicio);
     const finMin = iniMin + duracionMin;
+
+    // El deporte manda: el fútbol se agenda por hora en punto y no admite 1½ ni 2 horas.
+    // El schema zod valida la forma (60/90/120) pero no conoce la cancha, así que la regla
+    // por deporte vive acá. Sin este chequeo se puede saltear la grilla y crear por API una
+    // reserva de fútbol de dos horas.
+    const reglas = reglasDeAgenda(cancha.tipo);
+    if (!reglas.duracionesMin.includes(duracionMin)) {
+      throw BusinessRule(`Esta cancha solo admite turnos de ${reglas.duracionesMin.map((d) => d / 60).join(', ')} hora(s)`);
+    }
+    if (iniMin % reglas.pasoMin !== 0) {
+      throw BusinessRule(reglas.pasoMin === 60 ? 'Esta cancha se reserva en horas en punto' : 'El turno debe arrancar en punto o y media');
+    }
 
     // La reserva tiene que terminar antes o justo en el cierre. Antes no hacía falta:
     // todos los turnos medían lo mismo y la grilla ya no ofrecía horarios inválidos.

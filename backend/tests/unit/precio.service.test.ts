@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { precioDeRango } from '../../src/services/precio.service.js';
+import { precioDeRango, reglasDeAgenda } from '../../src/services/precio.service.js';
 
 beforeAll(() => { process.env.TZ_NEGOCIO ||= 'America/Argentina/Buenos_Aires'; });
 
@@ -57,5 +57,29 @@ describe('precioDeRango', () => {
     const mixta = { picoDesde: '19:00', picoHasta: '23:00', picoFindeDesde: '14:00', picoFindeHasta: '23:00' };
     expect(precioDeRango(padel, '2026-06-13', '14:00', 60, mixta)).toBe(36000); // sábado, en franja finde
     expect(precioDeRango(padel, '2026-06-10', '14:00', 60, mixta)).toBe(30000); // miércoles, fuera de franja semana
+  });
+});
+
+describe('reglasDeAgenda', () => {
+  it('futbol se agenda por hora en punto y solo de una hora', () => {
+    for (const tipo of ['futbol5', 'futbol7', 'FUTBOL11', 'futbol']) {
+      const r = reglasDeAgenda(tipo);
+      expect(r.pasoMin).toBe(60);
+      expect([...r.duracionesMin]).toEqual([60]);
+    }
+  });
+
+  it('padel admite media hora de paso y turnos de hasta dos horas', () => {
+    const r = reglasDeAgenda('padel');
+    expect(r.pasoMin).toBe(30);
+    expect([...r.duracionesMin]).toEqual([60, 90, 120]);
+  });
+
+  it('un tipo desconocido se comporta como padel, no como futbol', () => {
+    // Criterio deliberado: solo el futbol tiene la restriccion. Cualquier deporte nuevo
+    // que agregue el complejo arranca con la agenda flexible.
+    const r = reglasDeAgenda('tenis');
+    expect(r.pasoMin).toBe(30);
+    expect([...r.duracionesMin]).toEqual([60, 90, 120]);
   });
 });

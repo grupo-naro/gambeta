@@ -11,6 +11,31 @@ export const DURACIONES_MIN = [60, 90, 120] as const;
 /** Duración por defecto cuando la reserva no especifica `duracionMin`. */
 export const DURACION_DEFAULT_MIN = 60;
 
+export interface ReglasDeAgenda {
+  /** Cada cuántos minutos puede arrancar un turno. */
+  pasoMin: number;
+  /** Duraciones reservables, en minutos. Siempre ascendente. */
+  duracionesMin: readonly number[];
+}
+
+/**
+ * Reglas de agenda según el deporte de la cancha.
+ *
+ * El fútbol se agenda **por hora en punto** y su único modificador de precio es la franja pico:
+ * no admite turnos de 1½ ni de 2 horas, ni arranques a y media. El pádel sí, porque el complejo
+ * vende esas duraciones.
+ *
+ * Se deriva de `Cancha.tipo` (`futbol5`, `futbol7`, `padel`), con el mismo criterio que ya usa
+ * `disponibilidad.service.grilla` para separar deportes. Si algún día esto tiene que ser
+ * configurable por cancha desde el panel, **este es el único lugar que hay que cambiar**.
+ */
+export function reglasDeAgenda(tipo: string): ReglasDeAgenda {
+  const esFutbol = tipo.toLowerCase().startsWith('futbol');
+  return esFutbol
+    ? { pasoMin: 60, duracionesMin: [60] }
+    : { pasoMin: 30, duracionesMin: DURACIONES_MIN };
+}
+
 /**
  * Precio de una reserva de `duracionMin` minutos que arranca a `horaInicio` (HH:MM) el `fecha`
  * (YYYY-MM-DD). Prorratea: cobra a precio pico solo los minutos que caen dentro de la franja,

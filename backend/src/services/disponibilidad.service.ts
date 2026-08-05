@@ -5,9 +5,9 @@ import { configService } from './config.service.js';
 import { combineDateTimeUtc, dayWindowUtc, cierreMin, dayOfWeekInTz } from '../utils/tz.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { canchaRepo } from '../repositories/cancha.repo.js';
-import { precioDeRango, DURACIONES_MIN, DURACION_DEFAULT_MIN } from './precio.service.js';
+import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.service.js';
 
-const SLOT_MIN = 30;
+// El paso de la grilla ya no es global: sale de reglasDeAgenda() según el deporte de la cancha.
 const pad = (n: number) => String(n).padStart(2, '0');
 const toHHMM = (mins: number) => `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
 const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
@@ -60,9 +60,13 @@ export const disponibilidadService = {
       return !pisaReserva && !pisaPlantilla;
     };
 
-    for (let t = fromHHMM(apertura); t + SLOT_MIN <= cierreM; t += SLOT_MIN) {
+    // El paso y las duraciones dependen del deporte: fútbol se agenda por hora en punto,
+    // pádel cada media hora y con turnos de hasta 2 horas.
+    const { pasoMin, duracionesMin } = reglasDeAgenda(cancha.tipo);
+
+    for (let t = fromHHMM(apertura); t + pasoMin <= cierreM; t += pasoMin) {
       const duraciones: DuracionSlot[] = [];
-      for (const min of DURACIONES_MIN) {
+      for (const min of duracionesMin) {
         if (t + min > cierreM) continue; // no puede pasar del cierre
         if (!libre(t, t + min)) continue; // no puede pisar nada
         duraciones.push({
@@ -74,8 +78,8 @@ export const disponibilidadService = {
       if (duraciones.length === 0) continue; // un slot sin duraciones viables no se publica
       const horaInicio = toHHMM(t);
       // horaFin es el campo legado que consumen el bot y el panel: SIEMPRE una hora fija (60'),
-      // sin relación con SLOT_MIN (30'). NO reemplazar por SLOT_MIN: pasaría a publicar
-      // "18:00–18:30" en vez de "18:00–19:00".
+      // sin relación con el paso de la grilla. NO reemplazar por `pasoMin`: en pádel pasaría a
+      // publicar "18:00–18:30" en vez de "18:00–19:00".
       const horaFin = toHHMM(t + DURACION_DEFAULT_MIN);
       slots.push({
         horaInicio,
