@@ -21,6 +21,7 @@ export function TurnoCard({ reserva, canchas, onClick }: { reserva: Reserva; can
     >
       <span className="w-14 shrink-0 text-center">
         <span className="block text-lg font-semibold leading-none tabular-nums">{fmtHora(reserva.fechaInicio)}</span>
+        <span className="block text-xs font-normal text-neutral-500">{fmtHora(reserva.fechaFin)}</span>
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{reserva.cliente?.nombre ?? '—'}</span>

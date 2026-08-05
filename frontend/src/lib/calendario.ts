@@ -106,7 +106,7 @@ function weekdayDe(dia: string): number {
 }
 const aMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 /** Las horas enteras que toca el rango [ini, fin) en minutos. 18:30-20:00 -> [18, 19]. */
-const horasQueToca = (ini: number, fin: number) => {
+export const horasQueToca = (ini: number, fin: number) => {
   const out: number[] = [];
   for (let h = Math.floor(ini / 60); h < Math.ceil(fin / 60); h++) out.push(h);
   return out;

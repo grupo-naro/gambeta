@@ -78,7 +78,7 @@ export function AccionReservaSheet({
       <SheetContent>
         <SheetHeader>
           <SheetTitle>{reserva.cliente?.nombre ?? 'Turno'}</SheetTitle>
-          <p className="text-sm text-neutral-600">{reserva.cancha?.nombre} · {fmtHora(reserva.fechaInicio)}</p>
+          <p className="text-sm text-neutral-600">{reserva.cancha?.nombre} · {fmtHora(reserva.fechaInicio)} a {fmtHora(reserva.fechaFin)}</p>
         </SheetHeader>
 
         {!data ? (

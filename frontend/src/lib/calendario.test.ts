@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda, hhmmDeMinutos } from './calendario';
+import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda, hhmmDeMinutos, horasQueToca } from './calendario';
 import type { TurnoFijo, Bloqueo } from './types';
 
 const dow = (ymd: string) => new Date(ymd + 'T12:00:00Z').getUTCDay(); // 1 = lunes
@@ -191,5 +191,20 @@ describe('materializar con duración', () => {
     expect(evs[0].horaTexto).toBe('18:30');
     expect(evs[0].finTexto).toBe('20:00');
     expect(evs[0].duracionMin).toBe(90);
+  });
+});
+
+describe('horasQueToca', () => {
+  it('18:00-20:00 -> [18, 19]', () => {
+    expect(horasQueToca(18 * 60, 20 * 60)).toEqual([18, 19]);
+  });
+  it('18:30-20:00 -> [18, 19]', () => {
+    expect(horasQueToca(18 * 60 + 30, 20 * 60)).toEqual([18, 19]);
+  });
+  it('18:00-19:00 -> [18]', () => {
+    expect(horasQueToca(18 * 60, 19 * 60)).toEqual([18]);
+  });
+  it('18:30-19:00 -> [18]', () => {
+    expect(horasQueToca(18 * 60 + 30, 19 * 60)).toEqual([18]);
   });
 });

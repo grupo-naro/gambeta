@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import type { Reserva, Cancha, TurnoFijo, Bloqueo } from '@/lib/types';
-import { colorDeCancha, ubicarEnTz, horasDelDia, materializar, etiquetaMotivo, ESTILO_TIPO, dividirCelda, hhmmDeMinutos, type EventoCal } from '@/lib/calendario';
+import { colorDeCancha, ubicarEnTz, horasDelDia, materializar, etiquetaMotivo, ESTILO_TIPO, dividirCelda, hhmmDeMinutos, horasQueToca, type EventoCal } from '@/lib/calendario';
 import { ReprogramarDialog } from '@/components/reservas/reprogramar-dialog';
 import { AccionReservaSheet } from '@/components/reservas/accion-reserva-sheet';
 
@@ -20,13 +20,16 @@ function EventoBtn({ ev, canchas, onEvento }: { ev: EventoCal; canchas: Cancha[]
     ev.tipo === 'fijo' ? ESTILO_TIPO.fijo.cal
     : ev.tipo === 'bloqueo' ? ESTILO_TIPO.bloqueo.cal
     : `${col.bg} ${col.text} ${col.border}`;
-  const dur = ev.duracionMin === 60 ? '' : ev.duracionMin === 90 ? ' · 1½ h' : ` · ${ev.duracionMin / 60} h`;
-  const cuerpo = `${ev.horaTexto}${dur} · ${ev.titulo}${ev.subtitulo ? ' · ' + ev.subtitulo : ''}`;
+  const enPunto = ev.horaTexto === `${String(ev.horaNum).padStart(2, '0')}:00`;
+  const hora = enPunto && !ev.esContinuacion ? '' : `${ev.horaTexto} · `;
+  const dur = ev.duracionMin === 60 ? '' : `${ev.horaTexto}–${ev.finTexto} · `;
+  const cuerpo = `${dur || hora}${ev.subtitulo || ev.titulo}`;
+  const cuerpoTitle = `${ev.horaTexto} · ${ev.titulo}${ev.subtitulo ? ' · ' + ev.subtitulo : ''}`;
   return (
     <button
       onClick={() => onEvento(ev)}
-      className={`block w-full truncate rounded border px-1.5 py-0.5 text-left text-[12px] leading-tight ${clasesColor} ${esReserva ? '' : 'border-dashed'} ${esperando ? 'opacity-60' : ''} ${ev.esContinuacion ? 'opacity-50' : ''}`}
-      title={`${cuerpo}${tag ? ' · ' + tag : ''}${esperando ? ' (seña)' : ''}`}
+      className={`block w-full truncate rounded border px-1.5 py-0.5 text-left text-[12px] leading-tight ${clasesColor} ${esReserva ? '' : 'border-dashed'} ${ev.esContinuacion ? 'opacity-50' : esperando ? 'opacity-60' : ''}`}
+      title={`${cuerpoTitle}${tag ? ' · ' + tag : ''}${esperando ? ' (seña)' : ''}`}
     >
       {ev.esContinuacion && <span className="opacity-60">↳ </span>}
       {tag && <span className="font-semibold uppercase tracking-wide opacity-70">{tag}: </span>}
@@ -71,19 +74,23 @@ export function CalendarioSemana({
       matPorDia.set(fecha, ids);
     }
     const iniMin = horaNum * 60 + minuto;
-    const duracionMin = Math.round((new Date(r.fechaFin).getTime() - new Date(r.fechaInicio).getTime()) / 60000);
+    // Si fechaFin faltara o viniera corrupta, duracionMin da NaN y la reserva no se
+    // dibujaría en ninguna celda — la peor falla posible: una cancha ocupada que se ve libre.
+    const d = Math.round((new Date(r.fechaFin).getTime() - new Date(r.fechaInicio).getTime()) / 60000);
+    const duracionMin = Number.isFinite(d) && d > 0 ? d : 60;
     const finMin = iniMin + duracionMin;
     // Una reserva de 18:30 a 20:00 se dibuja en las celdas de 18 y de 19: si solo apareciera
     // en la primera, la de las 19 se vería libre cuando no lo está.
-    for (let h = Math.floor(iniMin / 60); h < Math.ceil(finMin / 60); h++) {
+    const horasTurno = horasQueToca(iniMin, finMin);
+    horasTurno.forEach((h, i) => {
       eventos.push({
         key: `r${r.id}-${h}`, tipo: 'reserva', fecha, horaNum: h,
         horaTexto: hhmmDeMinutos(iniMin), finTexto: hhmmDeMinutos(finMin), duracionMin,
-        esContinuacion: h > Math.floor(iniMin / 60),
+        esContinuacion: i > 0,
         canchaId: r.cancha?.id ?? '', titulo: r.cancha?.nombre ?? '',
         subtitulo: r.cliente?.nombre ?? '', estado: r.estado, refId: r.id,
       });
-    }
+    });
   }
   eventos.push(...materializar(dias, fijos, bloqueos, matPorDia));
 
@@ -93,6 +100,13 @@ export function CalendarioSemana({
     const arr = porCelda.get(k) ?? [];
     arr.push(ev);
     porCelda.set(k, arr);
+  }
+  // Las reservas se insertan ordenadas por hora de inicio, así que en una celda, las
+  // continuaciones de turnos anteriores entran antes que los que arrancan en esa hora.
+  // Sin este reordenamiento, dividirCelda(evs, 3) puede tapar turnos reales detrás de "+N más".
+  for (const arr of porCelda.values()) {
+    arr.sort((a, b) =>
+      Number(a.esContinuacion) - Number(b.esContinuacion) || a.horaTexto.localeCompare(b.horaTexto));
   }
 
   function onEvento(ev: EventoCal) {
@@ -203,7 +217,7 @@ export function CalendarioSemana({
           <SheetContent>
             <SheetHeader>
               <SheetTitle>{tituloCelda(selCelda.fecha, selCelda.hora)}</SheetTitle>
-              <p className="text-sm text-neutral-600">{selCelda.eventos.length} reservas</p>
+              <p className="text-sm text-neutral-600">{selCelda.eventos.length} turnos ocupan esta hora</p>
             </SheetHeader>
             <div className="flex flex-col gap-1">
               {selCelda.eventos.map((ev) => (
