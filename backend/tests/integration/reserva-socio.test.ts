@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
 import { aFechaUtc, hoyEnTz, sumarUnMes } from '../../src/services/suscripcion.vigencia.js';
+import { SOCIOS_HABILITADO } from '../../src/config/features.js';
 
 let app: any;
 let canchaId: string;
@@ -47,7 +48,9 @@ async function reservarStaff(whatsapp: string, extra: Record<string, unknown> = 
   });
 }
 
-describe('reserva de un socio', () => {
+// Socios esta apagado (ver src/config/features.ts). Estos casos verifican la bonificacion,
+// asi que quedan omitidos mientras el flag este en false y vuelven solos si se reactiva.
+describe.skipIf(!SOCIOS_HABILITADO)('reserva de un socio', () => {
   it('queda CONFIRMADA, con monto 0, montoLista y sin Pago', async () => {
     const c = await getPrisma().cliente.create({ data: { nombre: 'Socio', whatsapp: '5491178000001' } });
     const hoy = hoyEnTz(TZ);
@@ -112,7 +115,9 @@ async function crearSocio(whatsapp: string) {
   });
 }
 
-describe('reserva de un socio creada por staff con cobro inicial (panel)', () => {
+// Socios esta apagado (ver src/config/features.ts). Estos casos verifican la bonificacion,
+// asi que quedan omitidos mientras el flag este en false y vuelven solos si se reactiva.
+describe.skipIf(!SOCIOS_HABILITADO)('reserva de un socio creada por staff con cobro inicial (panel)', () => {
   // Agujero de dinero real: el panel calculaba la seña desde la cancha (`defaultSena`), sin saber
   // que el turno es de un socio (monto 0). Con cobroInicial='sena' terminaba asentando un Cobro
   // contra un turno gratis, y `saldo = max(0, 0 - seña) = 0` lo dejaba invisible en el panel.

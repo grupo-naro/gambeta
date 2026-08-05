@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { suscripcionService } from '../../src/services/suscripcion.service.js';
 import { aFechaUtc } from '../../src/services/suscripcion.vigencia.js';
+import { SOCIOS_HABILITADO } from '../../src/config/features.js';
 
 beforeAll(setupTestDb);
 afterAll(teardownTestDb);
@@ -16,7 +17,9 @@ async function suscripcion(clienteId: string, inicio: string, vencimiento: strin
   });
 }
 
-describe('suscripcionService.vigenteDe', () => {
+// Socios esta apagado (ver src/config/features.ts). Estos casos verifican la bonificacion,
+// asi que quedan omitidos mientras el flag este en false y vuelven solos si se reactiva.
+describe.skipIf(!SOCIOS_HABILITADO)('suscripcionService.vigenteDe', () => {
   it('devuelve la suscripcion cuando la fecha esta dentro del periodo', async () => {
     const c = await cliente();
     const s = await suscripcion(c.id, '2026-08-01', '2026-08-31');

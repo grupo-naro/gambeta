@@ -6,6 +6,7 @@ import { clienteRepo } from '../repositories/cliente.repo.js';
 import { cobroRepo } from '../repositories/cobro.repo.js';
 import { adminUserRepo } from '../repositories/adminUser.repo.js';
 import { Conflict, NotFound } from '../utils/errors.js';
+import { SOCIOS_HABILITADO } from '../config/features.js';
 
 export interface CrearSuscripcionInput {
   clienteId: string;
@@ -29,8 +30,13 @@ export const suscripcionService = {
    *
    * Recibe `clienteId` y no `whatsapp` porque `reserva.service.crear` ya buscó el cliente
    * unas líneas antes: así se reutiliza esa consulta en vez de hacer un join extra.
+   *
+   * Justamente por ser el único punto de entrada de la bonificación al flujo de reservas
+   * (`reserva.service.crear` y `turnoFijo.service`), apagarla acá la apaga entera: sin
+   * suscripción vigente, `resolverCondiciones` nunca toma la rama de socio.
    */
   async vigenteDe(clienteId: string, fecha?: string) {
+    if (!SOCIOS_HABILITADO) return null;
     const ymd = fecha ?? hoyEnTz(getEnv().TZ_NEGOCIO);
     const encontradas = await suscripcionRepo.cubriendo(clienteId, aFechaUtc(ymd));
     return encontradas[0] ?? null;

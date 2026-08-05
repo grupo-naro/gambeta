@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { aFechaUtc, hoyEnTz, sumarUnMes } from '../../src/services/suscripcion.vigencia.js';
+import { SOCIOS_HABILITADO } from '../../src/config/features.js';
 
 const TZ = 'America/Argentina/Buenos_Aires';
 
@@ -56,7 +57,8 @@ describe('POST /turnos-fijos/:id/materializar', () => {
     expect(r.status).toBe(422);
   });
 
-  it('socio con turno fijo: la reserva materializada queda bonificada', async () => {
+  // Socios apagado: ver src/config/features.ts. Los otros casos de este archivo siguen activos.
+  it.skipIf(!SOCIOS_HABILITADO)('socio con turno fijo: la reserva materializada queda bonificada', async () => {
     const cliente = await getPrisma().cliente.create({ data: { nombre: 'Naro', whatsapp: '5491136620274' } });
     const hoy = hoyEnTz(TZ);
     const sus = await getPrisma().suscripcion.create({

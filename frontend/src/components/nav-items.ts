@@ -1,5 +1,6 @@
 import { Sun, LayoutDashboard, CalendarDays, CalendarRange, LandPlot, CalendarClock, Ban, Settings, Users, Activity, Wallet, Contact, ShoppingBasket, BadgeCheck, type LucideIcon } from 'lucide-react';
 import type { Rol } from '@/lib/types';
+import { SOCIOS_HABILITADO } from '@/lib/features';
 
 export type Grupo = 'Operación' | 'Programación' | 'Administración';
 
@@ -25,7 +26,9 @@ export const nav: NavItem[] = [
   { href: '/bloqueos', label: 'Bloqueos', icon: Ban, roles: SOLO_ADMIN, grupo: 'Programación' },
   // Administración — gestión / sistema
   { href: '/dashboard', label: 'Analíticas', icon: LayoutDashboard, roles: SOLO_ADMIN, grupo: 'Administración' },
-  { href: '/socios', label: 'Socios', icon: BadgeCheck, roles: SOLO_ADMIN, grupo: 'Administración' },
+  // Socios está apagado: el complejo maneja a los socios con turnos fijos. La entrada queda
+  // acá, detrás del flag, para reactivarla sin reescribir el menú. Ver lib/features.ts.
+  ...(SOCIOS_HABILITADO ? [{ href: '/socios', label: 'Socios', icon: BadgeCheck, roles: SOLO_ADMIN, grupo: 'Administración' as const }] : []),
   { href: '/configuracion', label: 'Configuración', icon: Settings, roles: SOLO_ADMIN, grupo: 'Administración' },
   { href: '/usuarios', label: 'Usuarios', icon: Users, roles: SOLO_ADMIN, grupo: 'Administración' },
   { href: '/actividad', label: 'Actividad', icon: Activity, roles: SOLO_ADMIN, grupo: 'Administración' },

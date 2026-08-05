@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { suscripcionService } from '../../src/services/suscripcion.service.js';
 import { aFechaUtc, hoyEnTz, sumarUnMes } from '../../src/services/suscripcion.vigencia.js';
+import { SOCIOS_HABILITADO } from '../../src/config/features.js';
 
 let app: any;
 let canchaId: string;
@@ -42,7 +43,9 @@ async function reservar(whatsapp: string, fecha: string) {
   });
 }
 
-describe('bordes de suscripcion', () => {
+// Socios esta apagado (ver src/config/features.ts). Estos casos verifican la bonificacion,
+// asi que quedan omitidos mientras el flag este en false y vuelven solos si se reactiva.
+describe.skipIf(!SOCIOS_HABILITADO)('bordes de suscripcion', () => {
   it('socio cuya suscripcion vence HOY: el turno de mañana queda bonificado (vencimiento inclusive)', async () => {
     const hoy = hoyEnTz(TZ);
     await socioVigenteHasta(hoy, '5491178100001');
