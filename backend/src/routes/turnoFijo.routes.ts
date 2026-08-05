@@ -15,10 +15,11 @@ turnoFijoRoutes.get('/mios', authAny, validate(misFijosSchema), async (req, res,
     res.json(await turnoFijoService.misFijos((req as any).valid.query.whatsapp));
   } catch (e) { next(e); }
 });
-turnoFijoRoutes.post('/', authJwt, validate(crearTurnoFijoSchema), async (req, res, next) => {
+turnoFijoRoutes.post('/', authAny, validate(crearTurnoFijoSchema), async (req, res, next) => {
   try {
     const body = (req as any).valid.body;
-    const f = await turnoFijoService.crear(body);
+    const adminId = req.principal?.kind === 'admin' ? req.principal.adminId : null;
+    const f = await turnoFijoService.crear(body, adminId);
     await auditService.log(req, { accion: 'CREAR', entidad: 'TurnoFijo', entidadId: f.id, descripcion: 'Creó turno fijo de ' + body.clienteNombre });
     res.status(201).json(f);
   } catch (e) { next(e); }

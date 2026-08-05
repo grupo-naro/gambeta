@@ -6,6 +6,7 @@ import { getEnv } from '../config/env.js';
 import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
 import { reservaRepo } from '../repositories/reserva.repo.js';
+import { cobroRepo } from '../repositories/cobro.repo.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
@@ -34,10 +35,36 @@ async function cancelarReservaMaterializada(fijoId: string, fecha: string): Prom
 export const turnoFijoService = {
   list: (canchaId?: string) =>
     prisma.turnoFijo.findMany({ where: canchaId ? { canchaId } : {}, include: { cancha: { select: { nombre: true } }, excepciones: true }, orderBy: [{ diaSemana: 'asc' }, { horaInicio: 'asc' }] }),
-  async crear(input: { canchaId: string; clienteNombre: string; whatsapp?: string; diaSemana: number; horaInicio: string; horaFin: string }) {
+  async crear(input: {
+    canchaId: string; clienteNombre: string; whatsapp?: string; diaSemana: number; horaInicio: string; horaFin: string;
+    vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
+  }, adminId: string | null = null) {
     const choca = await ocupacionService.conflictoAlCrear(input.canchaId, { diaSemana: input.diaSemana }, fromHHMM(input.horaInicio), fromHHMM(input.horaFin));
     if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
-    const creado = await prisma.turnoFijo.create({ data: input });
+
+    const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, ...datosFijo } = input;
+    const conAbono = montoAbono != null;
+
+    const creado = await prisma.$transaction(async (tx) => {
+      const fijo = await tx.turnoFijo.create({
+        data: {
+          ...datosFijo,
+          vigenciaDesde: vigenciaDesde ? new Date(vigenciaDesde + 'T00:00:00.000Z') : null,
+          vigenciaHasta: vigenciaHasta ? new Date(vigenciaHasta + 'T00:00:00.000Z') : null,
+          montoAbono: montoAbono ?? null,
+        },
+      });
+      // El abono se cobra una sola vez, al dar de alta. Sin esto la plata no aparece en caja:
+      // los turnos salen 0 y el ingreso se perdería.
+      if (conAbono) {
+        await cobroRepo.create({
+          turnoFijoId: fijo.id, reservaId: null, suscripcionId: null,
+          monto: montoAbono, medio: medioAbono!, origen: 'ABONO', registradoPorId: adminId,
+        }, tx);
+      }
+      return fijo;
+    });
+
     if (input.whatsapp) {
       await prisma.cliente.upsert({
         where: { whatsapp: input.whatsapp },
@@ -137,6 +164,10 @@ export const turnoFijoService = {
       senaPorDefecto: 0,
       suscripcionId: suscripcion?.id ?? null,
     });
+    // Con abono, el turno ya está pagado por el período: sale 0 y el precio real queda en
+    // montoLista para que la caja pueda informar cuánto se bonificó. El período NO se compara
+    // con la fecha: vencido, el turno igual sale 0 y el panel muestra el aviso de renovar.
+    const conAbono = fijo.montoAbono != null;
     return prisma.$transaction(async (tx) => {
       const cliente = await tx.cliente.upsert({
         where: { whatsapp },
@@ -145,7 +176,9 @@ export const turnoFijoService = {
       });
       return reservaRepo.create({
         canchaId: fijo.canchaId, clienteId: cliente.id, fechaInicio, fechaFin,
-        estado: cond.estado, esContacto: false, monto: cond.monto, montoLista: cond.montoLista,
+        estado: cond.estado, esContacto: false,
+        monto: conAbono ? 0 : cond.monto,
+        montoLista: conAbono ? precio : cond.montoLista,
         suscripcionId: cond.suscripcionId, montoSena: null, notas: null, turnoFijoId: fijoId,
       }, tx);
     });
