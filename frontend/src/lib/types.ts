@@ -11,6 +11,8 @@ export interface Reserva {
   turnoFijoId?: string | null;
   suscripcionId?: string | null;
   montoLista?: number | null;
+  /** Hasta cuándo está pago el abono del fijo que originó esta reserva. */
+  abonoHasta?: string | null;
   cancha: Pick<Cancha, 'id' | 'nombre'>; cliente: Cliente;
 }
 export interface DuracionSlot { min: number; horaFin: string; precio: number }
@@ -49,6 +51,9 @@ export interface TurnoFijo {
   id: string; canchaId: string; clienteNombre: string; whatsapp: string | null;
   diaSemana: number; horaInicio: string; horaFin: string; precio: number | string; activo: boolean;
   cancha?: { nombre: string }; excepciones?: { id: string; fecha: string }[];
+  vigenciaDesde?: string | null;
+  vigenciaHasta?: string | null;
+  montoAbono?: number | null;
 }
 export type MotivoBloqueo = 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO';
 export interface Bloqueo {

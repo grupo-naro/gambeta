@@ -31,6 +31,11 @@ export function TurnoFijoDialog({
   const [clienteNombre, setClienteNombre] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const clienteEncontrado = useClienteAutocomplete(whatsapp, setClienteNombre);
+  const [conAbono, setConAbono] = useState(false);
+  const [vigenciaDesde, setVigenciaDesde] = useState('');
+  const [vigenciaHasta, setVigenciaHasta] = useState('');
+  const [montoAbono, setMontoAbono] = useState('');
+  const [medioAbono, setMedioAbono] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO');
   const [pending, start] = useTransition();
 
   function handleOpenChange(nextOpen: boolean) {
@@ -41,6 +46,11 @@ export function TurnoFijoDialog({
       setHoraFin('');
       setClienteNombre('');
       setWhatsapp('');
+      setConAbono(false);
+      setVigenciaDesde('');
+      setVigenciaHasta('');
+      setMontoAbono('');
+      setMedioAbono('EFECTIVO');
     }
     onOpenChange(nextOpen);
   }
@@ -51,8 +61,19 @@ export function TurnoFijoDialog({
     if (!hi || !hf) { toast.error('Hora inválida. Usá formato 24h, ej: 21:00'); return; }
     const parsed = turnoFijoSchema.safeParse({ canchaId, clienteNombre, whatsapp, diaSemana, horaInicio: hi, horaFin: hf });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    if (conAbono) {
+      if (!vigenciaDesde || !vigenciaHasta) { toast.error('Completá el período del abono'); return; }
+      if (vigenciaDesde > vigenciaHasta) { toast.error('El período del abono está invertido'); return; }
+      const monto = Number(montoAbono);
+      if (!montoAbono || !(monto > 0)) { toast.error('Ingresá el monto del abono'); return; }
+    }
     start(async () => {
-      const r = await crearTurnoFijo(parsed.data);
+      // Los cuatro campos van juntos y solo si el abono está activado: mandarlos vacíos hace
+      // fallar el validador del backend, que exige los cuatro o ninguno.
+      const abono = conAbono
+        ? { vigenciaDesde, vigenciaHasta, montoAbono: Number(montoAbono), medioAbono }
+        : {};
+      const r = await crearTurnoFijo({ ...parsed.data, ...abono });
       if (r.ok) { toast.success('Turno fijo creado'); onOpenChange(false); }
       else toast.error(r.error);
     });
@@ -99,6 +120,38 @@ export function TurnoFijoDialog({
             <Input id="tf-cliente" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
             {clienteEncontrado && <p className="text-xs text-emerald-600">Cliente existente</p>}
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={conAbono} onChange={(e) => setConAbono(e.target.checked)} />
+            Cobrar un abono por período
+          </label>
+          {conAbono && (
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">
+                Los turnos de este fijo van a salir $0. El abono se registra como cobro al guardar.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="abono-desde">Desde</Label>
+                  <input id="abono-desde" type="date" value={vigenciaDesde} onChange={(e) => setVigenciaDesde(e.target.value)} className="w-full rounded-md border px-2 py-1.5" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="abono-hasta">Hasta</Label>
+                  <input id="abono-hasta" type="date" value={vigenciaHasta} onChange={(e) => setVigenciaHasta(e.target.value)} className="w-full rounded-md border px-2 py-1.5" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="abono-monto">Monto del abono</Label>
+                  <Input id="abono-monto" type="number" min={1} value={montoAbono} onChange={(e) => setMontoAbono(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="abono-medio">Medio</Label>
+                  <select id="abono-medio" value={medioAbono} onChange={(e) => setMedioAbono(e.target.value as 'EFECTIVO' | 'TRANSFERENCIA')} className="w-full rounded-md border px-2 py-1.5">
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button onClick={submit} disabled={pending}>{pending ? 'Guardando…' : 'Crear turno fijo'}</Button>

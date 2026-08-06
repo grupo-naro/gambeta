@@ -19,7 +19,11 @@ async function run(fn: () => Promise<unknown>): Promise<Result> {
   catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }
 
-type FijoInput = { canchaId: string; clienteNombre: string; whatsapp: string; diaSemana: number; horaInicio: string; horaFin: string };
+type FijoInput = {
+  canchaId: string; clienteNombre: string; whatsapp: string; diaSemana: number; horaInicio: string; horaFin: string;
+  // Los cuatro van juntos: el llamador solo los incluye si el abono está activado.
+  vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
+};
 
 export async function crearTurnoFijo(i: FijoInput): Promise<Result> {
   return run(() => apiFetch('/turnos-fijos', { method: 'POST', body: JSON.stringify(i) }));

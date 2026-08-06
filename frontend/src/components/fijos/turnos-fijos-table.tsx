@@ -10,8 +10,23 @@ import type { Cancha, TurnoFijo } from '@/lib/types';
 import { TurnoFijoDialog } from './turno-fijo-dialog';
 import { ExcepcionDialog } from './excepcion-dialog';
 import { eliminarTurnoFijo } from '@/lib/fijos-actions';
+import { hoyAR } from '@/lib/fecha';
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+// Vencido = el abono terminó antes de hoy. Acá no hay una fecha "que se está mirando" como en
+// la agenda: la lista de fijos siempre se compara contra el día real.
+function abonoVencido(t: TurnoFijo): boolean {
+  return t.vigenciaHasta != null && t.vigenciaHasta < hoyAR();
+}
+
+function BadgeAbonoVencido() {
+  return (
+    <span className="ml-1 inline-block rounded bg-red-600 px-1.5 py-0.5 text-xs font-bold text-white">
+      ABONO VENCIDO — RENOVAR
+    </span>
+  );
+}
 
 export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canchas: Cancha[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -51,7 +66,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
               <TableBody>
                 {fijos.map((t) => (
                   <TableRow key={t.id} onClick={() => setSeleccion(t)} className="cursor-pointer hover:bg-neutral-50">
-                    <TableCell className="font-medium">{t.clienteNombre}</TableCell>
+                    <TableCell className="font-medium">{t.clienteNombre}{abonoVencido(t) && <BadgeAbonoVencido />}</TableCell>
                     <TableCell className="text-neutral-600">{t.cancha?.nombre ?? '—'}</TableCell>
                     <TableCell>{DIAS[t.diaSemana] ?? t.diaSemana}</TableCell>
                     <TableCell>{t.horaInicio}–{t.horaFin}</TableCell>
@@ -65,7 +80,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
           <div className="md:hidden space-y-3">
             {fijos.map((t) => (
               <button key={t.id} type="button" onClick={() => setSeleccion(t)} className="block w-full rounded-lg border bg-white p-3 text-left transition active:scale-[0.99]">
-                <span className="block text-sm font-medium">{t.clienteNombre}</span>
+                <span className="block text-sm font-medium">{t.clienteNombre}{abonoVencido(t) && <BadgeAbonoVencido />}</span>
                 <span className="mt-2 block space-y-1 text-sm text-neutral-600">
                   <span className="block"><span className="text-xs text-neutral-500">Cancha</span> {t.cancha?.nombre ?? '—'}</span>
                   <span className="block"><span className="text-xs text-neutral-500">Día</span> {DIAS[t.diaSemana] ?? t.diaSemana}</span>
@@ -81,7 +96,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
         {seleccion && (
           <SheetContent>
             <SheetHeader>
-              <SheetTitle>{seleccion.clienteNombre}</SheetTitle>
+              <SheetTitle>{seleccion.clienteNombre}{abonoVencido(seleccion) && <BadgeAbonoVencido />}</SheetTitle>
               <p className="text-sm text-neutral-600">{seleccion.cancha?.nombre ?? '—'} · {DIAS[seleccion.diaSemana] ?? seleccion.diaSemana} {seleccion.horaInicio}–{seleccion.horaFin}</p>
             </SheetHeader>
             <div className="flex flex-col gap-2">
