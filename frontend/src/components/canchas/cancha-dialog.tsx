@@ -23,6 +23,10 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
   const [precio, setPrecio] = useState(cancha ? String(Number(cancha.precioHora)) : '');
   const [precioPico, setPrecioPico] = useState(cancha ? String(Number(cancha.precioHoraPico)) : '');
   const [senaMonto, setSenaMonto] = useState(cancha?.senaMonto != null ? String(Number(cancha.senaMonto)) : '');
+  const [precio90, setPrecio90] = useState(cancha?.precio90 != null ? String(Number(cancha.precio90)) : '');
+  const [precio90Pico, setPrecio90Pico] = useState(cancha?.precio90Pico != null ? String(Number(cancha.precio90Pico)) : '');
+  const [precio120, setPrecio120] = useState(cancha?.precio120 != null ? String(Number(cancha.precio120)) : '');
+  const [precio120Pico, setPrecio120Pico] = useState(cancha?.precio120Pico != null ? String(Number(cancha.precio120Pico)) : '');
   const [tipoForm, setTipoForm] = useState<'simple' | 'divisible'>('simple');
   const [partes, setPartes] = useState('3');
   const [precioEntera, setPrecioEntera] = useState('');
@@ -41,6 +45,10 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
       setPrecio(cancha ? String(Number(cancha.precioHora)) : '');
       setPrecioPico(cancha ? String(Number(cancha.precioHoraPico)) : '');
       setSenaMonto(cancha?.senaMonto != null ? String(Number(cancha.senaMonto)) : '');
+      setPrecio90(cancha?.precio90 != null ? String(Number(cancha.precio90)) : '');
+      setPrecio90Pico(cancha?.precio90Pico != null ? String(Number(cancha.precio90Pico)) : '');
+      setPrecio120(cancha?.precio120 != null ? String(Number(cancha.precio120)) : '');
+      setPrecio120Pico(cancha?.precio120Pico != null ? String(Number(cancha.precio120Pico)) : '');
       setTipoForm('simple');
       setPartes('3');
       setPrecioEntera('');
@@ -61,7 +69,12 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
       });
       return;
     }
-    const parsed = canchaSchema.safeParse({ nombre, tipo, precioHora: precio, jugadores, destacada, precioHoraPico: precioPico || 0, senaMonto: senaMonto.trim() === '' ? null : Number(senaMonto) });
+    const aNum = (s: string) => (s.trim() === '' ? null : Number(s));
+    const parsed = canchaSchema.safeParse({
+      nombre, tipo, precioHora: precio, jugadores, destacada, precioHoraPico: precioPico || 0,
+      senaMonto: senaMonto.trim() === '' ? null : Number(senaMonto),
+      precio90: aNum(precio90), precio90Pico: aNum(precio90Pico), precio120: aNum(precio120), precio120Pico: aNum(precio120Pico),
+    });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     start(async () => {
       const r = editing ? await editarCancha(cancha!.id, parsed.data) : await crearCancha(parsed.data);
@@ -131,6 +144,27 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
               <div className="space-y-1"><Label htmlFor="c-sena">Monto de seña (opcional)</Label>
                 <Input id="c-sena" type="number" min="0" value={senaMonto} onChange={(e) => setSenaMonto(e.target.value)} placeholder="vacío = usa el general" />
               </div>
+              {tipo !== 'futbol' && (
+                <div className="space-y-3 rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Precio propio por duración. Si lo dejás vacío, se calcula proporcional al precio por hora.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1"><Label htmlFor="c-p90">1½ hora</Label>
+                      <Input id="c-p90" type="number" min="0" value={precio90} onChange={(e) => setPrecio90(e.target.value)} placeholder="proporcional" />
+                    </div>
+                    <div className="space-y-1"><Label htmlFor="c-p90-pico">1½ hora en pico</Label>
+                      <Input id="c-p90-pico" type="number" min="0" value={precio90Pico} onChange={(e) => setPrecio90Pico(e.target.value)} placeholder="proporcional" />
+                    </div>
+                    <div className="space-y-1"><Label htmlFor="c-p120">2 horas</Label>
+                      <Input id="c-p120" type="number" min="0" value={precio120} onChange={(e) => setPrecio120(e.target.value)} placeholder="proporcional" />
+                    </div>
+                    <div className="space-y-1"><Label htmlFor="c-p120-pico">2 horas en pico</Label>
+                      <Input id="c-p120-pico" type="number" min="0" value={precio120Pico} onChange={(e) => setPrecio120Pico(e.target.value)} placeholder="proporcional" />
+                    </div>
+                  </div>
+                </div>
+              )}
               <label className="flex items-center gap-2 pt-1 text-sm">
                 <input type="checkbox" checked={destacada} onChange={(e) => setDestacada(e.target.checked)} className="h-4 w-4" />
                 Cancha destacada (se ofrece como upgrade)

@@ -31,6 +31,10 @@ export const canchaSchema = z.object({
   destacada: z.boolean().default(false),
   precioHoraPico: z.coerce.number().nonnegative('No puede ser negativo').default(0),
   senaMonto: z.coerce.number().nonnegative().nullable().optional(),
+  precio90: z.number().positive().nullable().optional(),
+  precio90Pico: z.number().positive().nullable().optional(),
+  precio120: z.number().positive().nullable().optional(),
+  precio120Pico: z.number().positive().nullable().optional(),
 });
 
 export const canchaDivisibleSchema = z.object({

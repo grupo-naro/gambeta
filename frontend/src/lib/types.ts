@@ -1,7 +1,14 @@
 export type EstadoReserva = 'CONFIRMADA' | 'ESPERANDO_SENA' | 'CANCELADA' | 'COMPLETADA';
 export type Rol = 'ADMIN' | 'RECEPCIONISTA';
 
-export interface Cancha { id: string; nombre: string; tipo: string; jugadores: number; destacada: boolean; precioHora: number; precioHoraPico: number; senaMonto?: string | number | null; activa: boolean; grupoId: string | null; esEntera: boolean }
+export interface Cancha {
+  id: string; nombre: string; tipo: string; jugadores: number; destacada: boolean; precioHora: number; precioHoraPico: number; senaMonto?: string | number | null; activa: boolean; grupoId: string | null; esEntera: boolean;
+  /** Precio propio por duración (1½ y 2 horas), banda base y pico. Opcionales: sin ellos, el precio se deriva proporcional al precio por hora. */
+  precio90?: number | null;
+  precio90Pico?: number | null;
+  precio120?: number | null;
+  precio120Pico?: number | null;
+}
 export interface Cliente { id: string; nombre: string; whatsapp: string; confiable: boolean; totalReservas: number; cumplidas: number; confianza: boolean }
 export interface Reserva {
   id: string; canchaId: string; clienteId: string;
