@@ -82,3 +82,52 @@ describe('rechazarSena es condicional', () => {
     expect((await supertest(app).patch(`/reservas/${id}/rechazar-sena`).set('x-api-key', 'svc')).status).toBe(409);
   });
 });
+
+describe('job de señas vencidas', () => {
+  it('cancela la vencida, deja la reciente y libera el horario', async () => {
+    const { liberarSenasVencidas } = await import('../../src/jobs/liberarSenasVencidas.js');
+
+    const vieja = await crearEsperandoSena({ horaInicio: '18:00' });
+    const reciente = await crearEsperandoSena({ horaInicio: '20:00' });
+    await envejecer(vieja);
+
+    expect(await liberarSenasVencidas()).toBe(1);
+
+    const prisma = getPrisma();
+    expect((await prisma.reserva.findUniqueOrThrow({ where: { id: vieja } })).estado).toBe('CANCELADA');
+    expect((await prisma.reserva.findUniqueOrThrow({ where: { id: reciente } })).estado).toBe('ESPERANDO_SENA');
+
+    // El horario de la vieja quedó vendible otra vez.
+    const otra = await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body({ horaInicio: '18:00' }));
+    expect(otra.status).toBe(201);
+  });
+
+  it('no toca una CONFIRMADA vieja', async () => {
+    const { liberarSenasVencidas } = await import('../../src/jobs/liberarSenasVencidas.js');
+
+    const id = await crearEsperandoSena();
+    await envejecer(id);
+    await getPrisma().reserva.update({ where: { id }, data: { estado: 'CONFIRMADA' } });
+    await getPrisma().reservaSector.updateMany({ where: { reservaId: id }, data: { estado: 'CONFIRMADA' } });
+
+    expect(await liberarSenasVencidas()).toBe(0);
+    expect((await getPrisma().reserva.findUniqueOrThrow({ where: { id } })).estado).toBe('CONFIRMADA');
+  });
+
+  it('correrlo dos veces seguidas es inocuo', async () => {
+    const { liberarSenasVencidas } = await import('../../src/jobs/liberarSenasVencidas.js');
+
+    const id = await crearEsperandoSena();
+    await envejecer(id);
+
+    expect(await liberarSenasVencidas()).toBe(1);
+    expect(await liberarSenasVencidas()).toBe(0);
+    expect((await getPrisma().reserva.findUniqueOrThrow({ where: { id } })).estado).toBe('CANCELADA');
+  });
+
+  it('sin vencidas no hace nada', async () => {
+    const { liberarSenasVencidas } = await import('../../src/jobs/liberarSenasVencidas.js');
+    await crearEsperandoSena();
+    expect(await liberarSenasVencidas()).toBe(0);
+  });
+});
