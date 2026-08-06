@@ -38,14 +38,32 @@ export async function liberarSenasVencidas(): Promise<number> {
   return liberadas;
 }
 
+// Bandera a nivel módulo: evita que dos pasadas corran superpuestas. El día del deploy
+// puede haber un backlog acumulado desde siempre; sin esta guarda, cada pasada de 2 minutos
+// se apilaría sobre la anterior (todavía en su transacción interactiva) y competirían por el
+// pool de conexiones. `liberarSenasVencidas()` en sí sigue siendo segura de llamar en paralelo
+// (el update condicional evita el doble procesamiento), así que la guarda va solo acá, no en
+// la función que usan los tests.
+let corriendo = false;
+
 /**
  * Programa el job. Llamar SOLO desde `index.ts`, nunca desde `buildApp()`: los tests
  * construyen la app y un temporizador cancelando reservas de fondo los volvería intermitentes.
  */
 export function iniciarJobSenasVencidas(): NodeJS.Timeout {
-  const timer = setInterval(() => {
-    liberarSenasVencidas().catch((e) => logger.error({ err: e }, 'falló la pasada del job de señas vencidas'));
-  }, INTERVALO_MS);
+  const ejecutar = () => {
+    if (corriendo) return;
+    corriendo = true;
+    liberarSenasVencidas()
+      .catch((e) => logger.error({ err: e }, 'falló la pasada del job de señas vencidas'))
+      .finally(() => {
+        corriendo = false;
+      });
+  };
+  // Pasada inmediata al arrancar: si no, la primera pasada recién ocurre a T+2min y en el
+  // deploy no hay forma de saber si el job funciona hasta que cancela una reserva.
+  ejecutar();
+  const timer = setInterval(ejecutar, INTERVALO_MS);
   timer.unref(); // que no sea el temporizador lo que mantenga vivo al proceso
   return timer;
 }

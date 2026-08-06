@@ -256,7 +256,7 @@ export const reservaService = {
   async rechazarSena(id: string, by: { adminId?: string }) {
     const r = await reservaService.get(id);
     assertTransition(r.estado, 'CANCELADA');
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Primero el update condicional: si perdió la carrera contra una aprobación, se corta
       // acá y no se escribe ni el pago rechazado ni la auditoría.
       const updated = await reservaRepo.cancelarSiEsperandoSena(id, tx);
@@ -276,6 +276,8 @@ export const reservaService = {
       );
       return updated;
     });
+    if (result) sheetsSync.marcarSucio(ymdEnTz(r.fechaInicio));
+    return result;
   },
 
   async cancelar(id: string, by: { adminId?: string }) {
