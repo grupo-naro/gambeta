@@ -1,7 +1,11 @@
 import { getEnv } from '../config/env.js';
 import { dayOfWeekInTz, hhmmAMin, cierreMin } from '../utils/tz.js';
 
-interface CanchaPrecio { precioHora: unknown; precioHoraPico: unknown }
+interface CanchaPrecio {
+  precioHora: unknown; precioHoraPico: unknown;
+  precio90?: unknown; precio90Pico?: unknown;
+  precio120?: unknown; precio120Pico?: unknown;
+}
 interface PicoCfg { picoDesde: string; picoHasta: string; picoFindeDesde: string; picoFindeHasta: string }
 
 /** Duraciones de reserva permitidas, en minutos. Única fuente de verdad: la grilla de
@@ -37,6 +41,29 @@ export function reglasDeAgenda(tipo: string): ReglasDeAgenda {
 }
 
 /**
+ * Tarifas horarias (base y pico) a usar para una duración dada.
+ *
+ * Un precio propio por duración se expresa como su tarifa horaria equivalente
+ * (`precio × 60 / duracion`), y así el prorrateo de `precioDeRango` no cambia: solo cambia
+ * de dónde salen sus dos tarifas. Sin precio propio devuelve las de la cancha, que es
+ * exactamente el comportamiento de siempre.
+ *
+ * La decisión es por duración y por banda: si falta el precio de una banda, esa banda cae
+ * al proporcional aunque la otra tenga precio propio.
+ */
+function tarifasDe(cancha: CanchaPrecio, duracionMin: number): { base: number; pico: number } {
+  const base = Number(cancha.precioHora);
+  const pico = Number(cancha.precioHoraPico);
+  const propio = duracionMin === 90
+    ? { b: cancha.precio90, p: cancha.precio90Pico }
+    : duracionMin === 120
+    ? { b: cancha.precio120, p: cancha.precio120Pico }
+    : { b: null, p: null }; // 1 hora: precioHora YA es su precio propio.
+  const aTarifa = (v: unknown) => (v == null ? null : (Number(v) * 60) / duracionMin);
+  return { base: aTarifa(propio.b) ?? base, pico: aTarifa(propio.p) ?? pico };
+}
+
+/**
  * Precio de una reserva de `duracionMin` minutos que arranca a `horaInicio` (HH:MM) el `fecha`
  * (YYYY-MM-DD). Prorratea: cobra a precio pico solo los minutos que caen dentro de la franja,
  * así una reserva de 17:00 a 19:00 sale 1 hora base + 1 hora pico y no una de las dos cosas.
@@ -48,8 +75,7 @@ export function precioDeRango(
   duracionMin: number,
   cfg: PicoCfg,
 ): number {
-  const base = Number(cancha.precioHora);
-  const pico = Number(cancha.precioHoraPico);
+  const { base, pico } = tarifasDe(cancha, duracionMin);
   // Se divide por 60 una sola vez, al final, sobre la suma de minuto-pesos: dividir cada
   // término por separado (duracionMin * (base / 60)) arrastra error de punto flotante
   // (60 * (1000/60) === 1000.0000000000001) y rompe comparaciones exactas de plata.

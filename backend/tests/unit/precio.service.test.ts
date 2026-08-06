@@ -60,6 +60,47 @@ describe('precioDeRango', () => {
   });
 });
 
+describe('precio propio por duración', () => {
+  const cfg = { picoDesde: '18:00', picoHasta: '00:00', picoFindeDesde: '18:00', picoFindeHasta: '00:00' };
+  // 2026-06-10 es miércoles (semana).
+  const conPropio = {
+    precioHora: 27000, precioHoraPico: 33000,
+    precio90: 36000, precio90Pico: 45000,
+    precio120: null, precio120Pico: null,
+  };
+
+  it('usa el precio propio de 1½ hora en vez del proporcional', () => {
+    // Proporcional daría 27.000 × 1,5 = 40.500. Con precio propio, 36.000.
+    expect(precioDeRango(conPropio, '2026-06-10', '08:00', 90, cfg)).toBe(36000);
+  });
+
+  it('usa el precio propio de pico cuando el turno cae entero en pico', () => {
+    expect(precioDeRango(conPropio, '2026-06-10', '19:00', 90, cfg)).toBe(45000);
+  });
+
+  it('interpola entre los dos precios propios cuando cruza el borde', () => {
+    // 17:00–18:30: 60 min base + 30 min pico.
+    // tarifas horarias equivalentes: 24.000 y 30.000 → (60×24.000 + 30×30.000)/60 = 39.000
+    expect(precioDeRango(conPropio, '2026-06-10', '17:00', 90, cfg)).toBe(39000);
+  });
+
+  it('una duración sin precio propio cae al proporcional', () => {
+    // precio120 es null: 2 horas usa precioHora × 2.
+    expect(precioDeRango(conPropio, '2026-06-10', '08:00', 120, cfg)).toBe(54000);
+  });
+
+  it('1 hora nunca se ve afectada: precioHora YA es su precio propio', () => {
+    expect(precioDeRango(conPropio, '2026-06-10', '08:00', 60, cfg)).toBe(27000);
+    expect(precioDeRango(conPropio, '2026-06-10', '19:00', 60, cfg)).toBe(33000);
+  });
+
+  it('REGRESIÓN: sin campos nuevos el resultado es idéntico al de hoy', () => {
+    const sinPropio = { precioHora: 30000, precioHoraPico: 36000 };
+    expect(precioDeRango(sinPropio, '2026-06-10', '08:00', 90, cfg)).toBe(45000);
+    expect(precioDeRango(sinPropio, '2026-06-10', '17:00', 120, cfg)).toBe(66000);
+  });
+});
+
 describe('reglasDeAgenda', () => {
   it('futbol se agenda por hora en punto y solo de una hora', () => {
     for (const tipo of ['futbol5', 'futbol7', 'FUTBOL11', 'futbol']) {
