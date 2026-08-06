@@ -257,6 +257,10 @@ export const reservaService = {
     const r = await reservaService.get(id);
     assertTransition(r.estado, 'CANCELADA');
     return prisma.$transaction(async (tx) => {
+      // Primero el update condicional: si perdió la carrera contra una aprobación, se corta
+      // acá y no se escribe ni el pago rechazado ni la auditoría.
+      const updated = await reservaRepo.cancelarSiEsperandoSena(id, tx);
+      if (!updated) return null;
       await pagoRepo.upsertForReserva(
         id,
         {
@@ -266,7 +270,6 @@ export const reservaService = {
         },
         tx,
       );
-      const updated = await reservaRepo.updateEstado(id, 'CANCELADA', tx);
       await auditLogRepo.record(
         { adminId: by.adminId ?? null, accion: 'RECHAZAR_SENA', entidad: 'Reserva', entidadId: id, descripcion: 'Rechazó la seña de una reserva' },
         tx,

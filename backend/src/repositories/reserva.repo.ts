@@ -66,6 +66,21 @@ export const reservaRepo = {
     await db.reservaSector.updateMany({ where: { reservaId: id }, data: { estado: 'CONFIRMADA' } });
     return db.reserva.findUniqueOrThrow({ where: { id } });
   },
+  /**
+   * Cancela solo si la reserva sigue esperando seña. El estado va en el `where` del
+   * updateMany para que comprobar y escribir sean una sola sentencia: si el admin aprueba
+   * la seña en el mismo instante en que el job la da por vencida, gana el que llegue
+   * primero y el otro recibe `null` en vez de pisar una reserva ya pagada.
+   * Espejo de `confirmarSiEsperandoSena`.
+   */
+  cancelarSiEsperandoSena: async (id: string, tx?: Prisma.TransactionClient) => {
+    const db = tx ?? prisma;
+    const { count } = await db.reserva.updateMany({ where: { id, estado: 'ESPERANDO_SENA' }, data: { estado: 'CANCELADA' } });
+    if (count !== 1) return null;
+    // Sin esto el horario NO se libera: la restricción de exclusión mira ReservaSector.
+    await db.reservaSector.updateMany({ where: { reservaId: id }, data: { estado: 'CANCELADA' } });
+    return db.reserva.findUniqueOrThrow({ where: { id } });
+  },
   async reprogramar(id: string, fechaInicio: Date, fechaFin: Date, tx?: Prisma.TransactionClient) {
     const db = tx ?? prisma;
     try {

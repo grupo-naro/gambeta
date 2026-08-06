@@ -7,7 +7,7 @@ import { auditService } from '../services/audit.service.js';
 import { cobroService } from '../services/cobro.service.js';
 import { senaService } from '../services/sena.service.js';
 import { canchaService } from '../services/cancha.service.js';
-import { BusinessRule } from '../utils/errors.js';
+import { BusinessRule, Conflict } from '../utils/errors.js';
 import {
   createReservaSchema,
   listReservaSchema,
@@ -117,7 +117,10 @@ reservaRoutes.patch('/:id/aprobar-sena', authAny, validate(aprobarSenaSchema), a
 
 reservaRoutes.patch('/:id/rechazar-sena', authAny, validate(idParamSchema), async (req, res, next) => {
   try {
-    res.json(await reservaService.rechazarSena(String(req.params.id), { adminId: adminId(req) }));
+    const r = await reservaService.rechazarSena(String(req.params.id), { adminId: adminId(req) });
+    // null = ya no estaba esperando seña (la aprobaron o ya se canceló).
+    if (!r) throw Conflict('La reserva ya no está esperando la seña');
+    res.json(r);
   } catch (e) {
     next(e);
   }
