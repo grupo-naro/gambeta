@@ -126,7 +126,7 @@ export function AgendaHoy({ agenda, canchas, fecha, totalCobrado, porMedio, sena
       ) : (
         <div className="space-y-2">
           {reservas.map((r) => <TurnoCard key={r.id} reserva={r} canchas={canchas} fecha={fecha} onClick={() => abrir(r)} />)}
-          {fijos.map((f) => <FijoCard key={f.turnoFijoId} fijo={f} canchas={canchas} onClick={() => { if (!pending) cobrarFijo(f.turnoFijoId); }} />)}
+          {fijos.map((f) => <FijoCard key={f.turnoFijoId} fijo={f} canchas={canchas} fecha={fecha} onClick={() => { if (!pending) cobrarFijo(f.turnoFijoId); }} />)}
           {bloqueos.map((b) => <BloqueoCard key={b.id} bloqueo={b} canchas={canchas} />)}
         </div>
       )}

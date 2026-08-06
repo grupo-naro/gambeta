@@ -9,7 +9,7 @@ import { useConfirm } from '@/components/ui/confirm';
 import type { Cancha, TurnoFijo } from '@/lib/types';
 import { TurnoFijoDialog } from './turno-fijo-dialog';
 import { ExcepcionDialog } from './excepcion-dialog';
-import { eliminarTurnoFijo } from '@/lib/fijos-actions';
+import { eliminarTurnoFijo, desactivarTurnoFijo } from '@/lib/fijos-actions';
 import { hoyAR } from '@/lib/fecha';
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -43,6 +43,13 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
   async function eliminar(t: TurnoFijo) {
     if (await confirm({ title: '¿Eliminar el turno fijo?', description: `Vas a eliminar el turno fijo de ${t.clienteNombre}. No se puede deshacer.`, confirmLabel: 'Eliminar', destructive: true })) {
       act(() => eliminarTurnoFijo(t.id), 'Turno fijo eliminado', true);
+    }
+  }
+  async function desactivar(t: TurnoFijo) {
+    // Un fijo con abono cobrado no se puede borrar (dejaría el cobro sin destino): se desactiva
+    // en vez de eliminarlo, y eso libera el horario para renovar con un fijo nuevo.
+    if (await confirm({ title: '¿Desactivar el turno fijo?', description: `Vas a desactivar el turno fijo de ${t.clienteNombre}. Deja de mostrarse y libera el horario, pero no se borra.`, confirmLabel: 'Desactivar', destructive: true })) {
+      act(() => desactivarTurnoFijo(t.id), 'Turno fijo desactivado', true);
     }
   }
 
@@ -101,6 +108,9 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
             </SheetHeader>
             <div className="flex flex-col gap-2">
               <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => abrirExcepcion(seleccion)}>Liberar fecha</Button>
+              {seleccion.activo && (
+                <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => desactivar(seleccion)}>Desactivar</Button>
+              )}
               <Button variant="ghost" className="h-11 w-full text-red-600" disabled={pending} onClick={() => eliminar(seleccion)}>Eliminar</Button>
             </div>
           </SheetContent>

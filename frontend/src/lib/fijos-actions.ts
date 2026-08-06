@@ -33,6 +33,10 @@ export async function eliminarTurnoFijo(id: string): Promise<Result> {
   return run(() => apiFetch(`/turnos-fijos/${id}`, { method: 'DELETE' }));
 }
 
+export async function desactivarTurnoFijo(id: string): Promise<Result> {
+  return run(() => apiFetch(`/turnos-fijos/${id}/desactivar`, { method: 'POST' }));
+}
+
 export async function agregarExcepcion(id: string, fecha: string): Promise<Result> {
   return run(() => apiFetch(`/turnos-fijos/${id}/excepciones`, { method: 'POST', body: JSON.stringify({ fecha }) }));
 }

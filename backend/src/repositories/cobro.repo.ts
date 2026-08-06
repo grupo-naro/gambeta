@@ -24,6 +24,7 @@ export const cobroRepo = {
         registradoPor: { select: { nombre: true } },
         reserva: { select: { cancha: { select: { id: true, nombre: true } }, cliente: { select: { nombre: true } } } },
         suscripcion: { select: { cliente: { select: { nombre: true } } } },
+        turnoFijo: { select: { clienteNombre: true } },
       },
     }),
 };

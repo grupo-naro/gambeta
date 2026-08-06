@@ -50,6 +50,14 @@ turnoFijoRoutes.delete('/:id', authJwt, validate(idFijoParamSchema), async (req,
     res.json(result);
   } catch (e) { next(e); }
 });
+turnoFijoRoutes.post('/:id/desactivar', authJwt, validate(idFijoParamSchema), async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const result = await turnoFijoService.desactivar(id);
+    await auditService.log(req, { accion: 'EDITAR', entidad: 'TurnoFijo', entidadId: id, descripcion: 'Desactivó un turno fijo' });
+    res.json(result);
+  } catch (e) { next(e); }
+});
 turnoFijoRoutes.post('/:id/excepciones', authJwt, validate(excepcionSchema), async (req, res, next) => {
   try {
     const id = String(req.params.id);

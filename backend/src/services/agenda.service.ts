@@ -55,6 +55,10 @@ export const agendaService = {
         // cierreMin() mapea "00:00" a 1440 para no dar duración negativa en un fijo que cierra
         // a medianoche (ver mismo fix en turnoFijo.service.ts).
         precio: precioDeRango(f.cancha, fecha, f.horaInicio, cierreMin(f.horaFin) - hhmmAMin(f.horaInicio), cfg),
+        // Antes de materializarse, el fijo se muestra tal cual (FijoCard): sin estos dos campos
+        // el aviso de abono vencido no podía dispararse hasta que alguien cobraba el turno.
+        abonoHasta: f.vigenciaHasta ? f.vigenciaHasta.toISOString().slice(0, 10) : null,
+        conAbono: f.montoAbono != null,
       }));
 
     const bloqueosRaw = await prisma.bloqueo.findMany({

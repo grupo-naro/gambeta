@@ -29,4 +29,9 @@ describe('estadoPago', () => {
   it('sin pagar sigue igual', () => {
     expect(estadoPago({ estado: 'CONFIRMADA', monto: 12000, pagado: 0, saldo: 12000 }).tono).toBe('debe');
   });
+
+  it('turno de fijo con abono → chip "Abono", no "Debe $0"', () => {
+    expect(estadoPago({ estado: 'CONFIRMADA', monto: 0, pagado: 0, saldo: 0, suscripcionId: null, montoLista: 30000 }))
+      .toEqual({ tono: 'pagado', label: 'Abono' });
+  });
 });

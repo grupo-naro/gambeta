@@ -66,6 +66,9 @@ export interface FijoAgenda {
   turnoFijoId: string; canchaId: string; cancha: { nombre: string };
   clienteNombre: string; whatsapp: string | null;
   horaInicio: string; horaFin: string; precio: number;
+  /** Hasta cuándo está pago el abono de este fijo (mismo criterio que Reserva.abonoHasta). */
+  abonoHasta: string | null;
+  conAbono: boolean;
 }
 export interface AgendaDia { reservas: Reserva[]; fijos: FijoAgenda[]; bloqueos: Bloqueo[]; }
 
@@ -77,9 +80,9 @@ export interface CobrosReserva { monto: number; pagado: number; saldo: number; c
 export interface CajaReporte {
   desde: string; hasta: string; total: number;
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
-  porConcepto: { turnos: number; cuotas: number };
+  porConcepto: { turnos: number; cuotas: number; abonos: number };
   porCancha: { canchaId: string; nombre: string; total: number }[];
-  cobros: { id: string; creadoEn: string; monto: number; medio: MedioPago; concepto: 'TURNO' | 'CUOTA'; cancha: string; cliente: string; registradoPor: string }[];
+  cobros: { id: string; creadoEn: string; monto: number; medio: MedioPago; concepto: 'TURNO' | 'CUOTA' | 'ABONO'; cancha: string; cliente: string; registradoPor: string }[];
 }
 
 export interface SheetsInfo { configurado: boolean; url: string | null }

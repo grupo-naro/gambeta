@@ -10,6 +10,7 @@ import { cobroRepo } from '../repositories/cobro.repo.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
+import { adminUserRepo } from '../repositories/adminUser.repo.js';
 
 const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 const assertFecha = (fecha: string) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw BusinessRule('Fecha inválida (YYYY-MM-DD)'); };
@@ -57,6 +58,10 @@ export const turnoFijoService = {
 
     const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, ...datosFijo } = input;
     const conAbono = montoAbono != null;
+    // El admin del JWT puede haber sido borrado desde que se emitió el token; sin esta guarda
+    // la FK de Cobro explota dentro de la transacción y ni el cobro ni el fijo se crean.
+    const adminExists = adminId ? !!(await adminUserRepo.findById(adminId)) : false;
+    const registradoPorId = adminExists ? adminId : null;
 
     const creado = await prisma.$transaction(async (tx) => {
       const fijo = await tx.turnoFijo.create({
@@ -72,7 +77,7 @@ export const turnoFijoService = {
       if (conAbono) {
         await cobroRepo.create({
           turnoFijoId: fijo.id, reservaId: null, suscripcionId: null,
-          monto: montoAbono, medio: medioAbono!, origen: 'ABONO', registradoPorId: adminId,
+          monto: montoAbono, medio: medioAbono!, origen: 'ABONO', registradoPorId,
         }, tx);
       }
       return fijo;
@@ -91,7 +96,21 @@ export const turnoFijoService = {
   async eliminar(id: string) {
     const f = await prisma.turnoFijo.findUnique({ where: { id } });
     if (!f) throw NotFound('TurnoFijo', id);
-    await prisma.turnoFijo.delete({ where: { id } });
+    try {
+      await prisma.turnoFijo.delete({ where: { id } });
+    } catch (e: any) {
+      // Un fijo con abono tiene cobros asociados (onDelete: Restrict): borrarlo perdería el
+      // rastro en la caja. El camino correcto es desactivarlo.
+      if (e?.code === 'P2003') throw BusinessRule('Este turno fijo tiene un abono cobrado. Desactivalo en vez de borrarlo.');
+      throw e;
+    }
+    sheetsSync.marcarSemanaSucia();
+    return { ok: true };
+  },
+  async desactivar(id: string) {
+    const f = await prisma.turnoFijo.findUnique({ where: { id } });
+    if (!f) throw NotFound('TurnoFijo', id);
+    await prisma.turnoFijo.update({ where: { id }, data: { activo: false } });
     sheetsSync.marcarSemanaSucia();
     return { ok: true };
   },

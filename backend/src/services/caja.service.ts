@@ -9,15 +9,17 @@ export const cajaService = {
     const end = dayWindowUtc(hasta, tz).end;
     const rows = await cobroRepo.listRange(start, end);
     const porMedio = { EFECTIVO: 0, TRANSFERENCIA: 0 };
-    const porConcepto = { turnos: 0, cuotas: 0 };
+    const porConcepto = { turnos: 0, cuotas: 0, abonos: 0 };
     const porCanchaMap = new Map<string, { canchaId: string; nombre: string; total: number }>();
     let total = 0;
     for (const c of rows) {
       const m = Number(c.monto);
       total += m;
       porMedio[c.medio] += m;
-      // Un cobro pertenece a una reserva O a una suscripción (constraint cobro_destino_unico).
+      // Un cobro pertenece a una reserva, a una suscripción o a un turno fijo (abono) —
+      // constraint cobro_destino_unico, "exactamente uno de los tres".
       if (c.suscripcionId) porConcepto.cuotas += m;
+      else if (c.turnoFijoId) porConcepto.abonos += m;
       else porConcepto.turnos += m;
       const ca = c.reserva?.cancha;
       if (ca) {
@@ -38,9 +40,9 @@ export const cajaService = {
         creadoEn: c.creadoEn,
         monto: Number(c.monto),
         medio: c.medio,
-        concepto: c.suscripcionId ? ('CUOTA' as const) : ('TURNO' as const),
+        concepto: c.suscripcionId ? ('CUOTA' as const) : c.turnoFijoId ? ('ABONO' as const) : ('TURNO' as const),
         cancha: c.reserva?.cancha?.nombre ?? '-',
-        cliente: c.reserva?.cliente?.nombre ?? c.suscripcion?.cliente?.nombre ?? '-',
+        cliente: c.reserva?.cliente?.nombre ?? c.suscripcion?.cliente?.nombre ?? c.turnoFijo?.clienteNombre ?? '-',
         registradoPor: c.registradoPor?.nombre ?? 'Sistema',
       })),
     };
