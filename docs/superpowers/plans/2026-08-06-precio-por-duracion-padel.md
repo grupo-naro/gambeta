@@ -357,7 +357,7 @@ y en el objeto: `precio90: aNum(precio90), precio90Pico: aNum(precio90Pico), pre
 `editarCancha` y `crearCancha` reciben `parsed.data` completo, así que **no hay que tocar
 `canchas-actions.ts`**: los campos viajan solos una vez que están en el schema.
 
-- [ ] **Step 3: Verificar**
+- [ ] **Step 5: Verificar**
 
 ```bash
 pnpm test
@@ -369,7 +369,7 @@ Esperado: tests en el baseline (`119 / 2`); build exitoso; lint en `4 problems (
 
 No levantes `pnpm dev`: el chequeo visual lo hace el humano.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add frontend/src
