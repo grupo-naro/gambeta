@@ -17,11 +17,11 @@ export const crearDivisibleSchema = z.object({
 });
 
 export const createCanchaSchema = z.object({
-  body: z.object({ nombre: z.string().min(1), tipo: z.string().min(1), precioHora: z.number().positive(), jugadores, destacada: z.boolean().optional().default(false), precioHoraPico: z.number().nonnegative().optional().default(0), senaMonto: z.number().nonnegative().nullable().optional() }),
+  body: z.object({ nombre: z.string().min(1), tipo: z.string().min(1), precioHora: z.number().positive(), jugadores, destacada: z.boolean().optional().default(false), precioHoraPico: z.number().nonnegative().optional().default(0), senaMonto: z.number().nonnegative().nullable().optional(), precio90: z.number().positive().nullable().optional(), precio90Pico: z.number().positive().nullable().optional(), precio120: z.number().positive().nullable().optional(), precio120Pico: z.number().positive().nullable().optional() }),
   query: empty, params: empty,
 });
 export const updateCanchaSchema = z.object({
-  body: z.object({ nombre: z.string().min(1).optional(), tipo: z.string().min(1).optional(), precioHora: z.number().positive().optional(), jugadores: jugadores.optional(), destacada: z.boolean().optional(), precioHoraPico: z.number().nonnegative().optional(), senaMonto: z.number().nonnegative().nullable().optional() }),
+  body: z.object({ nombre: z.string().min(1).optional(), tipo: z.string().min(1).optional(), precioHora: z.number().positive().optional(), jugadores: jugadores.optional(), destacada: z.boolean().optional(), precioHoraPico: z.number().nonnegative().optional(), senaMonto: z.number().nonnegative().nullable().optional(), precio90: z.number().positive().nullable().optional(), precio90Pico: z.number().positive().nullable().optional(), precio120: z.number().positive().nullable().optional(), precio120Pico: z.number().positive().nullable().optional() }),
   query: empty, params: z.object({ id: z.string().min(1) }),
 });
 export const setActivaSchema = z.object({

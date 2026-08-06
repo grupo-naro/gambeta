@@ -79,6 +79,13 @@ model Cancha {
   destacada      Boolean             @default(false)
   precioHora     Decimal             @db.Decimal(10, 2)
   precioHoraPico Decimal             @default(0) @db.Decimal(10, 2)
+  /// Precio propio por duración, por banda. Opcionales: si faltan, el precio de esa duración
+  /// se deriva proporcionalmente de precioHora/precioHoraPico, como siempre.
+  /// La decisión es POR DURACIÓN: una cancha puede tener precio120 y no precio90.
+  precio90       Decimal?            @db.Decimal(10, 2)
+  precio90Pico   Decimal?            @db.Decimal(10, 2)
+  precio120      Decimal?            @db.Decimal(10, 2)
+  precio120Pico  Decimal?            @db.Decimal(10, 2)
   senaMonto      Decimal?            @db.Decimal(10, 2)
   activa         Boolean             @default(true)
   creadoEn       DateTime            @default(now())
