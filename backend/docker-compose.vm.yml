@@ -38,11 +38,13 @@ services:
       EVOLUTION_URL: "${EVOLUTION_URL:-http://evolution:8080}"
       EVOLUTION_API_KEY: "${EVOLUTION_API_KEY}"
       EVOLUTION_INSTANCE: "${EVOLUTION_INSTANCE}"
-      # Mercado Pago: cobro de la seña desde la web de reservas. Las tres primeras son
-      # OBLIGATORIAS para que se genere el link de pago; sin ellas el checkout falla con
-      # "no se pudo generar el link de pago". Estaban en .env.vm.example pero NO acá, así que
+      # Mercado Pago: cobro de la seña desde la web de reservas y vinculación OAuth de la
+      # cuenta del complejo desde el panel. Estaban en .env.vm.example pero NO acá, así que
       # nunca entraban al contenedor (ver el comentario de SENA_* más arriba).
-      MP_ACCESS_TOKEN: "${MP_ACCESS_TOKEN}"
+      MP_CLIENT_ID: "${MP_CLIENT_ID}"
+      MP_CLIENT_SECRET: "${MP_CLIENT_SECRET}"
+      MP_ENCRYPTION_KEY: "${MP_ENCRYPTION_KEY}"
+      PANEL_PUBLIC_URL: "${PANEL_PUBLIC_URL}"
       RESERVAS_PUBLIC_URL: "${RESERVAS_PUBLIC_URL}"
       BACKEND_PUBLIC_URL: "${BACKEND_PUBLIC_URL}"
       # Sin esta, el webhook rechaza toda notificación con 401 y las señas nunca se aprueban solas.

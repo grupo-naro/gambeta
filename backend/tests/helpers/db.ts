@@ -44,5 +44,6 @@ export async function resetTables(): Promise<void> {
     p.cliente.deleteMany(),
     p.adminUser.deleteMany(),
     p.configuracion.deleteMany(),
+    p.mercadoPagoCuenta.deleteMany(),
   ]);
 }

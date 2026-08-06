@@ -306,6 +306,21 @@ model Configuracion {
   actualizadoEn     DateTime @updatedAt
 }
 
+/// Fila única (id "default"): la cuenta de Mercado Pago del complejo, vinculada por OAuth.
+/// Los tokens se guardan cifrados con AES-256-GCM (ver src/utils/cripto.ts).
+model MercadoPagoCuenta {
+  id            String   @id @default("default")
+  accessToken   String
+  refreshToken  String
+  venceEn       DateTime
+  mpUserId      String
+  apodo         String   @default("")
+  /// true cuando la renovación falló: el panel lo muestra en rojo y hay que revincular.
+  caida         Boolean  @default(false)
+  vinculadaEn   DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+}
+
 model Cobro {
   id              String       @id @default(cuid())
   reservaId       String?
