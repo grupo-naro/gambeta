@@ -31,7 +31,16 @@ webhookRoutes.post('/mercadopago', async (req, res, next) => {
       return;
     }
     if (reserva.estado !== 'ESPERANDO_SENA') {
-      logger.warn({ reservaId: reserva.id, mpPaymentId: pago.id, estado: reserva.estado }, 'webhook MP: pago aprobado sobre reserva no ESPERANDO_SENA');
+      // Sobre una reserva CANCELADA esto es plata cobrada sin turno: alguien tiene que
+      // devolverla o reubicar al cliente a mano. Va como error, con el monto, para que se
+      // pueda rastrear. Sobre una CONFIRMADA/COMPLETADA es una reentrega del webhook y no
+      // pasa nada.
+      const datos = { reservaId: reserva.id, mpPaymentId: pago.id, estado: reserva.estado, monto: pago.montoAprobado };
+      if (reserva.estado === 'CANCELADA') {
+        logger.error(datos, 'webhook MP: pago aprobado sobre una reserva ya cancelada — revisar a mano');
+      } else {
+        logger.warn(datos, 'webhook MP: pago aprobado sobre reserva no ESPERANDO_SENA');
+      }
       res.sendStatus(200);
       return;
     }

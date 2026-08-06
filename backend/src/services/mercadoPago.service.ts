@@ -42,6 +42,12 @@ export const mercadoPagoService = {
         auto_return: 'approved',
         external_reference: reserva.id,
         notification_url: `${backendUrl}/webhooks/mercadopago`,
+        // Solo plata en cuenta o tarjeta. Rapipago, Pago Fácil y los cajeros ('ticket' y 'atm')
+        // se acreditan horas o días después, y la reserva se libera sola a los 30 minutos: el
+        // cliente pagaría en el kiosco para encontrarse con que el turno ya se vendió.
+        payment_methods: {
+          excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
+        },
       },
     });
     const checkoutUrl = result.sandbox_init_point ?? result.init_point;
