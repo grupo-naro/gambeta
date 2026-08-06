@@ -1,11 +1,19 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
+import { signAdminToken } from '../../src/services/auth.service.js';
 
-let app: any;
+let app: any; let token: string; let adminId: string;
 beforeAll(async () => { await setupTestDb(); const { buildApp } = await import('../../src/app.js'); app = buildApp(); });
 afterAll(teardownTestDb);
-beforeEach(resetTables);
+beforeEach(async () => {
+  await resetTables();
+  // El alta de fijos es authJwt (staff): admin real en la DB para poder afirmar registradoPorId
+  // sin violar la FK de Cobro (un adminId inventado la rompería, no cae a null como cobro.service).
+  const a = await getPrisma().adminUser.create({ data: { email: 'a@b.com', nombre: 'Admin', passwordHash: 'x' } });
+  adminId = a.id;
+  token = signAdminToken({ adminId: a.id, email: a.email, rol: 'ADMIN' });
+});
 
 // 2026-08-05 es miércoles (diaSemana 3).
 const MIERCOLES = '2026-08-05';
@@ -13,7 +21,7 @@ const MIERCOLES = '2026-08-05';
 const crearCancha = () => getPrisma().cancha.create({ data: { nombre: 'Pádel 1', tipo: 'padel', precioHora: 30000 } });
 
 function altaFijo(canchaId: string, abono?: { vigenciaDesde: string; vigenciaHasta: string; montoAbono: number; medioAbono: string }) {
-  return supertest(app).post('/turnos-fijos').set('x-api-key', 'svc')
+  return supertest(app).post('/turnos-fijos').set('authorization', `Bearer ${token}`)
     .send({ canchaId, clienteNombre: 'Ana', whatsapp: '1136620274', diaSemana: 3, horaInicio: '20:00', horaFin: '21:00', ...abono });
 }
 
@@ -28,6 +36,8 @@ describe('abono en turnos fijos', () => {
     expect(Number(cobros[0].monto)).toBe(120000);
     expect(cobros[0].origen).toBe('ABONO');
     expect(cobros[0].medio).toBe('EFECTIVO');
+    // La caja necesita saber quién registró el cobro, no solo que existe.
+    expect(cobros[0].registradoPorId).toBe(adminId);
   });
 
   it('el alta sin abono no registra ningún cobro', async () => {
