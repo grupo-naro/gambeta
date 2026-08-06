@@ -33,8 +33,21 @@ async function cancelarReservaMaterializada(fijoId: string, fecha: string): Prom
 }
 
 export const turnoFijoService = {
-  list: (canchaId?: string) =>
-    prisma.turnoFijo.findMany({ where: canchaId ? { canchaId } : {}, include: { cancha: { select: { nombre: true } }, excepciones: true }, orderBy: [{ diaSemana: 'asc' }, { horaInicio: 'asc' }] }),
+  list: async (canchaId?: string) => {
+    const fijos = await prisma.turnoFijo.findMany({
+      where: canchaId ? { canchaId } : {},
+      include: { cancha: { select: { nombre: true } }, excepciones: true },
+      orderBy: [{ diaSemana: 'asc' }, { horaInicio: 'asc' }],
+    });
+    // El panel compara estas fechas como string YYYY-MM-DD contra el día que está mirando; no le
+    // sirve un ISO completo ni un Date.
+    return fijos.map((f) => ({
+      ...f,
+      vigenciaDesde: f.vigenciaDesde ? f.vigenciaDesde.toISOString().slice(0, 10) : null,
+      vigenciaHasta: f.vigenciaHasta ? f.vigenciaHasta.toISOString().slice(0, 10) : null,
+      montoAbono: f.montoAbono == null ? null : Number(f.montoAbono),
+    }));
+  },
   async crear(input: {
     canchaId: string; clienteNombre: string; whatsapp?: string; diaSemana: number; horaInicio: string; horaFin: string;
     vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';

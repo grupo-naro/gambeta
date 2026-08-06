@@ -73,3 +73,28 @@ describe('abono en turnos fijos', () => {
     expect(Number(res.body.monto)).toBe(30000);
   });
 });
+
+describe('el backend expone el dato para el aviso', () => {
+  it('el listado de fijos incluye el período y el monto del abono', async () => {
+    const c = await crearCancha();
+    await altaFijo(c.id, { vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-08-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
+    // GET /turnos-fijos es authJwt (panel), no authAny: se usa el token admin del beforeEach.
+    const res = await supertest(app).get('/turnos-fijos').set('authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const f = res.body[0];
+    expect(f.vigenciaDesde).toBe('2026-08-01');
+    expect(f.vigenciaHasta).toBe('2026-08-31');
+    expect(Number(f.montoAbono)).toBe(120000);
+  });
+
+  it('la agenda informa hasta cuándo está paga la reserva de un fijo con abono', async () => {
+    const c = await crearCancha();
+    const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-07-01', vigenciaHasta: '2026-07-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
+    await supertest(app).post(`/turnos-fijos/${fijo.body.id}/materializar`).set('x-api-key', 'svc').send({ fecha: MIERCOLES });
+    const res = await supertest(app).get(`/agenda?fecha=${MIERCOLES}`).set('x-api-key', 'svc');
+    expect(res.status).toBe(200);
+    // El panel compara este dato con la fecha que está mirando para decidir si avisa.
+    const item = res.body.reservas.find((r: any) => r.turnoFijoId === fijo.body.id);
+    expect(item.abonoHasta).toBe('2026-07-31');
+  });
+});

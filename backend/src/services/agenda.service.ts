@@ -13,7 +13,22 @@ export const agendaService = {
     const inicioDia = combineDateTimeUtc(fecha, '00:00', tz);
     const finDia = new Date(inicioDia.getTime() + 86400000);
 
-    const reservas = await reservaService.list({ fecha });
+    const reservasRaw = await reservaService.list({ fecha });
+    // Hasta cuándo está pago el abono del fijo que originó cada reserva. Se resuelve acá (y no en
+    // reservaService.list, que se usa en más lugares) para no cambiar la forma de otras respuestas.
+    // El panel compara este dato contra la fecha que está mirando para decidir si avisa; el backend
+    // no calcula "vencido": cada pantalla mira un día distinto.
+    const fijoIds = [...new Set(reservasRaw.map((r) => r.turnoFijoId).filter((id): id is string => id != null))];
+    const vigencias = fijoIds.length
+      ? await prisma.turnoFijo.findMany({ where: { id: { in: fijoIds } }, select: { id: true, vigenciaHasta: true } })
+      : [];
+    const vigenciaPorFijo = new Map(vigencias.map((v) => [v.id, v.vigenciaHasta]));
+    const reservas = reservasRaw.map((r) => ({
+      ...r,
+      abonoHasta: r.turnoFijoId && vigenciaPorFijo.get(r.turnoFijoId)
+        ? vigenciaPorFijo.get(r.turnoFijoId)!.toISOString().slice(0, 10)
+        : null,
+    }));
 
     // fijos materializados ese día → para no duplicar
     const materializados = await prisma.reserva.findMany({
