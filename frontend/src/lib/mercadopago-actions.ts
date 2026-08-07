@@ -16,10 +16,19 @@ export async function vincularMp(): Promise<{ ok: true; url: string } | { ok: fa
   } catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }
 
+/**
+ * OJO: acá NO va `revalidatePath`. La página de callback es un server component que llama a
+ * esta función **durante el render**, no por el protocolo de acciones, y Next 16 tira si se
+ * revalida en fase de render. El throw caía en el catch de abajo, así que una vinculación que
+ * había funcionado se reportaba como fallida: el dueño veía el toast rojo "no se pudo vincular"
+ * arriba de una tarjeta que decía "Cuenta vinculada".
+ *
+ * No hace falta igual: `/configuracion` es dinámica y `apiFetch` va con `cache: 'no-store'`,
+ * así que el redirect ya trae los datos frescos.
+ */
 export async function completarVinculacionMp(code: string, state: string): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await apiFetch('/pagos/mercadopago/callback', { method: 'POST', body: JSON.stringify({ code, state }) });
-    revalidatePath('/configuracion');
     return { ok: true };
   } catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }

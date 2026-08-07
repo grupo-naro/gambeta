@@ -90,7 +90,7 @@ class RechazoExplicitoMp extends AppError {
 
 interface RespuestaToken { access_token: string; refresh_token: string; expires_in: number; user_id: number | string }
 
-async function pedirToken(cuerpo: Record<string, string>, opts: { marcarSiRechazo?: boolean } = {}): Promise<RespuestaToken> {
+async function pedirToken(cuerpo: Record<string, string>, opts: { marcarSiRechazo?: boolean; exigirUserId?: boolean } = {}): Promise<RespuestaToken> {
   let res: Response;
   try {
     res = await fetch(TOKEN_URL, {
@@ -131,7 +131,14 @@ async function pedirToken(cuerpo: Record<string, string>, opts: { marcarSiRechaz
   }
 
   const d = datos as Partial<RespuestaToken> | null;
-  if (!d?.access_token || !d?.refresh_token || !d?.expires_in || !d?.user_id) {
+  // `user_id` se exige solo al vincular, que es donde se usa. En la renovación no se consume,
+  // y exigirlo ahí sería atarse a que Mercado Pago lo devuelva también en ese grant: si no lo
+  // hiciera, la renovación fallaría con un Conflict común (no un rechazo explícito), así que la
+  // cuenta NO quedaría marcada como caída, el panel seguiría en verde, la web seguiría
+  // mostrando la grilla, y cada checkout moriría con un 409. Y eso recién se descubriría a los
+  // ~173 días del deploy, que es cuando esta rama corre por primera vez.
+  const faltaUserId = opts.exigirUserId && !d?.user_id;
+  if (!d?.access_token || !d?.refresh_token || !d?.expires_in || faltaUserId) {
     throw Conflict('Mercado Pago no devolvió los datos esperados');
   }
   return d as RespuestaToken;
@@ -163,7 +170,7 @@ export const mercadoPagoOauthService = {
       grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri(),
-    });
+    }, { exigirUserId: true });
     const apodo = String(datos.user_id);
     await mercadoPagoCuentaRepo.guardar({
       accessToken: cifrar(datos.access_token),

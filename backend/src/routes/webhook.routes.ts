@@ -18,7 +18,14 @@ webhookRoutes.post('/mercadopago', async (req, res, next) => {
     const xRequestId = req.header('x-request-id');
 
     const firmaOk = mercadoPagoService.verificarFirma({ xSignature, xRequestId, dataId });
-    if (!firmaOk) { res.sendStatus(401); return; }
+    if (!firmaOk) {
+      // Sin este log el modo de falla es mudo: si MP_WEBHOOK_SECRET no es el de la aplicación
+      // que emitió el token, TODAS las notificaciones vuelven 401, ninguna seña se aprueba
+      // sola, las reservas se cancelan a los 30 minutos y en los logs no queda nada.
+      logger.warn({ dataId, xRequestId }, 'webhook MP: firma inválida — revisar MP_WEBHOOK_SECRET');
+      res.sendStatus(401);
+      return;
+    }
 
     const pago = await mercadoPagoService.obtenerPago(dataId!);
     if (pago.status !== 'approved') { res.sendStatus(200); return; }

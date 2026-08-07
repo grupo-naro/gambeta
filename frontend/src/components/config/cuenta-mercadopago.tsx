@@ -34,7 +34,7 @@ export function CuentaMercadoPago({ cuenta, resultado }: { cuenta: CuentaMp; res
   async function desvincular() {
     const ok = await confirm({
       title: '¿Desvincular Mercado Pago?',
-      description: 'Se cortan los cobros online: la web deja de tomar reservas hasta que vuelvas a vincular la cuenta.',
+      description: 'Se cortan los cobros online: la web deja de tomar reservas hasta que vuelvas a vincular la cuenta. Si en este momento hay alguien pagando, su reserva puede quedar sin confirmar.',
       confirmLabel: 'Desvincular',
       destructive: true,
     });
