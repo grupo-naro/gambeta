@@ -58,12 +58,18 @@ export function CuentaMercadoPago({ cuenta, resultado }: { cuenta: CuentaMp; res
     );
   }
 
+  // Una cuenta caída significa que NO se está cobrando y que la web dejó de tomar reservas:
+  // es plata que deja de entrar y el dueño puede no enterarse por días. Por eso lleva fondo y
+  // borde de alarma en vez de solo texto en rojo — mismo tratamiento que el aviso de stock bajo
+  // del buffet, que avisa de algo bastante menos grave.
   if (cuenta.caida) {
     return (
-      <Card>
-        <CardHeader><CardTitle className="text-base text-destructive">Mercado Pago</CardTitle></CardHeader>
+      <Card className="bg-red-50 ring-1 ring-inset ring-red-600/20">
+        <CardHeader><CardTitle className="text-base text-red-900">Mercado Pago · se cortaron los cobros</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <p className="text-destructive">Se perdió la conexión con Mercado Pago{cuenta.apodo ? ` (${cuenta.apodo})` : ''}. No se están tomando reservas online.</p>
+          <p className="text-red-800">
+            Se perdió la conexión con Mercado Pago{cuenta.apodo ? ` (${cuenta.apodo})` : ''}. <strong>La web no está tomando reservas online.</strong> Volvé a vincular la cuenta para reanudar los cobros.
+          </p>
           <Button disabled={pending} onClick={vincular}>{pending ? 'Redirigiendo…' : 'Volver a vincular'}</Button>
         </CardContent>
       </Card>

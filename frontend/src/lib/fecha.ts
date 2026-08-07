@@ -43,7 +43,14 @@ export function fmtFechaLarga(ymd: string): string {
   return new Intl.DateTimeFormat('es-AR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(base);
 }
 
-/** Días que faltan hasta un timestamp ISO (negativo si ya pasó). */
+/**
+ * Días que faltan hasta un timestamp ISO (negativo si ya pasó).
+ *
+ * Redondea para abajo a propósito: quien pregunta esto lo hace para avisar antes de un
+ * vencimiento, y `Math.ceil` devolvía 14 faltando 13,2 días reales, dejando casi un día
+ * ciego justo en el borde que el aviso existe para cubrir. Con `floor`, "faltan menos de
+ * N días" es cierto apenas empieza a serlo.
+ */
 export function diasHasta(iso: string): number {
-  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
+  return Math.floor((new Date(iso).getTime() - Date.now()) / 86400000);
 }
