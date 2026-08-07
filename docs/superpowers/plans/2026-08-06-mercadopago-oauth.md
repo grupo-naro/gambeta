@@ -1033,6 +1033,39 @@ git commit -m "feat(web): no tomar reservas online sin cuenta de Mercado Pago vi
 
 ---
 
+## Procedimiento de deploy (leer antes de desplegar)
+
+**El riesgo real no es el código, son las reservas en vuelo.** Toda reserva que esté en
+`ESPERANDO_SENA` con una preferencia ya creada apunta a la cuenta vieja. Después del deploy, si
+ese cliente paga, la plata cae en la cuenta del desarrollador; el webhook llega, consulta el pago
+con el token del vendedor nuevo, Mercado Pago no se lo devuelve, y la reserva se cancela sola a
+los 30 minutos. Nadie se entera salvo por el cliente enojado.
+
+Por eso el orden importa:
+
+1. **Esperar a que no queden reservas en `ESPERANDO_SENA`.** Con `SENA_TIMEOUT_MINUTOS` en 30,
+   alcanza con media hora sin tráfico — de madrugada es el momento obvio.
+2. Cargar las cuatro variables nuevas en el `.env` de la VM. **`PANEL_PUBLIC_URL` tiene que
+   coincidir carácter por carácter** con el redirect URI registrado en Mercado Pago.
+3. Desplegar.
+4. **Entrar al panel y vincular inmediatamente.** Entre el deploy y la vinculación, la web no
+   toma reservas: es una caída deliberada del canal de venta, pero hay que hacerla corta.
+5. **Hacer un pago real de prueba** y confirmar dos cosas: que la plata entra en la cuenta del
+   complejo, y que la reserva pasa sola a `CONFIRMADA` (eso último prueba que la firma del
+   webhook valida; si no, buscá `firma inválida` en el log).
+6. Revisar el saldo de la cuenta vieja de Mercado Pago los días siguientes, por si entró algo
+   de una reserva en vuelo.
+
+**Antes del paso 4, cargar el WhatsApp del complejo** en `reservas/src/lib/negocio.ts`. Hoy está
+vacío, así que la pantalla de "no tomamos reservas por la web" —que es justo lo que se ve entre
+el deploy y la vinculación— no muestra ningún número ni dirección. Degrada bien, pero deja al
+cliente sin salida.
+
+**En el primer pago real, mirar también** que el checkout no sea de sandbox:
+`mercadoPago.service.ts` usa `sandbox_init_point ?? init_point`, y con credenciales de
+producción del vendedor eso podría mandar a todos los clientes a un checkout de prueba donde no
+entra un peso. Es preexistente, pero recién ahora es plata real.
+
 ## Notas para el deploy
 
 - **Una migración** (`mercadopago_cuenta`), sin datos que migrar.
