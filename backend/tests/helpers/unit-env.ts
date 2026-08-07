@@ -24,6 +24,15 @@
  * Ninguno de estos valores toca una base real: `DATABASE_URL` nunca se usa para conectar en
  * los tests unitarios (eso es justamente lo que los distingue de los de integración), el schema
  * solo exige que sea un string no vacío.
+ *
+ * OJO al tocar `JWT_SECRET` / `SERVICE_API_KEY` / `ADMIN_SEED_PASSWORD`: coinciden a propósito
+ * con los mismos literales de `tests/helpers/global-setup.ts` (el equivalente para tests de
+ * integración). No hay nada que los obligue a coincidir — cada archivo de test corre bajo UNA
+ * sola de las dos configs, nunca bajo ambas a la vez — pero `tests/unit/auth.test.ts` (entre
+ * otros) asume ese valor concreto (`'svc'`) al leer `process.env.SERVICE_API_KEY` directo, sin
+ * mockear `getEnv()`. Si estos literales divergen entre los dos archivos, un test que hoy pasa
+ * en las dos configs puede empezar a fallar en una sola, y el motivo real (un `SERVICE_API_KEY`
+ * distinto) va a quedar escondido detrás de un fallo que no tiene pinta de estar relacionado.
  */
 process.env.DATABASE_URL ||= 'postgresql://unit-test-placeholder';
 process.env.JWT_SECRET ||= 'a'.repeat(32);

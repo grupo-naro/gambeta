@@ -16,6 +16,12 @@ export async function setup() {
   const url = container.getConnectionUri();
 
   // Set env vars in the main process — forks inherit these.
+  // OJO: JWT_SECRET / SERVICE_API_KEY / ADMIN_SEED_PASSWORD usan los mismos literales que
+  // tests/helpers/unit-env.ts (el equivalente para tests unitarios, sin Testcontainers). Nada
+  // los obliga a coincidir en código, pero algunos tests (ver tests/unit/auth.test.ts, que lee
+  // process.env.SERVICE_API_KEY directo) asumen ese valor concreto y corren bajo las dos
+  // configs. Si divergen, un test puede empezar a fallar en una sola config con un mensaje que
+  // no da ninguna pista de por qué.
   process.env['DATABASE_URL'] = url;
   process.env['JWT_SECRET'] = 'a'.repeat(32);
   process.env['JWT_EXPIRES_IN'] = '12h';
