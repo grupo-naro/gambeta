@@ -6,6 +6,14 @@ vi.mock('../../src/services/config.service.js', () => ({
   },
 }));
 
+// datosPago() ahora suma cobrosOnline, que sale de mercadoPagoOauthService (y ese, de la base).
+// Este es un test unitario puro (sin Testcontainers): se mockea para no tocar la DB.
+vi.mock('../../src/services/mercadoPagoOauth.service.js', () => ({
+  mercadoPagoOauthService: {
+    cobrosOnlineActivos: vi.fn().mockResolvedValue(false),
+  },
+}));
+
 import { configService } from '../../src/services/config.service.js';
 import { senaService } from '../../src/services/sena.service.js';
 
@@ -45,6 +53,7 @@ describe('senaService.datosPago', () => {
       cbu: 'cbu1',
       alias: 'alias1',
       titular: 'Titular',
+      cobrosOnline: false,
     });
   });
 });

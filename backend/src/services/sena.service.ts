@@ -1,4 +1,5 @@
 import { configService } from './config.service.js';
+import { mercadoPagoOauthService } from './mercadoPagoOauth.service.js';
 
 export interface DatosPago {
   modo: 'fijo';
@@ -6,6 +7,7 @@ export interface DatosPago {
   cbu: string;
   alias: string;
   titular: string;
+  cobrosOnline: boolean;
 }
 
 export const senaService = {
@@ -22,6 +24,11 @@ export const senaService = {
   },
   async datosPago(): Promise<DatosPago> {
     const c = await configService.get();
-    return { modo: 'fijo', porcentaje: c.senaPorcentaje, cbu: c.cbu, alias: c.alias, titular: c.titular };
+    return {
+      modo: 'fijo', porcentaje: c.senaPorcentaje, cbu: c.cbu, alias: c.alias, titular: c.titular,
+      // La web pública lo usa para decidir si toma reservas. Sin cuenta vinculada no hay
+      // forma de cobrar la seña, así que no se vende online.
+      cobrosOnline: await mercadoPagoOauthService.cobrosOnlineActivos(),
+    };
   },
 };

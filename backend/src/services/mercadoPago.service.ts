@@ -1,6 +1,7 @@
 import { MercadoPagoConfig, Preference, Payment, WebhookSignatureValidator, InvalidWebhookSignatureError } from 'mercadopago';
 import { getEnv } from '../config/env.js';
 import { Conflict } from '../utils/errors.js';
+import { mercadoPagoOauthService } from './mercadoPagoOauth.service.js';
 
 /**
  * Falla nombrando la variable que falta.
@@ -8,16 +9,18 @@ import { Conflict } from '../utils/errors.js';
  * OJO al desplegar: `docker-compose.vm.yml` **enumera** las variables que entran al contenedor,
  * no usa `env_file`. Si una variable no está declarada ahí, NO llega al backend aunque esté
  * cargada en el `.env` de la VM. Ese fue el origen real de "no se pudo generar el link de pago":
- * las cuatro MP_* estaban en el .env pero no en el compose.
+ * las MP_CLIENT_ID/MP_CLIENT_SECRET/MP_ENCRYPTION_KEY/PANEL_PUBLIC_URL estaban en el .env pero
+ * no en el compose.
  */
 function requerida(nombre: string, valor: string): string {
   if (!valor) throw Conflict(`Mercado Pago no está configurado: falta la variable ${nombre} en el backend`);
   return valor;
 }
 
-function client(): MercadoPagoConfig {
-  const env = getEnv();
-  return new MercadoPagoConfig({ accessToken: requerida('MP_ACCESS_TOKEN', env.MP_ACCESS_TOKEN) });
+/** El token es el del vendedor (cuenta vinculada por OAuth), no uno fijo de variable de entorno:
+ * cada complejo cobra a su propia cuenta de Mercado Pago. */
+async function client(): Promise<MercadoPagoConfig> {
+  return new MercadoPagoConfig({ accessToken: await mercadoPagoOauthService.tokenDeAcceso() });
 }
 
 export const mercadoPagoService = {
@@ -28,7 +31,7 @@ export const mercadoPagoService = {
     // opaco ("At least one policy returned UNAUTHORIZED") imposible de diagnosticar.
     const reservasUrl = requerida('RESERVAS_PUBLIC_URL', env.RESERVAS_PUBLIC_URL);
     const backendUrl = requerida('BACKEND_PUBLIC_URL', env.BACKEND_PUBLIC_URL);
-    const preference = new Preference(client());
+    const preference = new Preference(await client());
     const result = await preference.create({
       body: {
         items: [
@@ -56,7 +59,9 @@ export const mercadoPagoService = {
   },
 
   async obtenerPago(paymentId: string): Promise<{ id: string; status: string; externalReference: string | null; montoAprobado: number }> {
-    const payment = new Payment(client());
+    // El pago pertenece a la cuenta del vendedor: con otro token no se puede consultar y el
+    // webhook quedaría ciego.
+    const payment = new Payment(await client());
     const p = await payment.get({ id: paymentId });
     return {
       id: String(p.id),
