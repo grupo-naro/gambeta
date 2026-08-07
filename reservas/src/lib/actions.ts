@@ -9,6 +9,23 @@ export async function getGrilla(deporte: Deporte, fecha: string): Promise<Result
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : 'Error' }; }
 }
 
+/**
+ * Si el complejo puede cobrar señas online, o sea si tiene una cuenta de Mercado Pago
+ * vinculada y sana. Sin eso la web no toma reservas: no habría forma de cobrar la seña.
+ *
+ * Ante cualquier error devuelve `false`. Es deliberado: preferimos mandar a la gente a
+ * reservar por WhatsApp antes que tomarle una reserva que después no vamos a poder cobrar.
+ */
+export async function getCobrosOnline(): Promise<boolean> {
+  try {
+    const data = await apiReservas<{ cobrosOnline?: boolean }>('/config/sena');
+    return data.cobrosOnline === true;
+  } catch (e) {
+    console.error('[config] no se pudo consultar si los cobros online están activos', { error: e instanceof Error ? e.message : e });
+    return false;
+  }
+}
+
 export async function crearReserva(input: { canchaId: string; fecha: string; horaInicio: string; nombre: string; telefono: string; duracionMin?: number }): Promise<Resultado<ReservaCreada>> {
   try {
     const data = await apiReservas<ReservaCreada>('/reservas', {
