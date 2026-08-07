@@ -105,14 +105,18 @@ async function pedirToken(cuerpo: Record<string, string>, opts: { marcarSiRechaz
     throw Conflict('No se pudo contactar a Mercado Pago. Probá de nuevo en un momento.');
   }
 
-  const texto = await res.text();
   let datos: unknown;
   try {
+    // res.text() también puede rechazar: el AbortSignal de arriba corta el streaming del
+    // cuerpo igual que corta el fetch, y una conexión que se corta a mitad de respuesta
+    // produce el mismo tipo de error crudo. Por eso va en el mismo try que el parseo.
+    const texto = await res.text();
     datos = texto ? JSON.parse(texto) : null;
   } catch {
-    // MP (o un proxy en el medio) devolvió algo que no es JSON: típico de un 502/503 con una
-    // página de error HTML en vez de la respuesta esperada. Tampoco es un rechazo explícito.
-    throw Conflict('Mercado Pago devolvió una respuesta inesperada. Probá de nuevo en un momento.');
+    // MP (o un proxy en el medio) devolvió algo que no es JSON, o se cortó a mitad de
+    // respuesta: típico de un 502/503 con una página de error HTML, o de una conexión que se
+    // cae. Tampoco es un rechazo explícito, es un problema para contactar a MP.
+    throw Conflict('No se pudo leer la respuesta de Mercado Pago. Probá de nuevo en un momento.');
   }
 
   if (!res.ok) {

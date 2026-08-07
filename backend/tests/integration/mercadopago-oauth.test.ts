@@ -261,6 +261,19 @@ describe('estado y desvinculación', () => {
     expect(estado.apodo).toBe('COMPLEJO');
   });
 
+  it('con una cuenta vinculada pero caída: no se puede cobrar, aunque la cuenta sigue existiendo', async () => {
+    const svc = (await import('../../src/services/mercadoPagoOauth.service.js')).mercadoPagoOauthService;
+    await cuentaVinculada(100);
+    await getPrisma().mercadoPagoCuenta.update({ where: { id: 'default' }, data: { caida: true } });
+
+    // La distinción que motivó separar los dos nombres: "hay cuenta" y "se puede cobrar" no
+    // son la misma pregunta, y acá dan respuestas distintas a propósito.
+    expect(await svc.cobrosOnlineActivos()).toBe(false);
+    const estado = await svc.estado();
+    expect(estado.vinculada).toBe(true);
+    expect(estado.caida).toBe(true);
+  });
+
   it('desvincular borra la cuenta', async () => {
     const svc = (await import('../../src/services/mercadoPagoOauth.service.js')).mercadoPagoOauthService;
     await cuentaVinculada(100);
