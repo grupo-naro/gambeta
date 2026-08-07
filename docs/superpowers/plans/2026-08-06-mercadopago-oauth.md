@@ -260,7 +260,7 @@ El corazón. Todo lo delicado vive acá: el `state` firmado, el intercambio, y l
   - `desvincular(): Promise<void>`
   - `estado(): Promise<{ vinculada: boolean; apodo: string | null; venceEn: string | null; caida: boolean }>`
   - `tokenDeAcceso(): Promise<string>` — renueva si hace falta; lanza `Conflict` si no hay cuenta.
-  - `hayCuentaVinculada(): Promise<boolean>`
+  - `cobrosOnlineActivos(): Promise<boolean>`
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -409,7 +409,7 @@ describe('renovación', () => {
 describe('estado y desvinculación', () => {
   it('sin cuenta, no está vinculada y pedir el token falla', async () => {
     const svc = (await import('../../src/services/mercadoPagoOauth.service.js')).mercadoPagoOauthService;
-    expect(await svc.hayCuentaVinculada()).toBe(false);
+    expect(await svc.cobrosOnlineActivos()).toBe(false);
     expect((await svc.estado()).vinculada).toBe(false);
     await expect(svc.tokenDeAcceso()).rejects.toThrow();
   });
@@ -427,7 +427,7 @@ describe('estado y desvinculación', () => {
     const svc = (await import('../../src/services/mercadoPagoOauth.service.js')).mercadoPagoOauthService;
     await cuentaVinculada(100);
     await svc.desvincular();
-    expect(await svc.hayCuentaVinculada()).toBe(false);
+    expect(await svc.cobrosOnlineActivos()).toBe(false);
   });
 
   it('desvincular sin cuenta no rompe', async () => {
@@ -612,7 +612,7 @@ export const mercadoPagoOauthService = {
     logger.info('cuenta de Mercado Pago desvinculada');
   },
 
-  async hayCuentaVinculada(): Promise<boolean> {
+  async cobrosOnlineActivos(): Promise<boolean> {
     const c = await mercadoPagoCuentaRepo.get();
     return !!c && !c.caida;
   },
@@ -858,7 +858,7 @@ En `backend/src/services/sena.service.ts`, en `datosPago()`:
       modo: 'fijo', porcentaje: c.senaPorcentaje, cbu: c.cbu, alias: c.alias, titular: c.titular,
       // La web pública lo usa para decidir si toma reservas. Sin cuenta vinculada no hay
       // forma de cobrar la seña, así que no se vende online.
-      cobrosOnline: await mercadoPagoOauthService.hayCuentaVinculada(),
+      cobrosOnline: await mercadoPagoOauthService.cobrosOnlineActivos(),
     };
   },
 ```
