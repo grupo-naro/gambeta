@@ -93,6 +93,7 @@ export interface CajaReporte {
 }
 
 export interface SheetsInfo { configurado: boolean; url: string | null }
+export interface CuentaMp { vinculada: boolean; apodo: string | null; venceEn: string | null; caida: boolean }
 
 export interface IngresoDia { fecha: string; total: number }
 export interface OcupacionCelda { dia: number; hora: number; reservas: number }

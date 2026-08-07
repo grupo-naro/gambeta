@@ -42,3 +42,8 @@ export function fmtFechaLarga(ymd: string): string {
   const base = new Date(Date.UTC(y, m - 1, d, 12));
   return new Intl.DateTimeFormat('es-AR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(base);
 }
+
+/** Días que faltan hasta un timestamp ISO (negativo si ya pasó). */
+export function diasHasta(iso: string): number {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
+}
