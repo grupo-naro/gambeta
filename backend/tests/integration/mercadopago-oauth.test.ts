@@ -247,7 +247,7 @@ describe('renovación', () => {
 describe('estado y desvinculación', () => {
   it('sin cuenta, no está vinculada y pedir el token falla', async () => {
     const svc = (await import('../../src/services/mercadoPagoOauth.service.js')).mercadoPagoOauthService;
-    expect(await svc.hayCuentaVinculada()).toBe(false);
+    expect(await svc.cobrosOnlineActivos()).toBe(false);
     expect((await svc.estado()).vinculada).toBe(false);
     await expect(svc.tokenDeAcceso()).rejects.toThrow();
   });
@@ -265,7 +265,7 @@ describe('estado y desvinculación', () => {
     const svc = (await import('../../src/services/mercadoPagoOauth.service.js')).mercadoPagoOauthService;
     await cuentaVinculada(100);
     await svc.desvincular();
-    expect(await svc.hayCuentaVinculada()).toBe(false);
+    expect(await svc.cobrosOnlineActivos()).toBe(false);
   });
 
   it('desvincular sin cuenta no rompe', async () => {

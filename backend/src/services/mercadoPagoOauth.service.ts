@@ -178,21 +178,17 @@ export const mercadoPagoOauthService = {
   },
 
   /**
-   * `true` solo si hay cuenta Y está operativa (no caída). Es lo que tienen que consultar los
-   * llamadores que van a pedir un token (ej. antes de armar un cobro): una cuenta caída no
-   * sirve aunque la fila siga existiendo. Para saber si existe una fila para mostrar en el
-   * panel — incluso rota —, ver `estado().vinculada`.
+   * `true` solo si hay cuenta Y está operativa (no caída). Es la pregunta que le importa a
+   * quien la consume: la web pública la usa para decidir si toma reservas con cobro online
+   * (campo `cobrosOnline`). Una cuenta caída no sirve aunque la fila siga existiendo, así que
+   * acá cuenta como "no".
    */
-  async hayCuentaVinculada(): Promise<boolean> {
+  async cobrosOnlineActivos(): Promise<boolean> {
     const c = await mercadoPagoCuentaRepo.get();
     return !!c && !c.caida;
   },
 
-  /**
-   * Estado para el panel. `vinculada` significa "existe una fila" (aunque esté `caida`,
-   * sigue existiendo y hay que mostrarla en rojo con opción de revincular). Para saber si el
-   * token efectivamente se puede usar, ver `hayCuentaVinculada()`.
-   */
+  /** Estado para el panel: qué cuenta está conectada y si la conexión se cortó. */
   async estado(): Promise<{ vinculada: boolean; apodo: string | null; venceEn: string | null; caida: boolean }> {
     const c = await mercadoPagoCuentaRepo.get();
     // Devuelve solo lo que el panel necesita mostrar. Nunca los tokens.
