@@ -159,4 +159,29 @@ describe('rutas de la cuenta de Mercado Pago', () => {
     expect(authPreferencia).toBe('Bearer APP_USR-token-del-vendedor');
     expect(authPago).toBe('Bearer APP_USR-token-del-vendedor');
   });
+
+  it('cuando Mercado Pago devuelve los dos checkout, manda al de producción y no al de sandbox', async () => {
+    // Bug real detectado en la primera prueba con la cuenta ya vinculada: el código elegía
+    // `sandbox_init_point ?? init_point`, así que con credenciales de producción mandaba a
+    // TODOS los clientes al checkout de prueba, donde no entra un peso. Mercado Pago devuelve
+    // los dos campos, así que el orden del ?? es la única diferencia entre cobrar y no cobrar.
+    await cuentaVinculada(100);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: any) => {
+      if (String(url).includes('/checkout/preferences')) {
+        return {
+          ok: true, status: 201, headers: new Headers(),
+          json: async () => ({
+            id: 'pref-x',
+            init_point: 'https://www.mercadopago.com.ar/checkout/PRODUCCION',
+            sandbox_init_point: 'https://sandbox.mercadopago.com.ar/checkout/SANDBOX',
+          }),
+        } as Response;
+      }
+      throw new Error('fetch inesperado en el test: ' + String(url));
+    });
+
+    const { checkoutUrl } = await mercadoPagoService.crearPreferencia({ id: 'r1', montoSena: 5000, canchaNombre: 'Cancha 1' });
+    expect(checkoutUrl).toBe('https://www.mercadopago.com.ar/checkout/PRODUCCION');
+    expect(checkoutUrl).not.toContain('sandbox');
+  });
 });

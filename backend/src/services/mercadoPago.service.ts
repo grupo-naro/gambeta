@@ -53,7 +53,11 @@ export const mercadoPagoService = {
         },
       },
     });
-    const checkoutUrl = result.sandbox_init_point ?? result.init_point;
+    // `init_point` PRIMERO: Mercado Pago devuelve los dos campos, y elegir el de sandbox manda
+    // a todos los clientes a un checkout de prueba donde no entra un peso. Estaba al revés
+    // desde la integración original, cuando el token era de prueba y daba igual; con la cuenta
+    // del complejo vinculada por OAuth, es plata real que no se cobra.
+    const checkoutUrl = result.init_point ?? result.sandbox_init_point;
     if (!result.id || !checkoutUrl) throw Conflict('Mercado Pago no devolvió una preferencia válida');
     return { preferenceId: result.id, checkoutUrl };
   },
