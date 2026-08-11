@@ -52,5 +52,7 @@ export const porCodigoSchema = z.object({
 });
 
 const pin4 = z.string().regex(/^\d{4}$/, 'El PIN son 4 dígitos');
-export const setPinSchema = z.object({ body: z.object({ pin: pin4 }), query: empty, params: empty });
+// Los ids son fijos: los crea la migración de Task 1 y no hay alta de mostradores por API.
+const mostradorIdExistente = z.enum(['mostrador-principal', 'mostrador-secundario']);
+export const setPinSchema = z.object({ body: z.object({ pin: pin4, mostradorId: mostradorIdExistente }), query: empty, params: empty });
 export const verificarPinSchema = z.object({ body: z.object({ pin: pin4 }), query: empty, params: empty });

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
+import { hashPassword } from '../../src/utils/password.js';
 
 const KEY = 'buffet-key-de-prueba-1234567890';
 let app: any; let token: string; let adminId: string;
@@ -106,14 +107,23 @@ describe('buffet: catalogo de productos', () => {
 });
 
 describe('buffet: productos activos (mostrador)', () => {
-  const mostrador = (r: any) => r.set('x-buffet-key', KEY);
+  // authMostrador exige el token que emite /pin/verificar además de la x-buffet-key.
+  const mostrador = (r: any, token: string) => r.set('x-buffet-key', KEY).set('x-mostrador', token);
+
+  async function tokenPrincipal(): Promise<string> {
+    await getPrisma().mostrador.update({ where: { id: 'mostrador-principal' }, data: { pinHash: await hashPassword('1111') } });
+    const login = await supertest(app).post('/buffet/pin/verificar').set('x-buffet-key', KEY).send({ pin: '1111' });
+    return login.body.token;
+  }
+
   it('devuelve solo activos, ordenados por nombre, con {id,nombre,precio}', async () => {
     const p = getPrisma();
     await p.productoBuffet.create({ data: { nombre: 'Pancho', precio: '2500', stock: 5, activo: true } });
     await p.productoBuffet.create({ data: { nombre: 'Agua', precio: '1000', stock: 5, activo: true } });
     await p.productoBuffet.create({ data: { nombre: 'Viejo', precio: '100', stock: 0, activo: false } });
 
-    const r = await mostrador(supertest(app).get('/buffet/productos/activos'));
+    const token = await tokenPrincipal();
+    const r = await mostrador(supertest(app).get('/buffet/productos/activos'), token);
     expect(r.status).toBe(200);
     expect(r.body.map((x: any) => x.nombre)).toEqual(['Agua', 'Pancho']);
     expect(r.body[0]).toEqual({ id: expect.any(String), nombre: 'Agua', precio: 1000 });
@@ -121,6 +131,11 @@ describe('buffet: productos activos (mostrador)', () => {
 
   it('sin buffet-key devuelve 401', async () => {
     const r = await supertest(app).get('/buffet/productos/activos');
+    expect(r.status).toBe(401);
+  });
+
+  it('con buffet-key pero sin token de mostrador devuelve 401', async () => {
+    const r = await supertest(app).get('/buffet/productos/activos').set('x-buffet-key', KEY);
     expect(r.status).toBe(401);
   });
 });

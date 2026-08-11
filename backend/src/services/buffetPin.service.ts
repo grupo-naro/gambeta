@@ -1,22 +1,26 @@
 import { prisma } from '../db/prisma.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 
-const CONFIG_ID = 'default';
+export interface MostradorIdentificado { mostradorId: string; tipo: 'PRINCIPAL' | 'SECUNDARIO'; nombre: string }
 
 export const buffetPinService = {
-  async setear(pin: string): Promise<void> {
-    const buffetPinHash = await hashPassword(pin);
-    await prisma.configuracion.upsert({
-      where: { id: CONFIG_ID },
-      create: { id: CONFIG_ID, buffetPinHash },
-      update: { buffetPinHash },
-    });
+  async setear(mostradorId: string, pin: string): Promise<void> {
+    await prisma.mostrador.update({ where: { id: mostradorId }, data: { pinHash: await hashPassword(pin) } });
   },
 
-  async verificar(pin: string): Promise<boolean> {
-    const cfg = await prisma.configuracion.findUnique({ where: { id: CONFIG_ID } });
-    // Sin PIN configurado no entra nadie: un hash vacío nunca matchea.
-    if (!cfg?.buffetPinHash) return false;
-    return verifyPassword(pin, cfg.buffetPinHash);
+  /**
+   * Devuelve QUÉ mostrador es, no solo si el PIN sirve. Recorre los mostradores activos y
+   * compara contra cada hash: son dos, así que el costo es irrelevante.
+   */
+  async verificar(pin: string): Promise<MostradorIdentificado | null> {
+    const mostradores = await prisma.mostrador.findMany({ where: { activo: true } });
+    for (const m of mostradores) {
+      // Un hash vacío nunca matchea: un mostrador sin PIN configurado no deja entrar a nadie.
+      if (!m.pinHash) continue;
+      if (await verifyPassword(pin, m.pinHash)) {
+        return { mostradorId: m.id, tipo: m.tipo as 'PRINCIPAL' | 'SECUNDARIO', nombre: m.nombre };
+      }
+    }
+    return null;
   },
 };

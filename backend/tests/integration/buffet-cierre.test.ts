@@ -2,13 +2,20 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
+import { hashPassword } from '../../src/utils/password.js';
 
 const KEY = 'buffet-key-de-prueba-1234567890';
-let app: any; let token: string;
+let app: any; let token: string; let mostradorToken: string;
 beforeAll(async () => { process.env.BUFFET_API_KEY = KEY; await setupTestDb(); const { buildApp } = await import('../../src/app.js'); app = buildApp(); token = signAdminToken({ adminId: 'x', email: 'a@b.com', rol: 'ADMIN' }); });
 afterAll(teardownTestDb);
-beforeEach(resetTables);
-const mostrador = (r: any) => r.set('x-buffet-key', KEY);
+beforeEach(async () => {
+  await resetTables();
+  await getPrisma().mostrador.update({ where: { id: 'mostrador-principal' }, data: { pinHash: await hashPassword('1111') } });
+  const login = await supertest(app).post('/buffet/pin/verificar').set('x-buffet-key', KEY).send({ pin: '1111' });
+  mostradorToken = login.body.token;
+});
+// authMostrador exige el token que emite /pin/verificar además de la x-buffet-key.
+const mostrador = (r: any) => r.set('x-buffet-key', KEY).set('x-mostrador', mostradorToken);
 
 async function sembrar() {
   const p = getPrisma();

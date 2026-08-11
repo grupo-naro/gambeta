@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authBuffet } from '../middlewares/authBuffet.js';
+import { authBuffet, authMostrador } from '../middlewares/authBuffet.js';
 import { authJwt } from '../middlewares/authJwt.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { validate } from '../middlewares/validate.js';
@@ -8,29 +8,30 @@ import { buffetProductoService } from '../services/buffetProducto.service.js';
 import { buffetCajaService } from '../services/buffetCaja.service.js';
 import { buffetPinService } from '../services/buffetPin.service.js';
 import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema } from '../validators/buffet.schema.js';
-import { NotFound } from '../utils/errors.js';
+import { firmarTokenMostrador } from '../utils/mostradorToken.js';
+import { NotFound, Unauthorized } from '../utils/errors.js';
 
 export const buffetRoutes = Router();
 
-// --- Mostrador (x-buffet-key) ---
+// --- Mostrador (x-buffet-key + x-mostrador: el token que emite /pin/verificar) ---
 // OJO: /productos/botonera va antes que cualquier /productos/:id de admin.
-buffetRoutes.get('/productos/botonera', authBuffet, async (_req, res, next) => {
+buffetRoutes.get('/productos/botonera', authMostrador, async (_req, res, next) => {
   try { res.json(await buffetProductoService.listBotonera()); } catch (e) { next(e); }
 });
 
-buffetRoutes.get('/productos/activos', authBuffet, async (_req, res, next) => {
+buffetRoutes.get('/productos/activos', authMostrador, async (_req, res, next) => {
   try { res.json(await buffetProductoService.listActivos()); } catch (e) { next(e); }
 });
 
-buffetRoutes.post('/caja/abrir', authBuffet, async (_req, res, next) => {
+buffetRoutes.post('/caja/abrir', authMostrador, async (_req, res, next) => {
   try { res.json(await buffetCajaService.abrir()); } catch (e) { next(e); }
 });
 
-buffetRoutes.get('/caja/actual', authBuffet, async (_req, res, next) => {
+buffetRoutes.get('/caja/actual', authMostrador, async (_req, res, next) => {
   try { res.json(await buffetCajaService.actual()); } catch (e) { next(e); }
 });
 
-buffetRoutes.get('/producto', authBuffet, validate(porCodigoSchema), async (req, res, next) => {
+buffetRoutes.get('/producto', authMostrador, validate(porCodigoSchema), async (req, res, next) => {
   try {
     const p = await buffetProductoService.porCodigo((req as any).valid.query.codigoBarra);
     if (!p) return next(NotFound('ProductoBuffet', (req as any).valid.query.codigoBarra));
@@ -38,16 +39,22 @@ buffetRoutes.get('/producto', authBuffet, validate(porCodigoSchema), async (req,
   } catch (e) { next(e); }
 });
 
-buffetRoutes.post('/cobrar', authBuffet, validate(cobrarSchema), async (req, res, next) => {
+buffetRoutes.post('/cobrar', authMostrador, validate(cobrarSchema), async (req, res, next) => {
   try { res.json(await buffetCajaService.cobrar((req as any).valid.body)); } catch (e) { next(e); }
 });
 
-buffetRoutes.post('/caja/cerrar', authBuffet, async (_req, res, next) => {
+buffetRoutes.post('/caja/cerrar', authMostrador, async (_req, res, next) => {
   try { res.json(await buffetCajaService.cerrar()); } catch (e) { next(e); }
 });
 
+// Sigue con authBuffet (no authMostrador): acá es donde el mostrador todavía no tiene token,
+// porque el PIN es justamente lo que se lo va a dar.
 buffetRoutes.post('/pin/verificar', authBuffet, loginLimiter, validate(verificarPinSchema), async (req, res, next) => {
-  try { res.json({ ok: await buffetPinService.verificar((req as any).valid.body.pin) }); } catch (e) { next(e); }
+  try {
+    const m = await buffetPinService.verificar((req as any).valid.body.pin);
+    if (!m) return next(Unauthorized('PIN incorrecto'));
+    res.json({ token: firmarTokenMostrador(m.mostradorId), tipo: m.tipo, nombre: m.nombre });
+  } catch (e) { next(e); }
 });
 
 // --- Admin (JWT) ---
@@ -74,5 +81,9 @@ buffetRoutes.post('/productos/:id/reponer', authJwt, requireRole('ADMIN'), valid
 });
 
 buffetRoutes.put('/pin', authJwt, requireRole('ADMIN'), validate(setPinSchema), async (req, res, next) => {
-  try { await buffetPinService.setear((req as any).valid.body.pin); res.status(204).end(); } catch (e) { next(e); }
+  try {
+    const { mostradorId, pin } = (req as any).valid.body;
+    await buffetPinService.setear(mostradorId, pin);
+    res.status(204).end();
+  } catch (e) { next(e); }
 });
