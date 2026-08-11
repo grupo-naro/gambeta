@@ -73,7 +73,9 @@ export const buffetCajaService = {
     const ya = await cajaAbierta();
     if (ya) return estadoDe(ya.id);
     try {
-      const creada = await prisma.cajaBuffet.create({ data: {} });
+      // TODO(Task 4 del plan de dos mostradores): esto va a recibir el mostradorId del caller.
+      // Por ahora queda fijo al principal para no romper el comportamiento actual.
+      const creada = await prisma.cajaBuffet.create({ data: { mostradorId: 'mostrador-principal' } });
       return estadoDe(creada.id);
     } catch (e: any) {
       if (e?.code === 'P2002') { const ex = await cajaAbierta(); if (ex) return estadoDe(ex.id); }

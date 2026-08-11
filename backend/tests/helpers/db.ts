@@ -27,6 +27,7 @@ export async function resetTables(): Promise<void> {
     p.ticketBuffet.deleteMany(),
     p.cajaBuffet.deleteMany(),
     p.productoBuffet.deleteMany(),
+    p.mostrador.deleteMany(),
     p.auditLog.deleteMany(),
     p.cobro.deleteMany(),
     p.pago.deleteMany(),
@@ -46,4 +47,13 @@ export async function resetTables(): Promise<void> {
     p.configuracion.deleteMany(),
     p.mercadoPagoCuenta.deleteMany(),
   ]);
+  // La migración crea estos dos mostradores; truncar la tabla entre tests los borra, así que
+  // hay que volver a insertarlos con los mismos ids para que el buffet siga teniendo sus dos
+  // puestos disponibles.
+  await p.mostrador.createMany({
+    data: [
+      { id: 'mostrador-principal', nombre: 'Principal', tipo: 'PRINCIPAL', pinHash: '' },
+      { id: 'mostrador-secundario', nombre: 'Secundario', tipo: 'SECUNDARIO', pinHash: '' },
+    ],
+  });
 }

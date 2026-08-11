@@ -360,6 +360,25 @@ model ProductoBuffet {
   ventas      VentaBuffet[]
 }
 
+enum TipoMostrador {
+  PRINCIPAL
+  SECUNDARIO
+}
+
+/// Un puesto de atención del buffet. Cada uno tiene su propio PIN: es lo que permite
+/// saber QUIÉN vendió, y sin eso la conciliación del cierre es imposible.
+model Mostrador {
+  id      String        @id @default(cuid())
+  nombre  String
+  tipo    TipoMostrador
+  pinHash String        @default("")
+  activo  Boolean       @default(true)
+  cajas   CajaBuffet[]
+
+  /// Un solo mostrador de cada tipo. El diseño es para dos puestos, no N.
+  @@unique([tipo])
+}
+
 model CajaBuffet {
   id            String           @id @default(cuid())
   abiertaEn     DateTime         @default(now())
@@ -367,7 +386,11 @@ model CajaBuffet {
   estado        EstadoCajaBuffet @default(ABIERTA)
   totalUnidades Int?
   totalMonto    Decimal?         @db.Decimal(10, 2)
+  mostradorId   String
+  mostrador     Mostrador        @relation(fields: [mostradorId], references: [id])
   tickets       TicketBuffet[]
+
+  @@index([mostradorId])
 }
 
 model TicketBuffet {
