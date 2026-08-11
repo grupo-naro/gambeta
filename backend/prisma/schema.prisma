@@ -348,16 +348,18 @@ enum EstadoCajaBuffet {
 }
 
 model ProductoBuffet {
-  id          String        @id @default(cuid())
-  nombre      String
-  codigoBarra String?       @unique
-  precio      Decimal       @db.Decimal(10, 2)
-  stock       Int           @default(0)
-  stockMinimo Int           @default(0)
-  enBotonera  Boolean       @default(false)
-  orden       Int           @default(0)
-  activo      Boolean       @default(true)
-  ventas      VentaBuffet[]
+  id               String                  @id @default(cuid())
+  nombre           String
+  codigoBarra      String?                 @unique
+  precio           Decimal                 @db.Decimal(10, 2)
+  stock            Int                     @default(0)
+  stockMinimo      Int                     @default(0)
+  enBotonera       Boolean                 @default(false)
+  orden            Int                     @default(0)
+  activo           Boolean                 @default(true)
+  ventas           VentaBuffet[]
+  stockMostradores StockMostrador[]
+  entregas         EntregaMostradorLinea[]
 }
 
 enum TipoMostrador {
@@ -368,29 +370,73 @@ enum TipoMostrador {
 /// Un puesto de atención del buffet. Cada uno tiene su propio PIN: es lo que permite
 /// saber QUIÉN vendió, y sin eso la conciliación del cierre es imposible.
 model Mostrador {
-  id      String        @id @default(cuid())
-  nombre  String
-  tipo    TipoMostrador
-  pinHash String        @default("")
-  activo  Boolean       @default(true)
-  cajas   CajaBuffet[]
+  id       String             @id @default(cuid())
+  nombre   String
+  tipo     TipoMostrador
+  pinHash  String             @default("")
+  activo   Boolean            @default(true)
+  cajas    CajaBuffet[]
+  stock    StockMostrador[]
+  entregas EntregaMostrador[]
 
   /// Un solo mostrador de cada tipo. El diseño es para dos puestos, no N.
   @@unique([tipo])
 }
 
 model CajaBuffet {
-  id            String           @id @default(cuid())
-  abiertaEn     DateTime         @default(now())
-  cerradaEn     DateTime?
-  estado        EstadoCajaBuffet @default(ABIERTA)
-  totalUnidades Int?
-  totalMonto    Decimal?         @db.Decimal(10, 2)
-  mostradorId   String
-  mostrador     Mostrador        @relation(fields: [mostradorId], references: [id])
-  tickets       TicketBuffet[]
+  id               String             @id @default(cuid())
+  abiertaEn        DateTime           @default(now())
+  cerradaEn        DateTime?
+  estado           EstadoCajaBuffet   @default(ABIERTA)
+  totalUnidades    Int?
+  totalMonto       Decimal?           @db.Decimal(10, 2)
+  mostradorId      String
+  mostrador        Mostrador          @relation(fields: [mostradorId], references: [id])
+  tickets          TicketBuffet[]
+  entregasRendidas EntregaMostrador[]
 
   @@index([mostradorId])
+}
+
+/// Cuánto tiene asignado un mostrador de cada producto. Solo lo usa el SECUNDARIO: el stock
+/// del principal es `ProductoBuffet.stock`, que no se migra para no tocar a sus consumidores
+/// (panel, alerta de stock bajo, planilla de Google).
+model StockMostrador {
+  mostradorId String
+  mostrador   Mostrador      @relation(fields: [mostradorId], references: [id])
+  productoId  String
+  producto    ProductoBuffet @relation(fields: [productoId], references: [id])
+  cantidad    Int            @default(0)
+
+  @@id([mostradorId, productoId])
+}
+
+/// Una entrega del principal al secundario: el "cuánto le di".
+model EntregaMostrador {
+  id                 String                  @id @default(cuid())
+  mostradorId        String
+  mostrador          Mostrador               @relation(fields: [mostradorId], references: [id])
+  creadaEn           DateTime                @default(now())
+  /// En qué cierre se rindió esta entrega. `null` = todavía pendiente de conciliar.
+  ///
+  /// Es lo que define el "entregado" de un cierre, y a propósito NO se usa un rango de fechas
+  /// contra la apertura de la caja: en la vida real el principal entrega mercadería ANTES de
+  /// que el secundario abra su caja, y esa entrega quedaría fuera de la ventana. Con esta
+  /// marca, el orden de los hechos deja de importar.
+  conciliadaEnCajaId String?
+  conciliadaEnCaja   CajaBuffet?             @relation(fields: [conciliadaEnCajaId], references: [id])
+  lineas             EntregaMostradorLinea[]
+
+  @@index([mostradorId, conciliadaEnCajaId])
+}
+
+model EntregaMostradorLinea {
+  id         String           @id @default(cuid())
+  entregaId  String
+  entrega    EntregaMostrador @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+  productoId String
+  producto   ProductoBuffet   @relation(fields: [productoId], references: [id])
+  cantidad   Int
 }
 
 model TicketBuffet {

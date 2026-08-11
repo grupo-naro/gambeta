@@ -7,7 +7,8 @@ import { loginLimiter } from '../middlewares/rateLimiters.js';
 import { buffetProductoService } from '../services/buffetProducto.service.js';
 import { buffetCajaService } from '../services/buffetCaja.service.js';
 import { buffetPinService } from '../services/buffetPin.service.js';
-import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema } from '../validators/buffet.schema.js';
+import { buffetEntregaService } from '../services/buffetEntrega.service.js';
+import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema } from '../validators/buffet.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
 import { NotFound, Unauthorized } from '../utils/errors.js';
 
@@ -45,6 +46,17 @@ buffetRoutes.post('/cobrar', authMostrador, validate(cobrarSchema), async (req, 
 
 buffetRoutes.post('/caja/cerrar', authMostrador, async (_req, res, next) => {
   try { res.json(await buffetCajaService.cerrar()); } catch (e) { next(e); }
+});
+
+buffetRoutes.post('/entregas', authMostrador, validate(entregarSchema), async (req, res, next) => {
+  try {
+    const { items } = (req as any).valid.body;
+    res.json(await buffetEntregaService.entregar({ desdeMostradorId: (req as any).mostrador.id, items }));
+  } catch (e) { next(e); }
+});
+
+buffetRoutes.get('/stock-asignado', authMostrador, async (req, res, next) => {
+  try { res.json(await buffetEntregaService.stockAsignado((req as any).mostrador.id)); } catch (e) { next(e); }
 });
 
 // Sigue con authBuffet (no authMostrador): acá es donde el mostrador todavía no tiene token,

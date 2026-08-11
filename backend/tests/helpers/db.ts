@@ -24,8 +24,11 @@ export async function resetTables(): Promise<void> {
   const p = getPrisma();
   await p.$transaction([
     p.ventaBuffet.deleteMany(),
+    p.entregaMostradorLinea.deleteMany(),
+    p.entregaMostrador.deleteMany(),
     p.ticketBuffet.deleteMany(),
     p.cajaBuffet.deleteMany(),
+    p.stockMostrador.deleteMany(),
     p.productoBuffet.deleteMany(),
     p.mostrador.deleteMany(),
     p.auditLog.deleteMany(),
