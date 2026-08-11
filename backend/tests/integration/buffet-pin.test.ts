@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
-import { setupTestDb, teardownTestDb, resetTables } from '../helpers/db.js';
+import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
 
 const KEY = 'buffet-key-de-prueba-1234567890';
@@ -37,10 +37,14 @@ describe('buffet: PIN del mostrador', () => {
   });
 
   it('el PIN se guarda hasheado, nunca en claro', async () => {
+    // El PIN ya no vive en Configuracion (por eso este test miraba /config antes): ahora es
+    // Mostrador.pinHash, así que hay que leerlo ahí para que la aserción pueda fallar de verdad.
     await supertest(app).put('/buffet/pin').set('authorization', `Bearer ${token}`)
       .send({ pin: '4321', mostradorId: 'mostrador-principal' });
-    const cfg = await supertest(app).get('/config').set('authorization', `Bearer ${token}`);
-    expect(JSON.stringify(cfg.body)).not.toContain('4321');
+    const m = await getPrisma().mostrador.findUniqueOrThrow({ where: { id: 'mostrador-principal' } });
+    expect(m.pinHash).not.toBe('4321');
+    expect(m.pinHash).not.toContain('4321');
+    expect(m.pinHash.startsWith('$2')).toBe(true); // hash de bcrypt, no el PIN en claro
   });
 
   it('el PIN debe tener 4 digitos', async () => {
@@ -73,6 +77,18 @@ describe('buffet: PIN del mostrador', () => {
     const a = await supertest(app).put('/buffet/pin').set('authorization', `Bearer ${token}`)
       .send({ pin: '4321', mostradorId: 'mostrador-principal' });
     expect(a.status).toBe(204);
+  });
+
+  it('no se le puede poner a un mostrador el mismo PIN que ya tiene otro', async () => {
+    await supertest(app).put('/buffet/pin').set('authorization', `Bearer ${token}`)
+      .send({ pin: '1111', mostradorId: 'mostrador-principal' });
+    const r = await supertest(app).put('/buffet/pin').set('authorization', `Bearer ${token}`)
+      .send({ pin: '1111', mostradorId: 'mostrador-secundario' });
+    expect(r.status).toBe(409);
+
+    // El del principal sigue intacto: el rechazo no dejó nada a medio escribir.
+    const verificado = await supertest(app).post('/buffet/pin/verificar').set('x-buffet-key', KEY).send({ pin: '1111' });
+    expect(verificado.body.tipo).toBe('PRINCIPAL');
   });
 
   it('setear el PIN del secundario no toca el del principal', async () => {

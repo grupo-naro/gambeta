@@ -60,6 +60,17 @@ describe('el PIN identifica al mostrador', () => {
     expect(res.status).toBe(401);
   });
 
+  it('un token adulterado no abre una ruta real: no alcanza con pasar el primer chequeo', async () => {
+    // A diferencia del test de arriba (que llama a verificarTokenMostrador directo), este manda
+    // el token falsificado por HTTP a una ruta real. Es la prueba de que la suplantación no
+    // funciona en el camino que de verdad importa, no solo en la función que la implementa.
+    const { firmarTokenMostrador } = await import('../../src/utils/mostradorToken.js');
+    const tokenSecundario = firmarTokenMostrador('mostrador-secundario');
+    const falso = tokenSecundario.replace('mostrador-secundario', 'mostrador-principal');
+    const res = await key(supertest(app).get('/buffet/caja/actual')).set('x-mostrador', falso);
+    expect(res.status).toBe(401);
+  });
+
   it('con token válido, la ruta responde', async () => {
     const login = await key(supertest(app).post('/buffet/pin/verificar')).send({ pin: '1111' });
     const res = await key(supertest(app).get('/buffet/caja/actual')).set('x-mostrador', login.body.token);

@@ -11,7 +11,17 @@ export function buildApp() {
   app.set('trust proxy', 1); // hay Traefik delante; confiar solo en el primer proxy
   app.use(helmet());
   app.use(express.json({ limit: '1mb' }));
-  app.use(pinoHttp({ logger }));
+  app.use(pinoHttp({
+    logger,
+    // El serializador por defecto vuelca req.headers completo. Sin este redact, la
+    // x-buffet-key y el x-mostrador (que juntos alcanzan para operar como cualquier
+    // mostrador, y el segundo no vence) quedan en texto plano en cada línea de log —
+    // y en la VPS, cualquiera con acceso a `docker logs` se los lleva para siempre.
+    redact: {
+      paths: ['req.headers.authorization', 'req.headers["x-buffet-key"]', 'req.headers["x-mostrador"]'],
+      censor: '[REDACTED]',
+    },
+  }));
   app.get('/health', (_req, res) => {
     res.json({ ok: true });
   });
