@@ -24,12 +24,12 @@ buffetRoutes.get('/productos/activos', authMostrador, async (_req, res, next) =>
   try { res.json(await buffetProductoService.listActivos()); } catch (e) { next(e); }
 });
 
-buffetRoutes.post('/caja/abrir', authMostrador, async (_req, res, next) => {
-  try { res.json(await buffetCajaService.abrir()); } catch (e) { next(e); }
+buffetRoutes.post('/caja/abrir', authMostrador, async (req, res, next) => {
+  try { res.json(await buffetCajaService.abrir((req as any).mostrador.id)); } catch (e) { next(e); }
 });
 
-buffetRoutes.get('/caja/actual', authMostrador, async (_req, res, next) => {
-  try { res.json(await buffetCajaService.actual()); } catch (e) { next(e); }
+buffetRoutes.get('/caja/actual', authMostrador, async (req, res, next) => {
+  try { res.json(await buffetCajaService.actual((req as any).mostrador.id)); } catch (e) { next(e); }
 });
 
 buffetRoutes.get('/producto', authMostrador, validate(porCodigoSchema), async (req, res, next) => {
@@ -41,11 +41,14 @@ buffetRoutes.get('/producto', authMostrador, validate(porCodigoSchema), async (r
 });
 
 buffetRoutes.post('/cobrar', authMostrador, validate(cobrarSchema), async (req, res, next) => {
-  try { res.json(await buffetCajaService.cobrar((req as any).valid.body)); } catch (e) { next(e); }
+  try {
+    const mostradorId = (req as any).mostrador.id;
+    res.json(await buffetCajaService.cobrar({ ...(req as any).valid.body, mostradorId }));
+  } catch (e) { next(e); }
 });
 
-buffetRoutes.post('/caja/cerrar', authMostrador, async (_req, res, next) => {
-  try { res.json(await buffetCajaService.cerrar()); } catch (e) { next(e); }
+buffetRoutes.post('/caja/cerrar', authMostrador, async (req, res, next) => {
+  try { res.json(await buffetCajaService.cerrar((req as any).mostrador.id)); } catch (e) { next(e); }
 });
 
 buffetRoutes.post('/entregas', authMostrador, validate(entregarSchema), async (req, res, next) => {

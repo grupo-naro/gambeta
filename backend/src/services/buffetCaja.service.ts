@@ -16,7 +16,7 @@ export interface CierreDTO {
   totalUnidades: number; totalMonto: number; totalEfectivo: number; totalTransferencia: number;
   porProducto: LineaCierre[];
 }
-export interface CobrarInput { uid: string; medioPago: Medio; montoPagado: number; items: { productoId: string; cantidad: number }[] }
+export interface CobrarInput { mostradorId: string; uid: string; medioPago: Medio; montoPagado: number; items: { productoId: string; cantidad: number }[] }
 export interface CobroResultado { ticketId: string; total: number; vuelto: number; medioPago: Medio; caja: CajaEstado }
 
 const ticketConLineas = { lineas: { include: { producto: { select: { nombre: true } } } } } as const;
@@ -40,8 +40,8 @@ async function estadoDe(cajaId: string): Promise<CajaEstado> {
   };
 }
 
-async function cajaAbierta() {
-  return prisma.cajaBuffet.findFirst({ where: { estado: 'ABIERTA' } });
+async function cajaAbierta(mostradorId: string) {
+  return prisma.cajaBuffet.findFirst({ where: { estado: 'ABIERTA', mostradorId } });
 }
 
 async function detalleCierre(cajaId: string): Promise<CierreDTO | null> {
@@ -69,22 +69,20 @@ async function detalleCierre(cajaId: string): Promise<CierreDTO | null> {
 }
 
 export const buffetCajaService = {
-  async abrir(): Promise<CajaEstado> {
-    const ya = await cajaAbierta();
+  async abrir(mostradorId: string): Promise<CajaEstado> {
+    const ya = await cajaAbierta(mostradorId);
     if (ya) return estadoDe(ya.id);
     try {
-      // TODO(Task 4 del plan de dos mostradores): esto va a recibir el mostradorId del caller.
-      // Por ahora queda fijo al principal para no romper el comportamiento actual.
-      const creada = await prisma.cajaBuffet.create({ data: { mostradorId: 'mostrador-principal' } });
+      const creada = await prisma.cajaBuffet.create({ data: { mostradorId } });
       return estadoDe(creada.id);
     } catch (e: any) {
-      if (e?.code === 'P2002') { const ex = await cajaAbierta(); if (ex) return estadoDe(ex.id); }
+      if (e?.code === 'P2002') { const ex = await cajaAbierta(mostradorId); if (ex) return estadoDe(ex.id); }
       throw e;
     }
   },
 
-  async actual(): Promise<CajaEstado | null> {
-    const c = await cajaAbierta();
+  async actual(mostradorId: string): Promise<CajaEstado | null> {
+    const c = await cajaAbierta(mostradorId);
     return c ? estadoDe(c.id) : null;
   },
 
@@ -92,9 +90,12 @@ export const buffetCajaService = {
     const previo = await prisma.ticketBuffet.findUnique({ where: { uid: input.uid } });
     if (previo) return { ticketId: previo.id, total: Number(previo.total), vuelto: Number(previo.vuelto), medioPago: previo.medioPago as Medio, caja: await estadoDe(previo.cajaId) };
 
-    const caja = await cajaAbierta();
+    const caja = await cajaAbierta(input.mostradorId);
     if (!caja) throw Conflict('No hay una caja abierta');
     if (!input.items.length) throw BusinessRule('El carrito está vacío');
+
+    const mostrador = await prisma.mostrador.findUniqueOrThrow({ where: { id: input.mostradorId } });
+    const esSecundario = mostrador.tipo === 'SECUNDARIO';
 
     const ids = input.items.map((i) => i.productoId);
     const productos = await prisma.productoBuffet.findMany({ where: { id: { in: ids }, activo: true } });
@@ -119,7 +120,24 @@ export const buffetCajaService = {
         for (const it of input.items) {
           const p = byId.get(it.productoId)!;
           await tx.ventaBuffet.create({ data: { ticketId: ticket.id, productoId: p.id, precioUnit: p.precio, cantidad: it.cantidad } });
-          await tx.productoBuffet.update({ where: { id: p.id }, data: { stock: { decrement: it.cantidad } } });
+
+          // El principal vende contra el stock general; el secundario, contra lo que se le
+          // asignó. Descontar del general una venta del secundario contaría dos veces la misma
+          // unidad: ya había salido del general cuando se la entregaron.
+          if (esSecundario) {
+            const asignado = await tx.stockMostrador.findUnique({
+              where: { mostradorId_productoId: { mostradorId: input.mostradorId, productoId: p.id } },
+            });
+            if (!asignado || asignado.cantidad < it.cantidad) {
+              throw BusinessRule(`No tenés stock asignado de ${p.nombre}. Pedile al mostrador principal que te entregue.`);
+            }
+            await tx.stockMostrador.update({
+              where: { mostradorId_productoId: { mostradorId: input.mostradorId, productoId: p.id } },
+              data: { cantidad: { decrement: it.cantidad } },
+            });
+          } else {
+            await tx.productoBuffet.update({ where: { id: p.id }, data: { stock: { decrement: it.cantidad } } });
+          }
         }
       });
     } catch (e: any) {
@@ -132,8 +150,8 @@ export const buffetCajaService = {
     return { ticketId, total, vuelto, medioPago: input.medioPago, caja: await estadoDe(caja.id) };
   },
 
-  async cerrar(): Promise<CierreDTO> {
-    const caja = await cajaAbierta();
+  async cerrar(mostradorId: string): Promise<CierreDTO> {
+    const caja = await cajaAbierta(mostradorId);
     if (!caja) throw Conflict('No hay una caja abierta');
     const est = await estadoDe(caja.id);
     await prisma.cajaBuffet.update({
@@ -143,8 +161,8 @@ export const buffetCajaService = {
     return (await detalleCierre(caja.id))!;
   },
 
-  async listCierres(): Promise<CierreDTO[]> {
-    const cajas = await prisma.cajaBuffet.findMany({ where: { estado: 'CERRADA' }, orderBy: { cerradaEn: 'desc' } });
+  async listCierres(mostradorId?: string): Promise<CierreDTO[]> {
+    const cajas = await prisma.cajaBuffet.findMany({ where: { estado: 'CERRADA', ...(mostradorId ? { mostradorId } : {}) }, orderBy: { cerradaEn: 'desc' } });
     const out: CierreDTO[] = [];
     for (const c of cajas) { const d = await detalleCierre(c.id); if (d) out.push(d); }
     return out;
