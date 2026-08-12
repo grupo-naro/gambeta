@@ -25,6 +25,7 @@ export async function resetTables(): Promise<void> {
   await p.$transaction([
     p.ventaBuffet.deleteMany(),
     p.entregaMostradorLinea.deleteMany(),
+    p.conteoCierreLinea.deleteMany(),
     p.entregaMostrador.deleteMany(),
     p.ticketBuffet.deleteMany(),
     p.cajaBuffet.deleteMany(),

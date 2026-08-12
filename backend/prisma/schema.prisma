@@ -360,6 +360,7 @@ model ProductoBuffet {
   ventas           VentaBuffet[]
   stockMostradores StockMostrador[]
   entregas         EntregaMostradorLinea[]
+  conteosCierre    ConteoCierreLinea[]
 }
 
 enum TipoMostrador {
@@ -394,6 +395,7 @@ model CajaBuffet {
   mostrador        Mostrador          @relation(fields: [mostradorId], references: [id])
   tickets          TicketBuffet[]
   entregasRendidas EntregaMostrador[]
+  conteos          ConteoCierreLinea[]
 
   @@index([mostradorId])
 }
@@ -437,6 +439,24 @@ model EntregaMostradorLinea {
   productoId String
   producto   ProductoBuffet   @relation(fields: [productoId], references: [id])
   cantidad   Int
+}
+
+/// Conteo físico al cerrar una caja del secundario. Guarda las cuatro cifras para poder mirar
+/// el histórico y ver si el faltante es siempre del mismo producto.
+model ConteoCierreLinea {
+  id         String         @id @default(cuid())
+  cajaId     String
+  caja       CajaBuffet     @relation(fields: [cajaId], references: [id], onDelete: Cascade)
+  productoId String
+  producto   ProductoBuffet @relation(fields: [productoId], references: [id])
+  entregado  Int
+  vendido    Int
+  esperado   Int
+  contado    Int
+  diferencia Int
+  creadaEn   DateTime       @default(now())
+
+  @@unique([cajaId, productoId])
 }
 
 model TicketBuffet {

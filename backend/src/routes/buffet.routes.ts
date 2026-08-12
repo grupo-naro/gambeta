@@ -8,7 +8,9 @@ import { buffetProductoService } from '../services/buffetProducto.service.js';
 import { buffetCajaService } from '../services/buffetCaja.service.js';
 import { buffetPinService } from '../services/buffetPin.service.js';
 import { buffetEntregaService } from '../services/buffetEntrega.service.js';
-import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema } from '../validators/buffet.schema.js';
+import { buffetConciliacionService } from '../services/buffetConciliacion.service.js';
+import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema } from '../validators/buffet.schema.js';
+import { idParamSchema } from '../validators/reserva.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
 import { NotFound, Unauthorized } from '../utils/errors.js';
 
@@ -60,6 +62,19 @@ buffetRoutes.post('/entregas', authMostrador, validate(entregarSchema), async (r
 
 buffetRoutes.get('/stock-asignado', authMostrador, async (req, res, next) => {
   try { res.json(await buffetEntregaService.stockAsignado((req as any).mostrador.id)); } catch (e) { next(e); }
+});
+
+buffetRoutes.get('/cajas/:id/conciliacion', authMostrador, validate(idParamSchema), async (req, res, next) => {
+  try { res.json(await buffetConciliacionService.pendiente(String(req.params.id))); } catch (e) { next(e); }
+});
+
+buffetRoutes.post('/cajas/:id/conciliacion', authMostrador, validate(conciliarSchema), async (req, res, next) => {
+  try {
+    const { conteos } = (req as any).valid.body;
+    res.json(await buffetConciliacionService.conciliar({
+      cajaId: String(req.params.id), porMostradorId: (req as any).mostrador.id, conteos,
+    }));
+  } catch (e) { next(e); }
 });
 
 // Sigue con authBuffet (no authMostrador): acá es donde el mostrador todavía no tiene token,

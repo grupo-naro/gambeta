@@ -58,6 +58,14 @@ export const entregarSchema = z.object({
   query: empty, params: empty,
 });
 
+export const conciliarSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    conteos: z.array(z.object({ productoId: z.string().min(1), contado: z.number().int().nonnegative() })),
+  }),
+  query: empty,
+});
+
 const pin4 = z.string().regex(/^\d{4}$/, 'El PIN son 4 dígitos');
 // Los ids son fijos: los crea la migración de Task 1 y no hay alta de mostradores por API.
 const mostradorIdExistente = z.enum(['mostrador-principal', 'mostrador-secundario']);
