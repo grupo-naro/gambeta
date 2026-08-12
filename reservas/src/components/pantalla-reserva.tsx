@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useTransition } from 'react';
 import { getGrilla, crearReserva, crearPreferenciaPago } from '@/lib/actions';
-import type { Deporte, DuracionSlot, Grilla, MetodosPago } from '@/lib/types';
+import type { Deporte, DuracionSlot, Grilla, MetodoSena, MetodosPago } from '@/lib/types';
 import { Calendario } from './calendario';
 import { SelectorFechaMobile } from './selector-fecha-mobile';
 import { DatosTransferencia } from './datos-transferencia';
@@ -79,7 +79,7 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
     setPaso('metodo');
   }
 
-  function elegir(metodoSena: 'MERCADO_PAGO' | 'TRANSFERENCIA') {
+  function elegir(metodoSena: MetodoSena) {
     if (!sel) return;
     start(async () => {
       const r = await crearReserva({
@@ -241,6 +241,10 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
           onClick={() => { if (!pending && !transferencia) cerrarModal(); }}
         >
           <div className="w-full max-w-sm rounded-2xl bg-neutral-900 p-6 text-neutral-100 ring-1 ring-neutral-700" onClick={(e) => e.stopPropagation()}>
+            {/* El orden de este encadenado es load-bearing: socio, seña 0 y el fallback de
+                Mercado Pago dejan `paso` en 'metodo' porque solo tocan `ok`/`transferencia`, así
+                que `transferencia` y `ok` tienen que resolverse ANTES que `paso === 'metodo'`
+                para mostrar la pantalla correcta. No reordenar sin revisar esos tres casos. */}
             {transferencia ? (
               <DatosTransferencia metodos={metodos} montoSena={transferencia.montoSena} resumenTurno={resumenTurno} onCerrar={cerrarModal} />
             ) : ok ? (
@@ -277,7 +281,6 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
                     </button>
                   )}
                 </div>
-                {errorForm && <p className="mt-2 text-red-400">{errorForm}</p>}
                 <button type="button" disabled={pending} onClick={() => setPaso('datos')} className="mt-4 w-full rounded-xl border border-neutral-600 py-2 font-semibold">
                   {pending ? 'Reservando…' : 'Volver'}
                 </button>

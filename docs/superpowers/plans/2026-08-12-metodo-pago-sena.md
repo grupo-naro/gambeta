@@ -980,9 +980,15 @@ git commit -m "feat(reservas): elegir entre Mercado Pago y transferencia al rese
   reescritura de tabla: es segura de aplicar con tráfico.
 - **Sin variables de entorno nuevas.** `SENA_TIMEOUT_MINUTOS` ya existe; ahora además viaja al
   sitio para mostrarle el plazo al cliente.
-- **El orden importa**: `reservas/` se deploya a Vercel por separado. Si sale antes que el
-  backend, `getMetodosPago()` no va a encontrar `transferenciaDisponible` y va a resolver todo en
-  falso — el sitio queda cerrado. **Desplegar el backend primero.**
+- **El orden importa, pero no como podría parecer**: `reservas/` se deploya a Vercel por
+  separado. Si sale antes que el backend, `getMetodosPago()` no va a encontrar
+  `transferenciaDisponible` en la respuesta (`d.transferenciaDisponible` queda `undefined`) y
+  `mercadoPago` va a seguir saliendo de `d.cobrosOnline`, que el backend viejo sí devuelve. El
+  riesgo real no es que el sitio se cierre: es que **degrada al comportamiento de antes de esta
+  rama** — con Mercado Pago vinculado el sitio sigue tomando reservas igual que hoy (solo esa
+  vía), y sin MP vinculado ya estaba cerrado antes de esta rama, así que no cambia nada. Igual,
+  **desplegar el backend primero** sigue siendo lo recomendado: así el sitio ofrece transferencia
+  desde el primer momento en vez de esperar al segundo deploy.
 - El panel tolera el skew en la otra dirección: `metodoSena` es opcional y sin él no muestra nada.
 
 ## Lo que queda afuera

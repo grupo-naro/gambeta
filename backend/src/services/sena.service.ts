@@ -1,6 +1,7 @@
 import { configService } from './config.service.js';
 import { mercadoPagoOauthService } from './mercadoPagoOauth.service.js';
 import { getEnv } from '../config/env.js';
+import { normalizarWhatsapp } from '../utils/whatsapp.js';
 
 export interface DatosPago {
   modo: 'fijo';
@@ -36,7 +37,12 @@ export const senaService = {
       // La web pública lo usa para decidir si ofrece Mercado Pago. Sin cuenta vinculada no hay
       // checkout, pero sí puede haber transferencia: ya no apaga el sitio por sí solo.
       cobrosOnline: await mercadoPagoOauthService.cobrosOnlineActivos(),
-      adminWhatsapp: c.adminWhatsapp,
+      // Se canoniza acá (no en el sitio) porque el validador de `Configuracion.adminWhatsapp`
+      // solo exige 8+ caracteres: el admin puede haber cargado el formato local ("11 3662
+      // 0274"), igual que en cualquier otro formulario del proyecto. Si no se puede canonizar
+      // se devuelve vacío: así el fallback "sin número, sin link" del sitio cubre también el
+      // caso mal formateado, no solo el vacío.
+      adminWhatsapp: normalizarWhatsapp(c.adminWhatsapp) ?? '',
       // La regla vive acá y no en el sitio: es la misma pregunta que se hace el panel al mostrar
       // los datos, y duplicarla garantiza que se desincronicen.
       transferenciaDisponible: c.cbu.trim() !== '' || c.alias.trim() !== '',

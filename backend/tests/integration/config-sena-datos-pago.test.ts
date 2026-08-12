@@ -52,4 +52,20 @@ describe('GET /config/sena', () => {
     expect(res.body.titular).toBe('Complejo SA');
     expect(res.body).toHaveProperty('cobrosOnline');
   });
+
+  it('adminWhatsapp en formato local sale canonizado', async () => {
+    // El validador de Configuracion.adminWhatsapp solo exige 8+ caracteres, así que el admin
+    // puede haber cargado el formato local (como en cualquier otro formulario del proyecto). El
+    // sitio arma el link de wa.me con lo que devuelve este endpoint, así que tiene que salir
+    // canónico de acá, no crudo.
+    await getPrisma().configuracion.create({ data: { id: 'default', adminWhatsapp: '11 3662 0274' } });
+    expect((await pedir()).body.adminWhatsapp).toBe('5491136620274');
+  });
+
+  it('adminWhatsapp impresentable sale vacío, no roto', async () => {
+    // Un número que no se puede canonizar nunca debería llegar al sitio: ahí arma un link de
+    // wa.me que no existe y el cliente cree que mandó el comprobante sin haberlo hecho.
+    await getPrisma().configuracion.create({ data: { id: 'default', adminWhatsapp: 'no es un telefono' } });
+    expect((await pedir()).body.adminWhatsapp).toBe('');
+  });
 });

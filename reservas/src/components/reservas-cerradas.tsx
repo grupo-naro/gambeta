@@ -1,8 +1,9 @@
 import { negocio, whatsappUrl, direccionCompleta } from '@/lib/negocio';
 
 /**
- * Se muestra en lugar de la grilla cuando el complejo no tiene una cuenta de Mercado Pago
- * vinculada: sin ella no hay forma de cobrar la seña, así que no se toman reservas por la web.
+ * Se muestra en lugar de la grilla cuando el complejo no tiene ningún método para cobrar la
+ * seña disponible (ni Mercado Pago vinculado ni datos de transferencia cargados): sin uno de
+ * los dos no hay forma de cobrarla, así que no se toman reservas por la web.
  *
  * El objetivo es que el cliente no se vaya: se le da la vía alternativa para reservar igual.
  * Ojo con `whatsappUrl()`, que devuelve `null` mientras el número siga pendiente de carga —

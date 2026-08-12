@@ -54,6 +54,11 @@ describe('senaService.datosPago', () => {
       alias: 'alias1',
       titular: 'Titular',
       cobrosOnline: false,
+      // El mock no setea adminWhatsapp: normalizarWhatsapp(undefined) no resuelve, así que
+      // datosPago() lo devuelve vacío en vez de propagar un valor no canónico.
+      adminWhatsapp: '',
+      transferenciaDisponible: true,
+      senaTimeoutMinutos: 30,
     });
   });
 });

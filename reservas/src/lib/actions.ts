@@ -2,6 +2,10 @@
 import { apiReservas } from './api';
 import type { Deporte, Grilla, MetodoSena, MetodosPago, PreferenciaPago, ReservaCreada, Resultado } from './types';
 
+// Default del backend cuando `SENA_TIMEOUT_MINUTOS` no está seteado (ver `src/config/env.ts`).
+// Se usa acá si el backend es viejo y no manda `senaTimeoutMinutos` en absoluto.
+const SENA_TIMEOUT_MINUTOS_DEFAULT = 30;
+
 export async function getGrilla(deporte: Deporte, fecha: string): Promise<Resultado<Grilla>> {
   try {
     const data = await apiReservas<Grilla>(`/disponibilidad/grilla?deporte=${deporte}&fecha=${fecha}`);
@@ -20,7 +24,7 @@ export async function getGrilla(deporte: Deporte, fecha: string): Promise<Result
 export async function getMetodosPago(): Promise<MetodosPago> {
   const vacio: MetodosPago = {
     mercadoPago: false, transferencia: false,
-    cbu: '', alias: '', titular: '', adminWhatsapp: '', senaTimeoutMinutos: 30,
+    cbu: '', alias: '', titular: '', adminWhatsapp: '', senaTimeoutMinutos: SENA_TIMEOUT_MINUTOS_DEFAULT,
   };
   try {
     const d = await apiReservas<{
@@ -33,8 +37,8 @@ export async function getMetodosPago(): Promise<MetodosPago> {
       transferencia: d.transferenciaDisponible === true,
       cbu: d.cbu ?? '', alias: d.alias ?? '', titular: d.titular ?? '',
       adminWhatsapp: d.adminWhatsapp ?? '',
-      // Si el backend es viejo y no manda el plazo, 30 es el default del backend.
-      senaTimeoutMinutos: d.senaTimeoutMinutos ?? 30,
+      // Si el backend es viejo y no manda el plazo, cae al default del backend.
+      senaTimeoutMinutos: d.senaTimeoutMinutos ?? SENA_TIMEOUT_MINUTOS_DEFAULT,
     };
   } catch (e) {
     console.error('[config] no se pudieron consultar los métodos de pago', { error: e instanceof Error ? e.message : e });
