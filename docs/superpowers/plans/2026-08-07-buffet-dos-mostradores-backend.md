@@ -1241,3 +1241,81 @@ git commit -m "feat(buffet): conciliacion del cierre del mostrador secundario"
 - **El PIN actual pasa a ser el del principal** automáticamente. El secundario **arranca sin PIN y
   con eso no entra nadie**: hay que cargárselo desde el panel antes de usarlo.
 - Sin variables de entorno nuevas.
+- ⚠️ **Mergear el backend solo deja el buffet fuera de servicio.** Desde que corre
+  `prisma migrate deploy`, todas las rutas del POS (`/caja/*`, `/cobrar`, `/producto`,
+  `/productos/botonera`, `/productos/activos`) exigen el header `x-mostrador`, y el `/mostrador`
+  actual —que todavía no lo manda— recibe 401 en todo. Si esa ventana no es aceptable, hay que
+  liberar backend y pantallas juntos.
+
+---
+
+## Deuda registrada (backend implementado, revisado y diferido a conciencia)
+
+Nada de esto bloquea el merge; se decidió no arreglarlo en este plan. Está acá para que el plan de
+las pantallas no lo redescubra desde cero.
+
+**Backend que las pantallas van a necesitar y todavía no existe:**
+
+- No hay endpoint que devuelva el histórico de `ConteoCierreLinea`, ni uno para listar entregas.
+  El diseño pide el histórico en el panel; es un hueco del plan, no de la implementación.
+- `GET /buffet/cajas` llama a `listCierres()` sin argumento y `CierreDTO` no expone `mostradorId`:
+  el panel muestra los cierres de los dos puestos interlineados e indistinguibles. El parámetro
+  opcional ya está en el servicio, falta cablearlo y etiquetar el DTO.
+- No hay endpoint para listar mostradores (nombre / tipo / si tienen PIN), así que el panel tiene
+  que hardcodear los dos ids para armar el `PUT /buffet/pin`.
+- El `GET /buffet/cajas/:id/conciliacion` quedó restringido al mostrador principal. **El admin no
+  tiene ninguna ruta para ver la conciliación**: si el panel la necesita, hay que crearla.
+
+**Seguridad, para tener en cuenta al escribir las pantallas:**
+
+- El token de mostrador **no vence ni se revoca**, y la firma solo cubre el id: cambiar el PIN de
+  un mostrador **no invalida** los tokens ya emitidos. Las palancas de hoy son
+  `Mostrador.activo = false` (que `authMostrador` sí relee en cada request) o rotar
+  `BUFFET_API_KEY`. Un `pinVersion` dentro del payload firmado sería el arreglo prolijo.
+- Por lo mismo, el token tiene que vivir **dentro** de la cookie firmada de `buffet-session.ts`
+  (que sí vence), nunca en `localStorage`: si no, "no vence a propósito" se convierte en "para
+  siempre en ese dispositivo".
+- El PIN de 4 dígitos dejó de ser un candado de pantalla y pasó a ser el límite de autorización del
+  control anti-faltante: si el secundario adivina el del principal, puede conciliar su propio
+  faltante. Lo único que lo protege es `loginLimiter` (10 intentos / 15 min por IP, y los dos
+  puestos probablemente salen por la misma IP). Vale evaluar exigir JWT de admin para conciliar, o
+  subir el PIN a 6 dígitos.
+- Ninguna de las rutas nuevas audita con `auditService.log`. Es consistente con el resto del
+  módulo buffet, pero la conciliación es un mecanismo de control: registrar quién cargó el conteo
+  es barato y encaja con la convención del proyecto.
+
+**Correctitud, acotado y a conciencia:**
+
+- `entregar()` no es idempotente ni reversible: un doble tap mueve el stock dos veces y no hay
+  endpoint para anular una entrega. Debería resolverse junto con la pantalla de entrega.
+- `ProductoBuffet.stock` sigue siendo check-then-decrement: dos entregas concurrentes del mismo
+  producto lo dejan negativo. El `CHECK` simétrico rompería `cobrar`, que ya descontaba sin
+  validar; la asimetría con `StockMostrador` (que sí tiene su `CHECK`) es deliberada.
+- El guard que impide conciliar con una caja abierta es un pre-chequeo en código, no una garantía
+  de la base: queda una ventana TOCTOU angosta.
+- `conciliar()` descarta en silencio los conteos de productos que no están en el resumen (el loop
+  itera el resumen, no el input). Un `productoId` mal tipeado debería ser 400.
+- `conciliarSchema` no tiene `.min(1)` ni dedupe: dos entradas del mismo `productoId` hacen ganar
+  a la última en silencio.
+- El chequeo de dueño del `uid` está duplicado verbatim en los dos caminos de `cobrar()`
+  (secuencial y `catch` de P2002); el mensaje puede divergir.
+- El GET de conciliación filtra por `mostrador.tipo`, el POST por id. Hoy son equivalentes porque
+  la migración siembra exactamente dos filas y no hay forma de crear más.
+
+**Performance y esquema:**
+
+- `conciliar()` hace N+1 dentro de una transacción interactiva (3 round-trips por producto contra
+  el timeout default de 5s de Prisma). Con un catálogo grande, el cierre puede fallar por timeout.
+- Faltan índices en `EntregaMostradorLinea.entregaId` y `ConteoCierreLinea.productoId` (Prisma no
+  crea índices de FK en Postgres). El segundo importa para la consulta que motiva la tabla: "¿el
+  faltante es siempre del mismo producto?".
+- `Configuracion.buffetPinHash` quedó como columna muerta: ya nadie la lee y `configService` la
+  filtra de la API. Es el rollback natural del PIN por mostrador — conviene dropearla recién
+  cuando el esquema nuevo esté asentado en producción, en la misma migración que los índices.
+- `BUFFET_API_KEY` es `z.string().default('')` y ahora firma identidades además de ser transporte.
+  Vacía el sistema falla cerrado, así que no es explotable; un `.min(32)` cuando está presente
+  sería prudente.
+- Los ids de mostrador están hardcodeados en varios servicios y en `buffet.schema.ts`, cuando
+  `req.mostrador.tipo` ya trae el dato semántico. `EntregaMostrador.mostradorId` significa
+  **destino**, no actor: hoy es deducible porque solo el principal entrega, y deja de serlo con
+  más de dos puestos.
