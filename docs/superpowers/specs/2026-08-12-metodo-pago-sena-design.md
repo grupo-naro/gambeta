@@ -115,8 +115,8 @@ se inventa una etiqueta para reservas que nunca eligieron.
 ### La compuerta
 
 `getCobrosOnline()` pasa a responder "¿hay al menos un método?": `cobrosOnline || transferenciaDisponible`.
-El nombre de la función deja de describir lo que hace, así que se renombra a `getMetodosDisponibles()`
-y devuelve los dos booleanos, que es lo que el modal necesita después.
+El nombre de la función deja de describir lo que hace, así que se renombra a `getMetodosPago()` y
+devuelve los dos booleanos más los datos bancarios, que es lo que el modal necesita después.
 
 `reservas-cerradas.tsx` se muestra solo cuando no hay ninguno de los dos.
 
@@ -175,7 +175,9 @@ convención que ya sigue `negocio.ts` con los campos pendientes.
 - `POST /reservas` con `metodoSena: 'TRANSFERENCIA'` lo persiste y `GET /reservas/:id` lo devuelve.
 - `POST /reservas` sin `metodoSena` deja `null` — no rompe a los consumidores actuales.
 - `metodoSena` inválido → 400.
-- Una reserva de socio descarta el método: vuelve `CONFIRMADA` con `metodoSena` en `null`.
+- Una reserva que nace `CONFIRMADA` descarta el método y queda con `metodoSena` en `null`. Alcanza
+  con ejercitar un camino (cliente confiable es el de setup más barato); la regla es el estado
+  final, no la vía por la que se llegó.
 - `GET /config/sena` devuelve `adminWhatsapp`, `transferenciaDisponible` y `senaTimeoutMinutos`.
 - `transferenciaDisponible` es `false` con `cbu` y `alias` vacíos, y `true` con cualquiera cargado.
 
