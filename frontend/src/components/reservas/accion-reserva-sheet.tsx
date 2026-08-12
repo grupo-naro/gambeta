@@ -10,6 +10,7 @@ import { cobroSchema } from '@/lib/validators';
 import type { Reserva, CobrosReserva, MedioPago } from '@/lib/types';
 import { getCobros, registrarCobro, anularCobro } from '@/lib/cobros-actions';
 import { cancelarReserva, aprobarSena, rechazarSena } from '@/lib/reservas-actions';
+import { etiquetaMetodoSena } from '@/lib/metodo-sena';
 import { cn } from '@/lib/utils';
 import { useConfirm } from '@/components/ui/confirm';
 
@@ -93,6 +94,12 @@ export function AccionReservaSheet({
 
             {esEspera ? (
               <div className="space-y-2">
+                {etiquetaMetodoSena(reserva.metodoSena) && (
+                  <p className="mb-2 text-sm text-neutral-600">
+                    El cliente eligió pagar por <b>{etiquetaMetodoSena(reserva.metodoSena)}</b>.
+                    {reserva.metodoSena === 'TRANSFERENCIA' && ' Esperá el comprobante por WhatsApp.'}
+                  </p>
+                )}
                 <Button className="h-12 w-full text-base" disabled={pending} onClick={() => act(() => aprobarSena(reserva.id), 'Seña aprobada', true)}>
                   Aprobar seña
                 </Button>

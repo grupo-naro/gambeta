@@ -10,10 +10,13 @@ export interface Cancha {
   precio120Pico?: number | null;
 }
 export interface Cliente { id: string; nombre: string; whatsapp: string; confiable: boolean; totalReservas: number; cumplidas: number; confianza: boolean }
+export type MetodoSena = 'MERCADO_PAGO' | 'TRANSFERENCIA';
 export interface Reserva {
   id: string; canchaId: string; clienteId: string;
   fechaInicio: string; fechaFin: string; estado: EstadoReserva;
   esContacto: boolean; monto: number; montoSena: number | null;
+  /** Cómo dijo el cliente que iba a pagar la seña. Opcional: puede venir de un backend con skew de versión. */
+  metodoSena?: MetodoSena | null;
   pagado: number; saldo: number;
   turnoFijoId?: string | null;
   suscripcionId?: string | null;
