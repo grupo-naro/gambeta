@@ -1,5 +1,6 @@
 import { configService } from './config.service.js';
 import { mercadoPagoOauthService } from './mercadoPagoOauth.service.js';
+import { getEnv } from '../config/env.js';
 
 export interface DatosPago {
   modo: 'fijo';
@@ -8,6 +9,12 @@ export interface DatosPago {
   alias: string;
   titular: string;
   cobrosOnline: boolean;
+  /** El número al que el cliente manda el comprobante de la transferencia. */
+  adminWhatsapp: string;
+  /** Si el complejo cargó datos bancarios. Sin esto, ofrecer transferencia mostraría un alias vacío. */
+  transferenciaDisponible: boolean;
+  /** Cuánto aguanta la reserva sin pagar antes de que el job libere el horario. */
+  senaTimeoutMinutos: number;
 }
 
 export const senaService = {
@@ -26,9 +33,14 @@ export const senaService = {
     const c = await configService.get();
     return {
       modo: 'fijo', porcentaje: c.senaPorcentaje, cbu: c.cbu, alias: c.alias, titular: c.titular,
-      // La web pública lo usa para decidir si toma reservas. Sin cuenta vinculada no hay
-      // forma de cobrar la seña, así que no se vende online.
+      // La web pública lo usa para decidir si ofrece Mercado Pago. Sin cuenta vinculada no hay
+      // checkout, pero sí puede haber transferencia: ya no apaga el sitio por sí solo.
       cobrosOnline: await mercadoPagoOauthService.cobrosOnlineActivos(),
+      adminWhatsapp: c.adminWhatsapp,
+      // La regla vive acá y no en el sitio: es la misma pregunta que se hace el panel al mostrar
+      // los datos, y duplicarla garantiza que se desincronicen.
+      transferenciaDisponible: c.cbu.trim() !== '' || c.alias.trim() !== '',
+      senaTimeoutMinutos: getEnv().SENA_TIMEOUT_MINUTOS,
     };
   },
 };
