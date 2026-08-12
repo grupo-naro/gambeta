@@ -233,7 +233,13 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
 
       {/* ===== Modal (compartido) ===== */}
       {sel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={cerrarModal}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          // Con una reserva ya creada esperando seña, cerrar acá de un tap accidental es
+          // irrecuperable: mientras haya un POST en vuelo (`pending`) o la pantalla de datos
+          // de transferencia visible, el cliente tiene que tocar "Volver" o "Listo" a propósito.
+          onClick={() => { if (!pending && !transferencia) cerrarModal(); }}
+        >
           <div className="w-full max-w-sm rounded-2xl bg-neutral-900 p-6 text-neutral-100 ring-1 ring-neutral-700" onClick={(e) => e.stopPropagation()}>
             {transferencia ? (
               <DatosTransferencia metodos={metodos} montoSena={transferencia.montoSena} resumenTurno={resumenTurno} onCerrar={cerrarModal} />
