@@ -64,6 +64,29 @@ describe('venta del secundario', () => {
     ]);
     expect(r.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
     expect(await asignado()).toBe(1);
+    // No alcanza con que una de las dos falle: tiene que fallar de forma prolija (el mismo
+    // BusinessRule que el pre-chequeo), sea cual sea quién ganó la carrera — el pre-chequeo en
+    // código o el CHECK de la base. Si esto devolviera un 500 crudo, el cajero vería
+    // "Error interno" en vez de un motivo de negocio.
+    const rechazada = r.find((x) => x.status === 'rejected') as PromiseRejectedResult;
+    expect(rechazada.reason.message).toMatch(/Coca/);
+  });
+
+  it('un uid ya usado por OTRO mostrador no reutiliza su ticket ni devuelve su caja', async () => {
+    // El uid es único a nivel global. Si el secundario mandara el mismo uid que ya usó el
+    // principal, el atajo de idempotencia (pensado para reintentos del mismo cliente) no puede
+    // devolver el estado de caja del principal: rompería el aislamiento entre mostradores.
+    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 5 }] });
+    await buffetCajaService.abrir('mostrador-principal');
+    await buffetCajaService.abrir('mostrador-secundario');
+
+    await vender('mostrador-principal', 'uid-compartido', 1);
+    await expect(vender('mostrador-secundario', 'uid-compartido', 1)).rejects.toThrow();
+
+    // La venta del secundario no se aplicó: ni tocó su asignado ni quedó ticket suyo.
+    expect(await asignado()).toBe(5);
+    const s = await buffetCajaService.actual('mostrador-secundario');
+    expect(s!.totalUnidades).toBe(0);
   });
 
   it('cada mostrador ve su propia caja', async () => {

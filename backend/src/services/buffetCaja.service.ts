@@ -1,6 +1,16 @@
 import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound, BusinessRule } from '../utils/errors.js';
 
+// Postgres check_violation SQLSTATE es 23514. Con el driver adapter de Prisma 7, el código
+// vive en e.cause.code (no en e.code ni en e.meta.code) — mismo patrón que isExclusionViolation
+// en reserva.repo.ts. Se filtra además por el nombre de la constraint para no confundir esto
+// con cualquier otro CHECK que pueda existir en la base.
+function esViolacionStockAsignadoNegativo(e: unknown): boolean {
+  const anyE = e as any;
+  const esCheckViolation = anyE?.code === '23514' || anyE?.cause?.code === '23514' || anyE?.meta?.code === '23514';
+  return esCheckViolation && String(anyE?.message ?? '').includes('StockMostrador_cantidad_no_negativa');
+}
+
 type Medio = 'EFECTIVO' | 'TRANSFERENCIA';
 export interface TicketLineaDTO { productoId: string; nombre: string; cantidad: number; precioUnit: number }
 export interface TicketDTO { id: string; total: number; medioPago: Medio; vuelto: number; creadoEn: string; lineas: TicketLineaDTO[] }
@@ -87,14 +97,24 @@ export const buffetCajaService = {
   },
 
   async cobrar(input: CobrarInput): Promise<CobroResultado> {
-    const previo = await prisma.ticketBuffet.findUnique({ where: { uid: input.uid } });
-    if (previo) return { ticketId: previo.id, total: Number(previo.total), vuelto: Number(previo.vuelto), medioPago: previo.medioPago as Medio, caja: await estadoDe(previo.cajaId) };
+    // El uid es único a nivel global (columna @unique), pero el aislamiento entre mostradores
+    // que introduce esta task exige que un ticket previo solo se reutilice si es del MISMO
+    // mostrador: si no, un uid repetido por otro puesto devolvería el estado de caja ajeno
+    // (totales y últimos tickets de otro mostrador) y la venta real se perdería en silencio.
+    const previo = await prisma.ticketBuffet.findUnique({ where: { uid: input.uid }, include: { caja: { select: { mostradorId: true } } } });
+    if (previo) {
+      if (previo.caja.mostradorId !== input.mostradorId) {
+        throw Conflict(`El uid "${input.uid}" ya se usó en otro mostrador`);
+      }
+      return { ticketId: previo.id, total: Number(previo.total), vuelto: Number(previo.vuelto), medioPago: previo.medioPago as Medio, caja: await estadoDe(previo.cajaId) };
+    }
 
     const caja = await cajaAbierta(input.mostradorId);
     if (!caja) throw Conflict('No hay una caja abierta');
     if (!input.items.length) throw BusinessRule('El carrito está vacío');
 
-    const mostrador = await prisma.mostrador.findUniqueOrThrow({ where: { id: input.mostradorId } });
+    const mostrador = await prisma.mostrador.findUnique({ where: { id: input.mostradorId } });
+    if (!mostrador) throw NotFound('Mostrador', input.mostradorId);
     const esSecundario = mostrador.tipo === 'SECUNDARIO';
 
     const ids = input.items.map((i) => i.productoId);
@@ -113,6 +133,10 @@ export const buffetCajaService = {
     } else { montoPagado = total; vuelto = 0; }
 
     let ticketId = '';
+    // Si la carrera la gana la restricción CHECK de la base (ver esViolacionStockAsignadoNegativo
+    // más abajo) en vez del pre-chequeo en código, este es el producto sobre el que se estaba
+    // decrementando cuando explotó — lo necesitamos para armar el mismo mensaje de negocio.
+    let productoEnCurso: { nombre: string } | undefined;
     try {
       await prisma.$transaction(async (tx) => {
         const ticket = await tx.ticketBuffet.create({ data: { uid: input.uid, cajaId: caja.id, total, medioPago: input.medioPago, montoPagado, vuelto } });
@@ -131,6 +155,7 @@ export const buffetCajaService = {
             if (!asignado || asignado.cantidad < it.cantidad) {
               throw BusinessRule(`No tenés stock asignado de ${p.nombre}. Pedile al mostrador principal que te entregue.`);
             }
+            productoEnCurso = p;
             await tx.stockMostrador.update({
               where: { mostradorId_productoId: { mostradorId: input.mostradorId, productoId: p.id } },
               data: { cantidad: { decrement: it.cantidad } },
@@ -144,6 +169,13 @@ export const buffetCajaService = {
       if (e?.code === 'P2002') {
         const ya = await prisma.ticketBuffet.findUnique({ where: { uid: input.uid } });
         if (ya) return { ticketId: ya.id, total: Number(ya.total), vuelto: Number(ya.vuelto), medioPago: ya.medioPago as Medio, caja: await estadoDe(ya.cajaId) };
+      }
+      // La otra transacción concurrente ganó la carrera y dejó el asignado en el límite: el
+      // decrement de esta transacción lo llevaría a negativo y la base lo rechaza con el CHECK.
+      // Es el mismo caso de negocio que el pre-chequeo de arriba, solo que descubierto por la
+      // base en vez de por el código — así que es el mismo BusinessRule, no un 500.
+      if (esViolacionStockAsignadoNegativo(e)) {
+        throw BusinessRule(`No tenés stock asignado de ${productoEnCurso?.nombre ?? 'ese producto'}. Pedile al mostrador principal que te entregue.`);
       }
       throw e;
     }
