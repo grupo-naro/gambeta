@@ -48,8 +48,11 @@ describe('GET/PATCH /config', () => {
     expect(res.body.alias).toBe('gambeteando.mp');
   });
   it('ni GET ni PATCH /config filtran el buffetPinHash', async () => {
-    const { buffetPinService } = await import('../../src/services/buffetPin.service.js');
-    await buffetPinService.setear('1234');
+    // buffetPinService.setear ya no escribe Configuracion.buffetPinHash (el PIN vive en
+    // Mostrador.pinHash); esa columna sigue existiendo como rollback natural de la migración
+    // que la mudó, así que la sembramos directo para que haya algo que filtrar de verdad.
+    await configService.get();
+    await getPrisma().configuracion.update({ where: { id: 'default' }, data: { buffetPinHash: 'hash-de-prueba' } });
 
     const get = await supertest(app).get('/config').set('x-api-key', 'svc');
     expect(get.status).toBe(200);
