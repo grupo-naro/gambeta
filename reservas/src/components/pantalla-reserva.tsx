@@ -4,6 +4,7 @@ import { getGrilla, crearReserva, crearPreferenciaPago } from '@/lib/actions';
 import type { Deporte, DuracionSlot, Grilla, MetodosPago } from '@/lib/types';
 import { Calendario } from './calendario';
 import { SelectorFechaMobile } from './selector-fecha-mobile';
+import { DatosTransferencia } from './datos-transferencia';
 
 const money = (n: number | null) => (n == null ? '' : '$' + Number(n).toLocaleString('es-AR'));
 const etiquetaDuracion = (min: number) => (min === 60 ? '1 hora' : min === 90 ? '1½ horas' : `${min / 60} horas`);
@@ -18,8 +19,6 @@ const DEPORTES: { key: Deporte; label: string; icon: string }[] = [
   { key: 'padel', label: 'Pádel', icon: '🎾' },
 ];
 
-// `metodos` todavía no se usa acá: lo consume la Task 6 (modal de pago en dos pasos).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
   const [deporte, setDeporte] = useState<Deporte>('futbol');
   const [fecha, setFecha] = useState(hoyISO());
@@ -33,6 +32,8 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
   const [telefono, setTelefono] = useState('');
   const [errorForm, setErrorForm] = useState('');
   const [ok, setOk] = useState<{ senia: number | null; contacto?: string; socio?: boolean } | null>(null);
+  const [paso, setPaso] = useState<'datos' | 'metodo'>('datos');
+  const [transferencia, setTransferencia] = useState<{ montoSena: number } | null>(null);
   const [pending, start] = useTransition();
 
   // Resumen del turno elegido: "Cancha 1 · lunes 4 de agosto · 17:00 a 19:00 · 2 horas".
@@ -61,23 +62,37 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
     setSel({ canchaId, canchaNombre, hora, fecha, duraciones });
     setDuracionSel(duraciones.length ? Math.min(...duraciones.map((d) => d.min)) : 60);
     setNombre(''); setTelefono(''); setErrorForm(''); setOk(null);
+    setPaso('datos'); setTransferencia(null);
   }
-  function cerrarModal() { setSel(null); setOk(null); setErrorForm(''); }
+  function cerrarModal() {
+    setSel(null); setOk(null); setErrorForm('');
+    setPaso('datos'); setTransferencia(null);
+  }
 
-  function confirmar() {
+  // Paso 1 -> 2: solo valida. La reserva se crea recién cuando el cliente elige cómo pagar,
+  // porque el método viaja en el POST y no se puede agregar después.
+  function irAMetodo() {
     if (!sel) return;
     if (nombre.trim().length < 2) { setErrorForm('Ingresá tu nombre'); return; }
     if (telefono.replace(/\D/g, '').length < 10) { setErrorForm('Ingresá un teléfono válido (10 dígitos)'); return; }
     setErrorForm('');
+    setPaso('metodo');
+  }
+
+  function elegir(metodoSena: 'MERCADO_PAGO' | 'TRANSFERENCIA') {
+    if (!sel) return;
     start(async () => {
-      const r = await crearReserva({ canchaId: sel.canchaId, fecha: sel.fecha, horaInicio: sel.hora, nombre: nombre.trim(), telefono, duracionMin: duracionSel });
+      const r = await crearReserva({
+        canchaId: sel.canchaId, fecha: sel.fecha, horaInicio: sel.hora,
+        nombre: nombre.trim(), telefono, duracionMin: duracionSel, metodoSena,
+      });
       if (!r.ok) {
-        // El backend rechazó por concurrencia (otro cliente ocupó el turno mientras
-        // este completaba el formulario). Re-derivamos las duraciones que siguen
-        // disponibles en vez de forzar al cliente a cerrar el modal y empezar de cero.
+        // El backend rechazó por concurrencia (otro cliente ocupó el turno mientras este
+        // elegía). Se vuelve al paso 1 con las duraciones que sigan disponibles.
         const g = await recargar();
         const nuevas = g?.duraciones?.[sel.canchaId]?.[sel.hora] ?? [];
         setSel({ ...sel, duraciones: nuevas });
+        setPaso('datos');
         if (nuevas.length === 0) setErrorForm('Ese turno se acaba de ocupar. Elegí otro horario.');
         else if (!nuevas.some((d) => d.min === duracionSel)) {
           setDuracionSel(nuevas[0].min);
@@ -85,19 +100,24 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
         } else setErrorForm(r.error);
         return;
       }
-      // Socio: la reserva ya vuelve CONFIRMADA y bonificada. No hay seña que cobrar,
-      // así que no se genera preferencia de Mercado Pago.
+
+      // Socio: la reserva ya vuelve CONFIRMADA y bonificada. El método que eligió no aplica —
+      // el backend lo descarta — y se le muestra la pantalla de confirmación de siempre.
       if (r.data.suscripcionId) { setOk({ senia: null, socio: true }); void recargar(); return; }
+
       const senia = r.data.montoSena == null ? null : Number(r.data.montoSena);
-      if (senia != null && senia > 0) {
-        const pref = await crearPreferenciaPago(r.data.id);
-        if (pref.ok) { window.location.href = pref.data.checkoutUrl; return; }
-        // La reserva quedó registrada igual; avisamos que no se pudo generar el link de pago.
-        setOk({ senia, contacto: 'No pudimos generar el link de pago. Te contactaremos para coordinarlo.' });
+      if (senia == null || senia <= 0) { setOk({ senia }); void recargar(); return; }
+
+      if (metodoSena === 'TRANSFERENCIA') {
+        setTransferencia({ montoSena: senia });
         void recargar();
         return;
       }
-      setOk({ senia });
+
+      const pref = await crearPreferenciaPago(r.data.id);
+      if (pref.ok) { window.location.href = pref.data.checkoutUrl; return; }
+      // La reserva quedó registrada igual; avisamos que no se pudo generar el link de pago.
+      setOk({ senia, contacto: 'No pudimos generar el link de pago. Te contactaremos para coordinarlo.' });
       void recargar();
     });
   }
@@ -215,7 +235,9 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
       {sel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={cerrarModal}>
           <div className="w-full max-w-sm rounded-2xl bg-neutral-900 p-6 text-neutral-100 ring-1 ring-neutral-700" onClick={(e) => e.stopPropagation()}>
-            {ok ? (
+            {transferencia ? (
+              <DatosTransferencia metodos={metodos} montoSena={transferencia.montoSena} resumenTurno={resumenTurno} onCerrar={cerrarModal} />
+            ) : ok ? (
               <div className="flex flex-col items-center gap-3 text-center">
                 <div className="text-5xl">✅</div>
                 <h3 className="text-xl font-bold">{ok.socio ? '¡Turno confirmado!' : '¡Reserva registrada!'}</h3>
@@ -229,6 +251,31 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
                   : <p>Te contactamos para confirmarla.</p>}
                 <button type="button" onClick={cerrarModal} className="mt-2 rounded-xl bg-lime-500 px-6 py-2 font-bold text-black">Listo</button>
               </div>
+            ) : paso === 'metodo' ? (
+              <>
+                <h3 className="text-lg font-bold">¿Cómo querés pagar la seña?</h3>
+                <p className="mt-1 text-sm text-neutral-400">{resumenTurno}</p>
+                <div className="mt-4 flex flex-col gap-2">
+                  {metodos.mercadoPago && (
+                    <button type="button" disabled={pending} onClick={() => elegir('MERCADO_PAGO')}
+                      className="rounded-xl border-2 border-neutral-700 bg-neutral-800 p-4 text-left disabled:opacity-50">
+                      <span className="block font-bold text-neutral-100">Mercado Pago</span>
+                      <span className="block text-sm text-neutral-400">Pagás ahora y el turno queda confirmado solo.</span>
+                    </button>
+                  )}
+                  {metodos.transferencia && (
+                    <button type="button" disabled={pending} onClick={() => elegir('TRANSFERENCIA')}
+                      className="rounded-xl border-2 border-neutral-700 bg-neutral-800 p-4 text-left disabled:opacity-50">
+                      <span className="block font-bold text-neutral-100">Transferencia</span>
+                      <span className="block text-sm text-neutral-400">Te damos el alias y el CBU. Confirmás mandando el comprobante.</span>
+                    </button>
+                  )}
+                </div>
+                {errorForm && <p className="mt-2 text-red-400">{errorForm}</p>}
+                <button type="button" disabled={pending} onClick={() => setPaso('datos')} className="mt-4 w-full rounded-xl border border-neutral-600 py-2 font-semibold">
+                  {pending ? 'Reservando…' : 'Volver'}
+                </button>
+              </>
             ) : (
               <>
                 <h3 className="text-lg font-bold">Reservar</h3>
@@ -274,7 +321,7 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
                 {errorForm && <p className="mt-2 text-red-400">{errorForm}</p>}
                 <div className="mt-4 flex gap-3">
                   <button type="button" onClick={cerrarModal} className="flex-1 rounded-xl border border-neutral-600 py-2 font-semibold">Cancelar</button>
-                  <button type="button" disabled={pending} onClick={confirmar} className="flex-[2] rounded-xl bg-lime-500 py-2 font-bold text-black disabled:opacity-50">{pending ? 'Reservando…' : 'Confirmar'}</button>
+                  <button type="button" onClick={irAMetodo} className="flex-[2] rounded-xl bg-lime-500 py-2 font-bold text-black">Continuar</button>
                 </div>
               </>
             )}
