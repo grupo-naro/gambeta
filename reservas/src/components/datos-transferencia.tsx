@@ -5,8 +5,32 @@ import type { MetodosPago } from '@/lib/types';
 const money = (n: number | null) => (n == null ? '' : '$' + Number(n).toLocaleString('es-AR'));
 
 function Copiable({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  const [copiado, setCopiado] = useState(false);
+  const [estado, setEstado] = useState<'idle' | 'copiado' | 'error'>('idle');
   if (!valor.trim()) return null;
+
+  // navigator.clipboard puede faltar (contexto no seguro) o writeText puede rechazar
+  // (permiso denegado): en ningún caso queremos una excepción sin agarrar ni una promise
+  // rota — el usuario siempre se entera de si copió o no. El dato sigue visible arriba
+  // para copiarlo a mano si el botón falla.
+  const copiar = () => {
+    const avisar = (siguiente: 'copiado' | 'error') => {
+      setEstado(siguiente);
+      setTimeout(() => setEstado('idle'), 1500);
+    };
+    try {
+      if (!navigator.clipboard) {
+        avisar('error');
+        return;
+      }
+      navigator.clipboard.writeText(valor).then(
+        () => avisar('copiado'),
+        () => avisar('error'),
+      );
+    } catch {
+      avisar('error');
+    }
+  };
+
   return (
     <div className="flex items-center justify-between gap-2 rounded-xl bg-neutral-800 p-3">
       <div className="min-w-0">
@@ -15,15 +39,10 @@ function Copiable({ etiqueta, valor }: { etiqueta: string; valor: string }) {
       </div>
       <button
         type="button"
-        onClick={() => {
-          void navigator.clipboard.writeText(valor).then(() => {
-            setCopiado(true);
-            setTimeout(() => setCopiado(false), 1500);
-          });
-        }}
+        onClick={copiar}
         className="shrink-0 rounded-lg border border-neutral-600 px-3 py-1 text-xs font-semibold text-neutral-200"
       >
-        {copiado ? 'Copiado' : 'Copiar'}
+        {estado === 'copiado' ? 'Copiado' : estado === 'error' ? 'No se pudo copiar' : 'Copiar'}
       </button>
     </div>
   );
