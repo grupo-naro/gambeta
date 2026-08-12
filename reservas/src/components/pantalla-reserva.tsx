@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useTransition } from 'react';
 import { getGrilla, crearReserva, crearPreferenciaPago } from '@/lib/actions';
-import type { Deporte, DuracionSlot, Grilla } from '@/lib/types';
+import type { Deporte, DuracionSlot, Grilla, MetodosPago } from '@/lib/types';
 import { Calendario } from './calendario';
 import { SelectorFechaMobile } from './selector-fecha-mobile';
 
@@ -18,7 +18,9 @@ const DEPORTES: { key: Deporte; label: string; icon: string }[] = [
   { key: 'padel', label: 'Pádel', icon: '🎾' },
 ];
 
-export function PantallaReserva() {
+// `metodos` todavía no se usa acá: lo consume la Task 6 (modal de pago en dos pasos).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
   const [deporte, setDeporte] = useState<Deporte>('futbol');
   const [fecha, setFecha] = useState(hoyISO());
   const [canchaSelId, setCanchaSelId] = useState('');

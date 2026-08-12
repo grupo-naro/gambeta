@@ -1,6 +1,6 @@
 'use server';
 import { apiReservas } from './api';
-import type { Deporte, Grilla, PreferenciaPago, ReservaCreada, Resultado } from './types';
+import type { Deporte, Grilla, MetodoSena, MetodosPago, PreferenciaPago, ReservaCreada, Resultado } from './types';
 
 export async function getGrilla(deporte: Deporte, fecha: string): Promise<Resultado<Grilla>> {
   try {
@@ -10,23 +10,39 @@ export async function getGrilla(deporte: Deporte, fecha: string): Promise<Result
 }
 
 /**
- * Si el complejo puede cobrar señas online, o sea si tiene una cuenta de Mercado Pago
- * vinculada y sana. Sin eso la web no toma reservas: no habría forma de cobrar la seña.
+ * Qué métodos de pago puede ofrecer el sitio, con los datos que la pantalla de transferencia
+ * necesita. Antes esto era `getCobrosOnline()` y devolvía un booleano: sin Mercado Pago el sitio
+ * no tomaba ninguna reserva. Ya no es cierto — con CBU cargado se puede cobrar igual.
  *
- * Ante cualquier error devuelve `false`. Es deliberado: preferimos mandar a la gente a
- * reservar por WhatsApp antes que tomarle una reserva que después no vamos a poder cobrar.
+ * Ante cualquier error devuelve todo en falso, y el sitio manda a reservar por WhatsApp. Es
+ * deliberado: preferimos eso antes que tomar una reserva que después no vamos a poder cobrar.
  */
-export async function getCobrosOnline(): Promise<boolean> {
+export async function getMetodosPago(): Promise<MetodosPago> {
+  const vacio: MetodosPago = {
+    mercadoPago: false, transferencia: false,
+    cbu: '', alias: '', titular: '', adminWhatsapp: '', senaTimeoutMinutos: 30,
+  };
   try {
-    const data = await apiReservas<{ cobrosOnline?: boolean }>('/config/sena');
-    return data.cobrosOnline === true;
+    const d = await apiReservas<{
+      cobrosOnline?: boolean; transferenciaDisponible?: boolean;
+      cbu?: string; alias?: string; titular?: string;
+      adminWhatsapp?: string; senaTimeoutMinutos?: number;
+    }>('/config/sena');
+    return {
+      mercadoPago: d.cobrosOnline === true,
+      transferencia: d.transferenciaDisponible === true,
+      cbu: d.cbu ?? '', alias: d.alias ?? '', titular: d.titular ?? '',
+      adminWhatsapp: d.adminWhatsapp ?? '',
+      // Si el backend es viejo y no manda el plazo, 30 es el default del backend.
+      senaTimeoutMinutos: d.senaTimeoutMinutos ?? 30,
+    };
   } catch (e) {
-    console.error('[config] no se pudo consultar si los cobros online están activos', { error: e instanceof Error ? e.message : e });
-    return false;
+    console.error('[config] no se pudieron consultar los métodos de pago', { error: e instanceof Error ? e.message : e });
+    return vacio;
   }
 }
 
-export async function crearReserva(input: { canchaId: string; fecha: string; horaInicio: string; nombre: string; telefono: string; duracionMin?: number }): Promise<Resultado<ReservaCreada>> {
+export async function crearReserva(input: { canchaId: string; fecha: string; horaInicio: string; nombre: string; telefono: string; duracionMin?: number; metodoSena?: MetodoSena }): Promise<Resultado<ReservaCreada>> {
   try {
     const data = await apiReservas<ReservaCreada>('/reservas', {
       method: 'POST',
@@ -38,6 +54,7 @@ export async function crearReserva(input: { canchaId: string; fecha: string; hor
         horaInicio: input.horaInicio,
         esContacto: false,
         ...(input.duracionMin != null ? { duracionMin: input.duracionMin } : {}),
+        ...(input.metodoSena ? { metodoSena: input.metodoSena } : {}),
       }),
     });
     return { ok: true, data };
