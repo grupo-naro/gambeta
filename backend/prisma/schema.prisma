@@ -202,6 +202,13 @@ model Cliente {
   suscripciones    Suscripcion[]
 }
 
+/// Cómo dijo el cliente que iba a pagar la seña. Solo lo elige la web pública; las reservas
+/// que carga el staff y las de socio no tienen método.
+enum MetodoSena {
+  MERCADO_PAGO
+  TRANSFERENCIA
+}
+
 model Reserva {
   id            String          @id @default(cuid())
   canchaId      String
@@ -214,6 +221,10 @@ model Reserva {
   esContacto    Boolean
   monto         Decimal         @db.Decimal(10, 2)
   montoSena     Decimal?        @db.Decimal(10, 2)
+  /// Nullable y sin default a propósito: las reservas anteriores a este campo, las que carga el
+  /// panel y las de socio no eligieron nada, y `null` es la lectura honesta. Un default
+  /// fabricaría un método que nadie eligió.
+  metodoSena    MetodoSena?
   notas         String?
   turnoFijoId   String?
   turnoFijo     TurnoFijo?      @relation(fields: [turnoFijoId], references: [id])

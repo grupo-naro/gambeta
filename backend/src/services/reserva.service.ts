@@ -58,6 +58,7 @@ export interface CreateReservaInput {
   horaInicio: string;
   duracionMin?: number;
   montoSena?: number;
+  metodoSena?: 'MERCADO_PAGO' | 'TRANSFERENCIA';
   nombreConfirmado?: boolean;
   notas?: string;
 }
@@ -149,6 +150,10 @@ export const reservaService = {
           suscripcionId: cond.suscripcionId,
           montoSena,
           notas: input.notas ?? null,
+          // El método solo tiene sentido mientras haya una seña pendiente. Si la reserva sale
+          // CONFIRMADA (socio, staff, cliente confiable), guardarlo registraría una intención
+          // que nunca se va a ejecutar. La condición es el ESTADO, no el monto.
+          metodoSena: estado === 'ESPERANDO_SENA' ? (input.metodoSena ?? null) : null,
         },
         tx,
       );

@@ -1,4 +1,4 @@
-import { Prisma, EstadoReserva } from '../db/client.js';
+import { Prisma, EstadoReserva, MetodoSena } from '../db/client.js';
 import { prisma } from '../db/prisma.js';
 import { Conflict } from '../utils/errors.js';
 
@@ -12,6 +12,7 @@ export interface CreateReservaData {
   monto: number;
   montoLista?: number | null;
   montoSena?: number | null;
+  metodoSena?: MetodoSena | null;
   suscripcionId?: string | null;
   notas?: string | null;
   turnoFijoId?: string | null;

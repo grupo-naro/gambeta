@@ -21,6 +21,7 @@ export const createReservaSchema = z.object({
     horaInicio: z.string().regex(/^\d{2}:\d{2}$/),
     duracionMin: duracionMinSchema.optional(),
     montoSena: z.number().nonnegative().optional(),
+    metodoSena: z.enum(['MERCADO_PAGO', 'TRANSFERENCIA']).optional(),
     montoCobro: z.number().nonnegative().optional(),
     nombreConfirmado: z.boolean().default(false),
     notas: z.string().optional(),
