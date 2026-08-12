@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { buffetCajaService } from '../../src/services/buffetCaja.service.js';
 import { buffetEntregaService } from '../../src/services/buffetEntrega.service.js';
+import { AppError } from '../../src/utils/errors.js';
 
 beforeAll(setupTestDb);
 afterAll(teardownTestDb);
@@ -87,6 +88,33 @@ describe('venta del secundario', () => {
     expect(await asignado()).toBe(5);
     const s = await buffetCajaService.actual('mostrador-secundario');
     expect(s!.totalUnidades).toBe(0);
+  });
+
+  it('dos cobros concurrentes con el mismo uid en mostradores distintos: el perdedor da Conflict, no la caja ajena', async () => {
+    // Variante concurrente del test de arriba ("un uid ya usado por OTRO mostrador..."), que
+    // cubre el chequeo secuencial de las líneas ~104-110 de buffetCaja.service.ts pero no la
+    // rama de la carrera: si los dos `cobrar()` mandan el mismo uid a la vez, ambos pueden ver
+    // `null` en el findUnique inicial y entrar los dos a la transacción. El que pierde el índice
+    // único cae en el catch de P2002 -- que hasta este fix devolvía sin más el ticket y la caja
+    // del OTRO mostrador (¡200 OK con datos ajenos!) en vez de rechazar la venta.
+    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 10 }] });
+    await buffetCajaService.abrir('mostrador-principal');
+    await buffetCajaService.abrir('mostrador-secundario');
+
+    const [r1, r2] = await Promise.allSettled([
+      vender('mostrador-principal', 'uid-carrera', 1),
+      vender('mostrador-secundario', 'uid-carrera', 1),
+    ]);
+
+    const exitosas = [r1, r2].filter((r) => r.status === 'fulfilled');
+    const rechazadas = [r1, r2].filter((r) => r.status === 'rejected');
+    expect(exitosas).toHaveLength(1);
+    expect(rechazadas).toHaveLength(1);
+
+    const err = (rechazadas[0] as PromiseRejectedResult).reason;
+    expect(err).toBeInstanceOf(AppError);
+    expect((err as AppError).status).toBe(409);
+    expect((err as AppError).message).toMatch(/otro mostrador/);
   });
 
   it('cada mostrador ve su propia caja', async () => {

@@ -50,7 +50,10 @@ async function estadoDe(cajaId: string): Promise<CajaEstado> {
   };
 }
 
-async function cajaAbierta(mostradorId: string) {
+// Exportada (no solo de uso interno): buffetConciliacion.service.ts la necesita para I4 —
+// rechazar la conciliación de un cierre viejo mientras el secundario tiene otra caja ABIERTA —
+// y repetir esta misma consulta ahí sería duplicarla en dos servicios.
+export async function cajaAbierta(mostradorId: string) {
   return prisma.cajaBuffet.findFirst({ where: { estado: 'ABIERTA', mostradorId } });
 }
 
@@ -167,8 +170,18 @@ export const buffetCajaService = {
       });
     } catch (e: any) {
       if (e?.code === 'P2002') {
-        const ya = await prisma.ticketBuffet.findUnique({ where: { uid: input.uid } });
-        if (ya) return { ticketId: ya.id, total: Number(ya.total), vuelto: Number(ya.vuelto), medioPago: ya.medioPago as Medio, caja: await estadoDe(ya.cajaId) };
+        // Mismo aislamiento que el chequeo de arriba (líneas ~104-110), pero acá para la rama
+        // concurrente: si dos mostradores mandan el mismo uid a la vez, ambos pueden ver `null`
+        // en el findUnique inicial y entrar los dos a la transacción; el que pierde la carrera
+        // del índice único cae en este catch. Sin este chequeo, se le devolvería el ticket y la
+        // caja del OTRO mostrador como si su propia venta hubiera salido bien.
+        const ya = await prisma.ticketBuffet.findUnique({ where: { uid: input.uid }, include: { caja: { select: { mostradorId: true } } } });
+        if (ya) {
+          if (ya.caja.mostradorId !== input.mostradorId) {
+            throw Conflict(`El uid "${input.uid}" ya se usó en otro mostrador`);
+          }
+          return { ticketId: ya.id, total: Number(ya.total), vuelto: Number(ya.vuelto), medioPago: ya.medioPago as Medio, caja: await estadoDe(ya.cajaId) };
+        }
       }
       // La otra transacción concurrente ganó la carrera y dejó el asignado en el límite: el
       // decrement de esta transacción lo llevaría a negativo y la base lo rechaza con el CHECK.

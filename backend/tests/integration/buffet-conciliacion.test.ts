@@ -154,6 +154,51 @@ describe('conciliación del cierre', () => {
     expect(filas[0]).toMatchObject({ entregado: 10, vendido: 4, esperado: 6, contado: 4, diferencia: -2 });
   });
 
+  it('conciliar una caja del PRINCIPAL se rechaza: sobre esa caja no hay nada que devolver, se inventaría stock', async () => {
+    // Sin el guard: `calcularResumen` no encuentra entregas (el principal no recibe entregas)
+    // pero sí ventas, así que cada línea da `esperado` negativo, y el loop de `conciliar` le
+    // suma al stock general las unidades "contadas" aunque nunca hayan salido de ahí — la única
+    // ruta de la rama que puede crear unidades de la nada.
+    await buffetCajaService.abrir('mostrador-principal');
+    await buffetCajaService.cobrar({
+      mostradorId: 'mostrador-principal', uid: 'uid-principal', medioPago: 'EFECTIVO',
+      montoPagado: 999999, items: [{ productoId, cantidad: 3 }],
+    });
+    const cierre = await buffetCajaService.cerrar('mostrador-principal');
+    const generalAntes = await general(); // 17 (20 - 3 vendidas)
+
+    await expect(
+      buffetConciliacionService.conciliar({ cajaId: cierre.id, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 3 }] }),
+    ).rejects.toThrow(/secundario/);
+
+    // Nada volvió, porque nada había salido del general para "devolver" en primer lugar.
+    expect(await general()).toBe(generalAntes);
+    const filas = await getPrisma().conteoCierreLinea.findMany({ where: { cajaId: cierre.id } });
+    expect(filas).toHaveLength(0);
+  });
+
+  it('conciliar un cierre viejo mientras el secundario tiene otra caja ABIERTA se rechaza', async () => {
+    // Secuencia realista y secuencial (sin concurrencia): caja1 cerrada sin conciliar -> el
+    // secundario abre caja2 -> el principal le entrega más "para el turno en curso". Si se
+    // conciliara caja1 en este momento, `calcularResumen` leería TAMBIÉN las entregas de caja2
+    // (son "sin rendir de ese mostrador", no de esa caja puntual) y el loop pondría
+    // `StockMostrador.cantidad = 0`: el secundario se queda sin stock asignado a mitad de turno.
+    const caja1 = await turnoDelSecundario(4); // cerrada, sin conciliar
+    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 10 }] });
+    await buffetCajaService.abrir('mostrador-secundario'); // caja2, en curso
+
+    await expect(
+      buffetConciliacionService.conciliar({ cajaId: caja1, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 6 }] }),
+    ).rejects.toThrow(/caja abierta/);
+
+    // El stock que el secundario tiene asignado no se tocó: quedaban 6 sin rendir de caja1 (10
+    // entregadas - 4 vendidas) más las 10 nuevas para caja2.
+    expect(await asignado()).toBe(16);
+    // Y caja1 sigue sin conciliar: no quedó a mitad de camino.
+    const filas = await getPrisma().conteoCierreLinea.findMany({ where: { cajaId: caja1 } });
+    expect(filas).toHaveLength(0);
+  });
+
   it('dos conciliaciones concurrentes de la misma caja: la perdedora da Conflict (409), no un P2002 crudo', async () => {
     // El count() previo ve "0 ya conciliado" en las dos llamadas porque ambas corren antes de
     // que cualquiera haya insertado — el pre-chequeo no alcanza a evitar la carrera. Quien la
@@ -212,6 +257,22 @@ describe('rutas HTTP: GET y POST /buffet/cajas/:id/conciliacion', () => {
     const r = await key(supertest(app).post(`/buffet/cajas/${cajaId}/conciliacion`))
       .set('x-mostrador', tokenSecundario)
       .send({ conteos: [{ productoId, contado: 6 }] });
+    expect(r.status).toBe(403);
+  });
+
+  it('el secundario recibe 403 al pedir el GET de conciliación, incluso de una caja del PRINCIPAL', async () => {
+    // El diseño es explícito: la conciliación la ven el principal y el administrador, el
+    // secundario no. Y sin chequeo de pertenencia, antes de este fix el secundario podía pedir
+    // el resumen de CUALQUIER caja -- acá, justamente, la del otro puesto.
+    await buffetCajaService.abrir('mostrador-principal');
+    await buffetCajaService.cobrar({
+      mostradorId: 'mostrador-principal', uid: 'uid-get-ajena', medioPago: 'EFECTIVO',
+      montoPagado: 999999, items: [{ productoId, cantidad: 1 }],
+    });
+    const cierre = await buffetCajaService.cerrar('mostrador-principal');
+    const tokenSecundario = await tokenDe('2222');
+
+    const r = await key(supertest(app).get(`/buffet/cajas/${cierre.id}/conciliacion`)).set('x-mostrador', tokenSecundario);
     expect(r.status).toBe(403);
   });
 });

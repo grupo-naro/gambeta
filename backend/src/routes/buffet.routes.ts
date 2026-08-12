@@ -12,7 +12,7 @@ import { buffetConciliacionService } from '../services/buffetConciliacion.servic
 import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema } from '../validators/buffet.schema.js';
 import { idParamSchema } from '../validators/reserva.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
-import { NotFound, Unauthorized } from '../utils/errors.js';
+import { Forbidden, NotFound, Unauthorized } from '../utils/errors.js';
 
 export const buffetRoutes = Router();
 
@@ -64,8 +64,15 @@ buffetRoutes.get('/stock-asignado', authMostrador, async (req, res, next) => {
   try { res.json(await buffetEntregaService.stockAsignado((req as any).mostrador.id)); } catch (e) { next(e); }
 });
 
+// Mismo guard de tipo que el POST (ahí vive dentro del servicio, porque `porMostradorId` es
+// parte del input de negocio de `conciliar`; acá `pendiente` es una lectura pura sin ese input,
+// así que el guard queda en la ruta): la conciliación la ve el principal y el administrador, el
+// secundario no — ni siquiera el resumen de una caja ajena.
 buffetRoutes.get('/cajas/:id/conciliacion', authMostrador, validate(idParamSchema), async (req, res, next) => {
-  try { res.json(await buffetConciliacionService.pendiente(String(req.params.id))); } catch (e) { next(e); }
+  try {
+    if ((req as any).mostrador.tipo !== 'PRINCIPAL') return next(Forbidden('La conciliación la ve el mostrador principal'));
+    res.json(await buffetConciliacionService.pendiente(String(req.params.id)));
+  } catch (e) { next(e); }
 });
 
 buffetRoutes.post('/cajas/:id/conciliacion', authMostrador, validate(conciliarSchema), async (req, res, next) => {

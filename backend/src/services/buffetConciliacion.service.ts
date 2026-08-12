@@ -1,5 +1,6 @@
 import { prisma } from '../db/prisma.js';
 import { BusinessRule, Conflict, Forbidden, NotFound } from '../utils/errors.js';
+import { cajaAbierta } from './buffetCaja.service.js';
 
 const PRINCIPAL = 'mostrador-principal';
 
@@ -76,8 +77,26 @@ export const buffetConciliacionService = {
     if (!caja) throw NotFound('CajaBuffet', input.cajaId);
     if (caja.estado !== 'CERRADA') throw Conflict('La caja todavía está abierta');
 
+    // Solo se concilian cajas del secundario: sobre una caja del principal no hay "entregado" ni
+    // "asignado" — todo lo vendido salió directo del stock general — así que `calcularResumen`
+    // daría `esperado` negativo por cada línea vendida y el loop de abajo le sumaría al general
+    // unidades que nunca salieron de ahí. Es la única ruta de la rama que puede inventar stock.
+    if (caja.mostradorId === PRINCIPAL) {
+      throw BusinessRule('Solo se concilian las cajas del mostrador secundario');
+    }
+
     const ya = await prisma.conteoCierreLinea.count({ where: { cajaId: input.cajaId } });
     if (ya > 0) throw Conflict('Esta caja ya fue conciliada');
+
+    // Si el secundario ya abrió una caja nueva para el turno en curso, `calcularResumen` de más
+    // abajo va a leer TODAS las entregas sin rendir de ese mostrador — incluidas las que son de
+    // esta caja nueva, no de la que se está por conciliar — y el bucle de abajo pone
+    // `StockMostrador.cantidad = 0` sin distinguir. Eso vacía el stock asignado del secundario a
+    // mitad de turno. Se evaluó (y se descartó) exigir en cambio que no haya un cierre anterior
+    // sin conciliar; esta es la regla que se quedó.
+    if (await cajaAbierta(caja.mostradorId)) {
+      throw Conflict('El secundario tiene una caja abierta: cerrala antes de conciliar');
+    }
 
     for (const c of input.conteos) {
       if (!Number.isInteger(c.contado) || c.contado < 0) throw BusinessRule('Conteo inválido');
