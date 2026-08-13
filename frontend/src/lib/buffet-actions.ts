@@ -1,19 +1,30 @@
 'use server';
 import { buffetFetch } from './buffet-api';
-import { crearSesionBuffet, requireSesionBuffet } from './buffet-session';
+import { crearSesionBuffet, borrarSesionBuffet, requireSesionBuffet } from './buffet-session';
 import { ApiError } from './types';
-import type { CajaBuffetEstado, CierreBuffet, MedioPago, CobroResultado, ProductoCobro } from './types';
+import type { CajaBuffetEstado, CierreBuffet, MedioPago, CobroResultado, ProductoCobro, MostradorIdentificado } from './types';
 
+/**
+ * El PIN ya no dice solo "sí o no": dice QUÉ mostrador es. El token que devuelve el backend
+ * se guarda en la cookie firmada y viaja después en `x-mostrador`, que es lo que permite
+ * saber quién vendió a la hora de conciliar el cierre.
+ */
 export async function verificarPin(pin: string): Promise<{ ok: boolean }> {
   try {
-    const r = await buffetFetch<{ ok: boolean }>('/buffet/pin/verificar', {
+    const r = await buffetFetch<MostradorIdentificado>('/buffet/pin/verificar', {
       method: 'POST', body: JSON.stringify({ pin }),
     });
-    if (r.ok) await crearSesionBuffet();
-    return { ok: r.ok };
+    if (!r?.token) return { ok: false };
+    await crearSesionBuffet({ token: r.token, nombre: r.nombre, tipo: r.tipo });
+    return { ok: true };
   } catch {
     return { ok: false };
   }
+}
+
+/** Cierra la sesión del puesto. Sirve para corregir un PIN puesto en el mostrador equivocado. */
+export async function salirDelMostrador(): Promise<void> {
+  await borrarSesionBuffet();
 }
 
 export type Resultado<T> = { ok: true; data: T } | { ok: false; error: string };

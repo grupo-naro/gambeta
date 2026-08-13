@@ -9,7 +9,8 @@ import { buffetCajaService } from '../services/buffetCaja.service.js';
 import { buffetPinService } from '../services/buffetPin.service.js';
 import { buffetEntregaService } from '../services/buffetEntrega.service.js';
 import { buffetConciliacionService } from '../services/buffetConciliacion.service.js';
-import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema } from '../validators/buffet.schema.js';
+import { mostradorService } from '../services/mostrador.service.js';
+import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema } from '../validators/buffet.schema.js';
 import { idParamSchema } from '../validators/reserva.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
 import { Forbidden, NotFound, Unauthorized } from '../utils/errors.js';
@@ -114,6 +115,17 @@ buffetRoutes.post('/productos/:id/reponer', authJwt, requireRole('ADMIN'), valid
   try {
     const adminId = (req as any).principal.adminId as string;
     res.json(await buffetProductoService.reponer((req as any).valid.params.id, (req as any).valid.body.cantidad, adminId));
+  } catch (e) { next(e); }
+});
+
+buffetRoutes.get('/mostradores', authJwt, requireRole('ADMIN'), async (_req, res, next) => {
+  try { res.json(await mostradorService.listar()); } catch (e) { next(e); }
+});
+
+buffetRoutes.patch('/mostradores/:id', authJwt, requireRole('ADMIN'), validate(setActivoMostradorSchema), async (req, res, next) => {
+  try {
+    const { id } = (req as any).valid.params;
+    res.json(await mostradorService.setActivo(id, (req as any).valid.body.activo));
   } catch (e) { next(e); }
 });
 

@@ -32,6 +32,18 @@ export async function reponerStock(id: string, cantidad: number): Promise<Result
   return run(() => apiFetch(`/buffet/productos/${id}/reponer`, { method: 'POST', body: JSON.stringify({ cantidad }) }));
 }
 
-export async function setPinBuffet(pin: string): Promise<Result> {
-  return run(() => apiFetch('/buffet/pin', { method: 'PUT', body: JSON.stringify({ pin }) }));
+export async function setPinBuffet(mostradorId: string, pin: string): Promise<Result> {
+  return run(() => apiFetch('/buffet/pin', { method: 'PUT', body: JSON.stringify({ mostradorId, pin }) }));
+}
+
+/**
+ * Activar o desactivar un puesto.
+ *
+ * Desactivar es la única forma de revocarle el acceso a un dispositivo: el token del mostrador
+ * no vence, y `authMostrador` relee `activo` en cada request, así que el corte es inmediato.
+ */
+export async function setActivoMostrador(mostradorId: string, activo: boolean): Promise<Result> {
+  return run(() => apiFetch(`/buffet/mostradores/${mostradorId}`, {
+    method: 'PATCH', body: JSON.stringify({ activo }),
+  }));
 }

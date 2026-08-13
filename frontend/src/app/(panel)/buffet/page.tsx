@@ -1,12 +1,15 @@
 import { requireAdmin } from '@/lib/require-admin';
 import { apiFetch } from '@/lib/api';
-import type { ProductoBuffet } from '@/lib/types';
+import type { ProductoBuffet, MostradorAdmin } from '@/lib/types';
 import { ProductosTable } from '@/components/buffet/productos-table';
-import { PinMostradorForm } from '@/components/buffet/pin-mostrador-form';
+import { MostradoresPanel } from '@/components/buffet/mostradores-panel';
 
 export default async function BuffetPage() {
   await requireAdmin();
-  const productos = await apiFetch<ProductoBuffet[]>('/buffet/productos');
+  const [productos, mostradores] = await Promise.all([
+    apiFetch<ProductoBuffet[]>('/buffet/productos'),
+    apiFetch<MostradorAdmin[]>('/buffet/mostradores'),
+  ]);
   const bajos = productos.filter((p) => p.activo && p.stock <= p.stockMinimo);
   return (
     <div className="space-y-4">
@@ -24,7 +27,7 @@ export default async function BuffetPage() {
 
       <ProductosTable productos={productos} />
 
-      <PinMostradorForm />
+      <MostradoresPanel mostradores={mostradores} />
     </div>
   );
 }

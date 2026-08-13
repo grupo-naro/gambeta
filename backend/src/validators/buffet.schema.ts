@@ -71,3 +71,8 @@ const pin4 = z.string().regex(/^\d{4}$/, 'El PIN son 4 dígitos');
 const mostradorIdExistente = z.enum(['mostrador-principal', 'mostrador-secundario']);
 export const setPinSchema = z.object({ body: z.object({ pin: pin4, mostradorId: mostradorIdExistente }), query: empty, params: empty });
 export const verificarPinSchema = z.object({ body: z.object({ pin: pin4 }), query: empty, params: empty });
+export const setActivoMostradorSchema = z.object({
+  body: z.object({ activo: z.boolean() }),
+  query: empty,
+  params: z.object({ id: z.string().min(1) }),
+});

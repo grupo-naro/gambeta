@@ -110,6 +110,14 @@ export interface ProductoBuffet {
   id: string; nombre: string; codigoBarra: string | null; precio: number;
   stock: number; stockMinimo: number; enBotonera: boolean; orden: number; activo: boolean;
 }
+export type TipoMostrador = 'PRINCIPAL' | 'SECUNDARIO';
+export interface MostradorAdmin {
+  id: string; nombre: string; tipo: TipoMostrador; activo: boolean;
+  /** Si tiene PIN cargado. El hash nunca sale del backend. */
+  tienePin: boolean;
+}
+/** Lo que devuelve `/buffet/pin/verificar`: quién es el mostrador y su token de sesión. */
+export interface MostradorIdentificado { token: string; tipo: TipoMostrador; nombre: string }
 export interface TicketLineaBuffet { productoId: string; nombre: string; cantidad: number; precioUnit: number }
 export interface TicketBuffet { id: string; total: number; medioPago: MedioPago; vuelto: number; creadoEn: string; lineas: TicketLineaBuffet[] }
 export interface CajaBuffetEstado {

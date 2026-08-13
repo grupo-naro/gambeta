@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { CajaBuffetEstado, ProductoCobro, MedioPago } from '@/lib/types';
-import { abrirCaja, cerrarCaja, cobrar, buscarPorCodigo } from '@/lib/buffet-actions';
+import { abrirCaja, cerrarCaja, cobrar, buscarPorCodigo, salirDelMostrador } from '@/lib/buffet-actions';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
@@ -27,7 +27,11 @@ export function filtrarProductos(productos: ProductoCobro[], query: string): Pro
   return productos.filter((p) => norm(p.nombre).includes(q));
 }
 
-export function PantallaVenta({ inicial, productos }: { inicial: CajaBuffetEstado | null; productos: ProductoCobro[] }) {
+export function PantallaVenta({ inicial, productos, mostrador }: {
+  inicial: CajaBuffetEstado | null;
+  productos: ProductoCobro[];
+  mostrador: { nombre: string; tipo: 'PRINCIPAL' | 'SECUNDARIO' };
+}) {
   const [caja, setCaja] = useState(inicial);
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState('');
@@ -111,6 +115,22 @@ export function PantallaVenta({ inicial, productos }: { inicial: CajaBuffetEstad
       <input ref={foco} className="sr-only" aria-hidden tabIndex={-1} autoFocus
         onKeyDown={(e) => { const r = parseEscaneo(buffer.current, e.key); buffer.current = r.buffer; if (r.codigo) { e.preventDefault(); void onCodigo(r.codigo); } }}
         onChange={() => { /* el valor real vive en buffer.current */ }} value="" />
+
+      {/* Con dos puestos, cobrar en el mostrador equivocado ensucia la conciliación del cierre
+          y no hay forma de darse cuenta después. Por eso la identidad va siempre visible. */}
+      <div className="flex items-center justify-between rounded-2xl bg-neutral-100 px-4 py-2">
+        <p className="font-semibold text-neutral-800">
+          {mostrador.nombre}
+          <span className="ml-2 text-xs font-normal uppercase text-neutral-500">{mostrador.tipo}</span>
+        </p>
+        <button
+          type="button"
+          onClick={() => { void salirDelMostrador().then(() => { window.location.href = '/mostrador/pin'; }); }}
+          className="rounded-lg border border-neutral-300 px-3 py-1 text-sm font-medium text-neutral-700"
+        >
+          Salir
+        </button>
+      </div>
 
       <header className="rounded-2xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-600/20">
         <p className="text-sm font-medium text-emerald-700">Total del turno</p>
