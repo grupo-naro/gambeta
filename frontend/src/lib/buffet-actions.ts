@@ -2,7 +2,7 @@
 import { buffetFetch } from './buffet-api';
 import { crearSesionBuffet, borrarSesionBuffet, requireSesionBuffet } from './buffet-session';
 import { ApiError } from './types';
-import type { CajaBuffetEstado, CierreBuffet, MedioPago, CobroResultado, ProductoCobro, MostradorIdentificado } from './types';
+import type { CajaBuffetEstado, CierreBuffet, MedioPago, CobroResultado, ProductoCobro, MostradorIdentificado, LineaConciliacion } from './types';
 
 /**
  * El PIN ya no dice solo "sí o no": dice QUÉ mostrador es. El token que devuelve el backend
@@ -52,4 +52,20 @@ export async function buscarPorCodigo(codigoBarra: string): Promise<Resultado<Pr
 
 export async function cobrar(input: { uid: string; medioPago: MedioPago; montoPagado: number; items: { productoId: string; cantidad: number }[] }): Promise<Resultado<CobroResultado>> {
   return conSesion(() => buffetFetch<CobroResultado>('/buffet/cobrar', { method: 'POST', body: JSON.stringify(input) }));
+}
+
+export async function entregarStock(items: { productoId: string; cantidad: number }[]): Promise<Resultado<{ entregaId: string }>> {
+  return conSesion(() => buffetFetch<{ entregaId: string }>('/buffet/entregas', {
+    method: 'POST', body: JSON.stringify({ items }),
+  }));
+}
+
+export async function conciliarCaja(
+  cajaId: string,
+  conteos: { productoId: string; contado: number }[],
+): Promise<Resultado<{ lineas: (LineaConciliacion & { contado: number; diferencia: number })[] }>> {
+  return conSesion(() => buffetFetch<{ lineas: (LineaConciliacion & { contado: number; diferencia: number })[] }>(
+    `/buffet/cajas/${encodeURIComponent(cajaId)}/conciliacion`,
+    { method: 'POST', body: JSON.stringify({ conteos }) },
+  ));
 }
