@@ -10,7 +10,7 @@ import { buffetPinService } from '../services/buffetPin.service.js';
 import { buffetEntregaService } from '../services/buffetEntrega.service.js';
 import { buffetConciliacionService } from '../services/buffetConciliacion.service.js';
 import { mostradorService } from '../services/mostrador.service.js';
-import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema } from '../validators/buffet.schema.js';
+import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema } from '../validators/buffet.schema.js';
 import { idParamSchema } from '../validators/reserva.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
 import { Forbidden, NotFound, Unauthorized } from '../utils/errors.js';
@@ -61,8 +61,17 @@ buffetRoutes.post('/entregas', authMostrador, validate(entregarSchema), async (r
   } catch (e) { next(e); }
 });
 
-buffetRoutes.get('/stock-asignado', authMostrador, async (req, res, next) => {
-  try { res.json(await buffetEntregaService.stockAsignado((req as any).mostrador.id)); } catch (e) { next(e); }
+buffetRoutes.get('/stock-asignado', authMostrador, validate(stockAsignadoSchema), async (req, res, next) => {
+  try {
+    const propio = (req as any).mostrador.id as string;
+    const pedido = ((req as any).valid.query.mostradorId as string | undefined) ?? propio;
+    // Ver el asignado de OTRO puesto es cosa del principal: es el que reparte y el que
+    // concilia. Si cualquiera pudiera, el secundario vería el inventario ajeno.
+    if (pedido !== propio && (req as any).mostrador.tipo !== 'PRINCIPAL') {
+      return next(Forbidden('Solo el mostrador principal puede ver el stock de otro puesto'));
+    }
+    res.json(await buffetEntregaService.stockAsignado(pedido));
+  } catch (e) { next(e); }
 });
 
 // Mismo guard de tipo que el POST (ahí vive dentro del servicio, porque `porMostradorId` es

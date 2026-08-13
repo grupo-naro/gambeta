@@ -116,7 +116,7 @@ describe('buffet: productos activos (mostrador)', () => {
     return login.body.token;
   }
 
-  it('devuelve solo activos, ordenados por nombre, con {id,nombre,precio}', async () => {
+  it('devuelve solo activos, ordenados por nombre, con {id,nombre,precio,stock}', async () => {
     const p = getPrisma();
     await p.productoBuffet.create({ data: { nombre: 'Pancho', precio: '2500', stock: 5, activo: true } });
     await p.productoBuffet.create({ data: { nombre: 'Agua', precio: '1000', stock: 5, activo: true } });
@@ -126,7 +126,7 @@ describe('buffet: productos activos (mostrador)', () => {
     const r = await mostrador(supertest(app).get('/buffet/productos/activos'), token);
     expect(r.status).toBe(200);
     expect(r.body.map((x: any) => x.nombre)).toEqual(['Agua', 'Pancho']);
-    expect(r.body[0]).toEqual({ id: expect.any(String), nombre: 'Agua', precio: 1000 });
+    expect(r.body[0]).toEqual({ id: expect.any(String), nombre: 'Agua', precio: 1000, stock: 5 });
   });
 
   it('sin buffet-key devuelve 401', async () => {

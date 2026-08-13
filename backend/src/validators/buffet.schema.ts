@@ -76,3 +76,9 @@ export const setActivoMostradorSchema = z.object({
   query: empty,
   params: z.object({ id: z.string().min(1) }),
 });
+
+export const stockAsignadoSchema = z.object({
+  body: z.unknown(),
+  query: z.object({ mostradorId: z.string().min(1).optional() }),
+  params: empty,
+});

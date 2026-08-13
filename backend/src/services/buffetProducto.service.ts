@@ -28,12 +28,14 @@ export const buffetProductoService = {
     return rows.map(toDTO);
   },
 
-  async listActivos(): Promise<{ id: string; nombre: string; precio: number }[]> {
+  async listActivos(): Promise<{ id: string; nombre: string; precio: number; stock: number }[]> {
     const rows = await prisma.productoBuffet.findMany({
       where: { activo: true },
       orderBy: { nombre: 'asc' },
     });
-    return rows.map((p) => ({ id: p.id, nombre: p.nombre, precio: Number(p.precio) }));
+    // `stock` es el general (el del principal). La pantalla de entrega lo necesita para no
+    // ofrecer repartir lo que no hay; la de venta lo ignora.
+    return rows.map((p) => ({ id: p.id, nombre: p.nombre, precio: Number(p.precio), stock: p.stock }));
   },
 
   async list(): Promise<ProductoDTO[]> {
