@@ -131,5 +131,12 @@ export interface CierreBuffet {
   totalUnidades: number; totalMonto: number; totalEfectivo: number; totalTransferencia: number;
   porProducto: LineaCierreBuffet[];
 }
-export interface ProductoCobro { id: string; nombre: string; precio: number }
+export interface ProductoCobro { id: string; nombre: string; precio: number; stock: number }
+export interface StockAsignado { productoId: string; cantidad: number }
+export interface ConciliacionPendiente {
+  cajaId: string; mostradorNombre: string; cerradaEn: string; totalMonto: number;
+}
+export interface LineaConciliacion {
+  productoId: string; nombre: string; entregado: number; vendido: number; esperado: number;
+}
 export interface CobroResultado { ticketId: string; total: number; vuelto: number; medioPago: MedioPago; caja: CajaBuffetEstado }
