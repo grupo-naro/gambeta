@@ -991,8 +991,58 @@ git commit -m "feat(reservas): elegir entre Mercado Pago y transferencia al rese
   desde el primer momento en vez de esperar al segundo deploy.
 - El panel tolera el skew en la otra dirección: `metodoSena` es opcional y sin él no muestra nada.
 
+## ⚠️ Verificación pendiente antes de mergear
+
+**Ninguna de las 11 filas de verificación manual de la Task 6 se corrió**, y `reservas/` no tiene
+tests automatizados por decisión explícita. Docker estuvo apagado toda la ejecución, así que las
+tres tasks de `reservas/` (4, 5 y 6) llegaron al final **sin tests ni verificación manual**: la
+única red que tuvieron fue la lectura de los revisores. Esto hay que correrlo.
+
+**Imprescindibles** (las eligió la revisión final por ser las que ninguna otra red cubre):
+
+1. **Ningún método → "reservas cerradas"**: desvincular Mercado Pago y vaciar alias/CBU.
+2. **Solo transferencia**: es la capacidad nueva entera, y la que justifica la rama.
+3. **Flujo de transferencia completo**, y en particular **tocar el link de WhatsApp con el
+   `adminWhatsapp` real y confirmar que abre el chat correcto**.
+4. **Flujo de Mercado Pago**: es regresión del camino que hoy cobra plata, y `elegir()` reordenó
+   ese código sin que nadie lo ejecutara.
+5. **Turno ocupado mientras el cliente elegía**: el único camino con manejo de estado no trivial.
+6. **Socio**, más el chequeo en base de que la reserva web queda con
+   `metodoSena = 'TRANSFERENCIA'` y la de socio con `null`.
+
+**Se pueden dejar pasar**: "los dos métodos" y "solo Mercado Pago" (quedan cubiertos al preparar
+2 y 4), "Volver" y "sin WhatsApp cargado" (verificables por lectura con certeza).
+
+**Zona gris, conviene correrlo**: el botón de **copiar**. Ese código se reescribió en una ronda de
+fix y nunca se ejecutó ni una vez. Probarlo en un teléfono real sobre HTTPS **y** sobre IP de red
+local (contexto no seguro) es justo el caso que motivó el fix.
+
+Además, **dos tests de integración nunca se ejecutaron**: los de canonización del `adminWhatsapp`
+en `backend/tests/integration/config-sena-datos-pago.test.ts`. Están verificados por lectura
+contra la implementación real de `normalizarWhatsapp`, pero correr
+`npx vitest run tests/integration/config-sena-datos-pago.test.ts` es lo primero que hay que hacer
+la próxima vez que haya Docker.
+
 ## Lo que queda afuera
 
+- **Los datos para transferir viven en un solo lugar efímero.** El sitio no tiene pantalla de "mis
+  reservas" y el backend no manda ningún WhatsApp al crear la reserva (`evolutionService` solo se
+  dispara en `aprobarSena`). Si el cliente toca "Listo" antes de copiar, o cierra la pestaña, no
+  hay forma de recuperar alias, CBU ni monto, y el turno se cancela solo a los 30 minutos. La
+  mitigación barata y alineada con lo que el sistema ya hace: mandarle esos datos por WhatsApp al
+  crear la reserva de transferencia.
+- **`Configuracion.adminWhatsapp` se sigue guardando crudo.** `config.schema.ts` lo valida como
+  `z.string().min(8)`. La canonización se hace a la salida, en `datosPago()`, así que un número
+  impresentable no rompe el link — pero el admin nunca se entera de que quedó descartado: la
+  pantalla simplemente deja de pedir el comprobante. Aplicar `whatsappField` en el schema de
+  config cerraría la raíz.
+- **Las reservas que crea el bot de WhatsApp van a quedar con `metodoSena = null`** aunque de
+  hecho sean transferencias, así que en el panel se van a ver como "sin método" al lado de las de
+  la web. No es regresión, pero es una asimetría que va a confundir al staff. Se cierra con una
+  línea en el workflow del bot.
+- No hay CI que corra `npm run test:unit`. Esta rama dejó la suite unitaria en rojo y sobrevivió
+  seis revisiones por task: es la segunda vez que pasa, porque `tsconfig.json` excluye `tests/` y
+  el typecheck no los ve.
 - Unificar las dos fuentes de número de WhatsApp (`reservas/src/lib/negocio.ts` hardcodeado y hoy
   vacío, vs `Configuracion.adminWhatsapp`).
 - Confirmar la transferencia automáticamente: el admin sigue aprobando a mano con
