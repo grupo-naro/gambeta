@@ -22,9 +22,17 @@ beforeEach(async () => {
   productoId = (await getPrisma().productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 20 } })).id;
 });
 
-/** Loguea un puesto por PIN y devuelve su token de `x-mostrador`. */
+// El límite de intentos de `loginLimiter` es una protección real contra fuerza bruta sobre un PIN
+// de 4 dígitos: no hay que aflojarlo para que los tests pasen. Este archivo solo necesita 2
+// tokens (uno por PIN), no uno por test — cachear por PIN evita re-loguearse en cada caso.
+const tokens = new Map<string, string>();
+
+/** Loguea un puesto por PIN y devuelve su token de `x-mostrador` (cacheado por PIN). */
 async function tokenDe(pin: string): Promise<string> {
+  const cacheado = tokens.get(pin);
+  if (cacheado) return cacheado;
   const r = await supertest(app).post('/buffet/pin/verificar').set('x-buffet-key', KEY).send({ pin });
+  tokens.set(pin, r.body.token);
   return r.body.token;
 }
 const comoMostrador = (r: any, token: string) => r.set('x-buffet-key', KEY).set('x-mostrador', token);
