@@ -60,6 +60,35 @@ export const buffetConciliacionService = {
   pendiente: resumenDe,
 
   /**
+   * Las cajas que esperan conteo: cerradas, sin conciliar, y de un puesto que no es el principal.
+   *
+   * Los tres filtros hacen falta. Excluir las del principal no es cosmético: `conciliar` las
+   * rechaza, porque sobre una caja del principal el conteo devolvería al general unidades que
+   * ya se descontaron al venderlas.
+   */
+  async pendientes(): Promise<{ cajaId: string; mostradorNombre: string; cerradaEn: string; totalMonto: number }[]> {
+    const cajas = await prisma.cajaBuffet.findMany({
+      where: { estado: 'CERRADA', mostradorId: { not: PRINCIPAL }, conteos: { none: {} } },
+      include: { mostrador: { select: { nombre: true } } },
+      orderBy: { cerradaEn: 'desc' },
+    });
+
+    const out = [];
+    for (const c of cajas) {
+      const { _sum } = await prisma.ticketBuffet.aggregate({
+        where: { cajaId: c.id }, _sum: { total: true },
+      });
+      out.push({
+        cajaId: c.id,
+        mostradorNombre: c.mostrador.nombre,
+        cerradaEn: (c.cerradaEn ?? c.abiertaEn).toISOString(),
+        totalMonto: Number(_sum.total ?? 0),
+      });
+    }
+    return out;
+  },
+
+  /**
    * Cierra la conciliación: guarda las cuatro cifras y devuelve al stock general **lo contado**,
    * no lo esperado.
    *

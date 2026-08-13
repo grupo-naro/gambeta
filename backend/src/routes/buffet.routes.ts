@@ -74,6 +74,13 @@ buffetRoutes.get('/stock-asignado', authMostrador, validate(stockAsignadoSchema)
   } catch (e) { next(e); }
 });
 
+buffetRoutes.get('/conciliaciones/pendientes', authMostrador, async (req, res, next) => {
+  try {
+    if ((req as any).mostrador.tipo !== 'PRINCIPAL') return next(Forbidden('La conciliación la ve el mostrador principal'));
+    res.json(await buffetConciliacionService.pendientes());
+  } catch (e) { next(e); }
+});
+
 // Mismo guard de tipo que el POST (ahí vive dentro del servicio, porque `porMostradorId` es
 // parte del input de negocio de `conciliar`; acá `pendiente` es una lectura pura sin ese input,
 // así que el guard queda en la ruta): la conciliación la ve el principal y el administrador, el
