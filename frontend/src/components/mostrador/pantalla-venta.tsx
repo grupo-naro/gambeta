@@ -52,6 +52,8 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
   const vuelto = calcularVuelto(Number(pagoTxt), total);
   const esSecundario = mostrador.tipo === 'SECUNDARIO';
   const yaTiene = asignadoPorProducto(asignado);
+  // No alcanza con "no tiene filas": vender todo deja filas en cantidad 0 (el backend no las borra).
+  const totalAsignado = asignado.reduce((a, f) => a + f.cantidad, 0);
 
   useEffect(() => {
     if (cobrando) return; // durante el cobro el foco va al input de pago
@@ -83,8 +85,11 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
     setOcupado(true);
     const r = await buscarPorCodigo(codigo);
     setOcupado(false);
-    if (r.ok) agregar(r.data);
-    else setError(/no encontr|not found/i.test(r.error) ? 'Producto no cargado' : r.error);
+    if (!r.ok) { setError(/no encontr|not found/i.test(r.error) ? 'Producto no cargado' : r.error); return; }
+    // El backend recién rechaza esto al cobrar, y como el cobro es una transacción un ítem
+    // de más ahí tira abajo toda la venta con el cliente adelante. Se corta acá, al escanear.
+    if (esSecundario && (yaTiene[r.data.id] ?? 0) === 0) { setError('No tenés ese producto asignado'); return; }
+    agregar(r.data);
   }
 
   async function confirmarCobro() {
@@ -103,24 +108,11 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
     setItems([]); setPagoTxt(''); setMedio('EFECTIVO'); setCobrando(false); setError('');
   }
 
-  if (!caja) {
-    return (
-      <main className="flex min-h-screen items-center justify-center p-6">
-        <button type="button" disabled={ocupado} onMouseDown={(e) => e.preventDefault()}
-          onClick={async () => { setOcupado(true); const r = await abrirCaja(); setOcupado(false); if (r.ok) setCaja(r.data); else setError(r.error); }}
-          className="h-32 w-full max-w-md rounded-3xl bg-emerald-600 text-4xl font-semibold text-white active:scale-95">
-          Abrir caja
-        </button>
-      </main>
-    );
-  }
-
-  return (
-    <main className="flex min-h-screen flex-col gap-4 p-4">
-      <input ref={foco} className="sr-only" aria-hidden tabIndex={-1} autoFocus
-        onKeyDown={(e) => { const r = parseEscaneo(buffer.current, e.key); buffer.current = r.buffer; if (r.codigo) { e.preventDefault(); void onCodigo(r.codigo); } }}
-        onChange={() => { /* el valor real vive en buffer.current */ }} value="" />
-
+  // El principal necesita entregar stock o contar un cierre pendiente ANTES de abrir su propia
+  // caja del día (típicamente lo primero que hace a la mañana) — por eso esto vive fuera del
+  // guard de "no hay caja abierta" y se renderiza en las dos pantallas, no solo en la de venta.
+  const barraIdentidad = (
+    <>
       {/* Con dos puestos, cobrar en el mostrador equivocado ensucia la conciliación del cierre
           y no hay forma de darse cuenta después. Por eso la identidad va siempre visible. */}
       <div className="flex items-center justify-between rounded-2xl bg-neutral-100 px-4 py-2">
@@ -155,6 +147,31 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
           ))}
         </div>
       )}
+    </>
+  );
+
+  if (!caja) {
+    return (
+      <main className="flex min-h-screen flex-col gap-4 p-6">
+        {barraIdentidad}
+        <div className="flex flex-1 items-center justify-center">
+          <button type="button" disabled={ocupado} onMouseDown={(e) => e.preventDefault()}
+            onClick={async () => { setOcupado(true); const r = await abrirCaja(); setOcupado(false); if (r.ok) setCaja(r.data); else setError(r.error); }}
+            className="h-32 w-full max-w-md rounded-3xl bg-emerald-600 text-4xl font-semibold text-white active:scale-95">
+            Abrir caja
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col gap-4 p-4">
+      <input ref={foco} className="sr-only" aria-hidden tabIndex={-1} autoFocus
+        onKeyDown={(e) => { const r = parseEscaneo(buffer.current, e.key); buffer.current = r.buffer; if (r.codigo) { e.preventDefault(); void onCodigo(r.codigo); } }}
+        onChange={() => { /* el valor real vive en buffer.current */ }} value="" />
+
+      {barraIdentidad}
 
       <header className="rounded-2xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-600/20">
         <p className="text-sm font-medium text-emerald-700">Total del turno</p>
@@ -215,7 +232,7 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
           {filtrarProductos(productos, query).length === 0 && (
             <p className="p-4 text-center text-neutral-500">Sin resultados</p>
           )}
-          {esSecundario && asignado.length === 0 && (
+          {esSecundario && totalAsignado === 0 && (
             <p className="p-4 text-center text-amber-700">
               No tenés stock asignado. Pedile al mostrador principal que te entregue.
             </p>
