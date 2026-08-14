@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import type { CajaBuffetEstado, ProductoCobro, MedioPago } from '@/lib/types';
+import type { CajaBuffetEstado, ProductoCobro, MedioPago, ConciliacionPendiente, StockAsignado } from '@/lib/types';
 import { abrirCaja, cerrarCaja, cobrar, buscarPorCodigo, salirDelMostrador } from '@/lib/buffet-actions';
+import { asignadoPorProducto } from '@/lib/mostrador-stock';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
@@ -27,10 +28,12 @@ export function filtrarProductos(productos: ProductoCobro[], query: string): Pro
   return productos.filter((p) => norm(p.nombre).includes(q));
 }
 
-export function PantallaVenta({ inicial, productos, mostrador }: {
+export function PantallaVenta({ inicial, productos, mostrador, pendientes, asignado }: {
   inicial: CajaBuffetEstado | null;
   productos: ProductoCobro[];
   mostrador: { nombre: string; tipo: 'PRINCIPAL' | 'SECUNDARIO' };
+  pendientes: ConciliacionPendiente[];
+  asignado: StockAsignado[];
 }) {
   const [caja, setCaja] = useState(inicial);
   const [items, setItems] = useState<Item[]>([]);
@@ -47,6 +50,8 @@ export function PantallaVenta({ inicial, productos, mostrador }: {
 
   const total = items.reduce((a, it) => a + it.precio * it.cantidad, 0);
   const vuelto = calcularVuelto(Number(pagoTxt), total);
+  const esSecundario = mostrador.tipo === 'SECUNDARIO';
+  const yaTiene = asignadoPorProducto(asignado);
 
   useEffect(() => {
     if (cobrando) return; // durante el cobro el foco va al input de pago
@@ -132,6 +137,25 @@ export function PantallaVenta({ inicial, productos, mostrador }: {
         </button>
       </div>
 
+      {mostrador.tipo === 'PRINCIPAL' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <a href="/mostrador/entregar" className="rounded-xl border border-emerald-600 px-4 py-2 font-semibold text-emerald-700">
+            Entregar al secundario
+          </a>
+          {/* El conteo es presencial: el secundario cierra, trae lo que sobro y se cuenta ahi
+              mismo. Por eso el aviso va arriba de todo y no escondido en un menu. */}
+          {pendientes.map((p) => (
+            <a
+              key={p.cajaId}
+              href={`/mostrador/conciliar/${p.cajaId}`}
+              className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-white"
+            >
+              Contar el cierre de {p.mostradorNombre}
+            </a>
+          ))}
+        </div>
+      )}
+
       <header className="rounded-2xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-600/20">
         <p className="text-sm font-medium text-emerald-700">Total del turno</p>
         <p className="text-3xl font-bold tabular-nums text-emerald-800">{money(caja.totalMonto)}</p>
@@ -171,16 +195,30 @@ export function PantallaVenta({ inicial, productos, mostrador }: {
           placeholder="Buscar producto…" aria-label="Buscar producto"
           className="w-full rounded-2xl border-2 border-neutral-300 p-3 text-xl" />
         <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border-2 border-neutral-200 bg-white">
-          {filtrarProductos(productos, query).map((p) => (
-            <button key={p.id} type="button" disabled={ocupado} onMouseDown={(e) => e.preventDefault()}
-              onClick={() => agregar(p)}
-              className="flex w-full items-center justify-between border-b p-3 text-left text-lg active:bg-neutral-100 disabled:opacity-50">
-              <span>{p.nombre}</span>
-              <span className="tabular-nums text-neutral-500">{money(p.precio)}</span>
-            </button>
-          ))}
+          {filtrarProductos(productos, query).map((p) => {
+            const tiene = yaTiene[p.id] ?? 0;
+            const sinAsignado = esSecundario && tiene === 0;
+            return (
+              <button key={p.id} type="button" disabled={ocupado || sinAsignado} onMouseDown={(e) => e.preventDefault()}
+                onClick={() => agregar(p)}
+                className="flex w-full items-center justify-between border-b p-3 text-left text-lg active:bg-neutral-100 disabled:opacity-40">
+                <span>
+                  {p.nombre}
+                  {/* Sin esto, tocar un producto que no le entregaron termina en un error del
+                      backend con el cliente adelante. */}
+                  {esSecundario && <span className="block text-xs text-neutral-500">Tenés {tiene}</span>}
+                </span>
+                <span className="tabular-nums text-neutral-500">{money(p.precio)}</span>
+              </button>
+            );
+          })}
           {filtrarProductos(productos, query).length === 0 && (
             <p className="p-4 text-center text-neutral-500">Sin resultados</p>
+          )}
+          {esSecundario && asignado.length === 0 && (
+            <p className="p-4 text-center text-amber-700">
+              No tenés stock asignado. Pedile al mostrador principal que te entregue.
+            </p>
           )}
         </div>
       </section>
