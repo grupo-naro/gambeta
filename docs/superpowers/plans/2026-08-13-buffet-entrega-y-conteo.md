@@ -1026,8 +1026,47 @@ git commit -m "feat(buffet): aviso de cierre pendiente y cantidades asignadas en
 - **Desplegar el backend antes que el panel.** El POS nuevo llama a `/buffet/conciliaciones/pendientes`; contra un backend viejo eso da 404 y la pantalla de venta no carga. Al revés no hay problema: el backend nuevo es compatible con el POS viejo.
 - Recordá que el workflow de `backend/.github/workflows/deploy.yml` **no se ejecuta** — está fuera de la raíz del repo, así que el deploy del backend sigue siendo manual por SSH.
 
+## ⚠️ Verificación pendiente antes de mergear
+
+Las pantallas **no tienen tests de render y no los van a tener** (decisión del proyecto), y la
+verificación manual **nunca se corrió**: no hubo entorno levantado. La única red fue la lectura de
+los revisores, que encontró varios defectos reales — incluido uno que el propio fix introdujo.
+Esto hay que probarlo con dos dispositivos:
+
+1. **El escenario de las 3 unidades**, que es el que expone si el refresco funciona: el principal
+   entrega 3 → el secundario vende las 3 → **el botón tiene que deshabilitarse solo**, sin
+   recargar, y aparecer el aviso de "pedile al principal".
+2. **El aviso del cierre**: el secundario cierra su caja → en la pantalla del principal tiene que
+   aparecer el banner ámbar **solo**, dentro de ~30 segundos (lo trae el polling).
+3. **El conteo con faltante**: contar menos de lo esperado y verificar en la base que
+   `ProductoBuffet.stock` sube por **lo contado** y que `StockMostrador` queda en 0. Es la
+   decisión de fondo del diseño y la única que no se puede deshacer.
+4. **Desactivar un puesto con el dispositivo abierto**: tiene que mandar al PIN con un mensaje de
+   sesión revocada, no al error genérico ni a un loop. Es la palanca de revocación: conviene
+   saber cómo se comporta antes de necesitarla.
+5. **Volver a entrar a una conciliación ya hecha**: tiene que decir "Esta caja ya fue conciliada".
+
+## Notas para el deploy (agregado tras la implementación)
+
+- **Todos los dispositivos tienen que volver a poner el PIN una vez**: el formato viejo de cookie
+  se rechaza a propósito, y hay un test que lo fija. Ojo con `loginLimiter` ese día — son 10
+  intentos cada 15 minutos **por IP**, y como las llamadas salen del server de Next, todos los
+  dispositivos comparten un bucket. Si hay que re-PINear varias tablets, espacialo.
+- **Cargar el PIN del secundario** desde el panel antes de usarlo: nace con `pinHash = ''` y con
+  eso no entra nadie. El panel ahora lo dice explícitamente. El principal hereda el PIN viejo.
+
 ## Lo que queda afuera
 
+- **El secundario todavía puede pasarse de su cantidad asignada.** El guard es "tiene 0", no
+  "tiene menos de lo que estás cargando al carrito", así que con 3 asignadas se pueden sumar 4 y
+  el error aparece recién al cobrar — tirando abajo la venta entera, porque el cobro es una
+  transacción. Es un hueco del **spec**, que solo pidió el caso cero.
+- **`resumenDe` replica un solo guard de los tres que tiene `conciliar`**: rechaza la caja ya
+  conciliada, pero no la del principal ni la abierta. Entrando por URL a la conciliación de una
+  caja del principal se ven cifras negativas inventadas. Solo se llega tipeando la URL.
+- **`PATCH /buffet/mostradores/:id` no audita.** Es la acción que da y quita acceso al POS.
+- **`apiFetch` del panel sigue lanzando `ApiAuthError` antes de leer el body**, así que pierde el
+  mensaje del backend — lo que se arregló en `buffetFetch` quedó inconsistente con su vecino.
 - **Anular o corregir una entrega.** `entregar()` no es idempotente ni reversible: un doble tap mueve el stock dos veces. Resolverlo bien implica decidir entre anular la entrega o hacer una compensatoria.
 - **El histórico de conciliaciones y de entregas**, y las vistas del panel: es la pieza C.
 - **Etiquetar `GET /buffet/cajas` por mostrador**: también pieza C.
