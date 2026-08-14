@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { mostradorDeSesion } from '@/lib/buffet-session';
+import { mostradorDeSesion, manejarBuffetNoAutorizado } from '@/lib/buffet-session';
 import { buffetFetch } from '@/lib/buffet-api';
 import type { ProductoCobro, StockAsignado } from '@/lib/types';
 import { PantallaEntrega } from '@/components/mostrador/pantalla-entrega';
@@ -16,9 +16,16 @@ export default async function EntregarPage() {
     );
   }
 
-  const [productos, asignado] = await Promise.all([
-    buffetFetch<ProductoCobro[]>('/buffet/productos/activos'),
-    buffetFetch<StockAsignado[]>('/buffet/stock-asignado?mostradorId=mostrador-secundario'),
-  ]);
+  let productos: ProductoCobro[];
+  let asignado: StockAsignado[];
+  try {
+    [productos, asignado] = await Promise.all([
+      buffetFetch<ProductoCobro[]>('/buffet/productos/activos'),
+      buffetFetch<StockAsignado[]>('/buffet/stock-asignado?mostradorId=mostrador-secundario'),
+    ]);
+  } catch (e) {
+    await manejarBuffetNoAutorizado(e);
+    throw e;
+  }
   return <PantallaEntrega productos={productos} asignado={asignado} />;
 }

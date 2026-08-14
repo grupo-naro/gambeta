@@ -1,6 +1,8 @@
 import 'server-only';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { ApiAuthError } from './types';
 
 export const BUFFET_COOKIE = 'buffet';
 const DIAS_30 = 30 * 24 * 60 * 60 * 1000;
@@ -93,4 +95,21 @@ export async function sesionBuffetValida(): Promise<boolean> {
 
 export async function requireSesionBuffet(): Promise<void> {
   if (!(await sesionBuffetValida())) throw new Error('Sesión de buffet inválida');
+}
+
+/**
+ * Si `e` es un 401 (`buffetFetch` ya lo distingue como `ApiAuthError`), borra la cookie del
+ * dispositivo y manda al PIN; para cualquier otro error, no hace nada y deja que el catch
+ * del caller lo siga manejando (409, error.tsx genérico, etc).
+ *
+ * El orden importa: hay que borrar la cookie ANTES de redirigir. La cookie firmada sigue
+ * siendo válida aunque el mostrador se haya desactivado en el backend — es solo una firma
+ * HMAC + fecha de expiración, no consulta al servidor — así que si no la borramos acá,
+ * `sesionBuffetValida()` en `pin/page.tsx` la ve "válida" y rebota de nuevo a `/mostrador`,
+ * cerrando el loop del que este helper existe para sacar al operador.
+ */
+export async function manejarBuffetNoAutorizado(e: unknown): Promise<void> {
+  if (!(e instanceof ApiAuthError)) return;
+  await borrarSesionBuffet();
+  redirect('/mostrador/pin');
 }

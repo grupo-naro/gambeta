@@ -13,8 +13,15 @@ export function PantallaConteo({ cajaId, lineas }: { cajaId: string; lineas: Lin
   const [enviando, setEnviando] = useState(false);
 
   function confirmar() {
-    setError(''); setEnviando(true);
     const conteos = lineas.map((l) => ({ productoId: l.productoId, contado: contado[l.productoId] ?? 0 }));
+    // Es irreversible (el backend rechaza un segundo intento con 409) y el default de un input
+    // vacío es 0, o sea "faltó todo". Un tap sin querer sobre un botón que ya está habilitado
+    // registraría cada línea entera como faltante. El resumen deja ver eso antes de mandarlo,
+    // igual que "Cerrar caja" en la pantalla de venta.
+    const vuelven = conteos.reduce((a, c) => a + c.contado, 0);
+    const faltan = lineas.reduce((a, l) => a + Math.max(0, l.esperado - (contado[l.productoId] ?? 0)), 0);
+    if (!confirm(`¿Confirmar el conteo?\n\nVuelven ${vuelven} unidades al stock general.\n${faltan > 0 ? `Se registran ${faltan} como faltantes.` : 'No hay faltantes.'}\n\nNo se puede deshacer.`)) return;
+    setError(''); setEnviando(true);
     void conciliarCaja(cajaId, conteos).then((r) => {
       setEnviando(false);
       if (r.ok) setResultado(r.data.lineas);

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { CajaBuffetEstado, ProductoCobro, MedioPago, ConciliacionPendiente, StockAsignado } from '@/lib/types';
 import { abrirCaja, cerrarCaja, cobrar, buscarPorCodigo, salirDelMostrador } from '@/lib/buffet-actions';
 import { asignadoPorProducto } from '@/lib/mostrador-stock';
@@ -35,6 +36,7 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
   pendientes: ConciliacionPendiente[];
   asignado: StockAsignado[];
 }) {
+  const router = useRouter();
   const [caja, setCaja] = useState(inicial);
   const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState('');
@@ -47,6 +49,12 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
   const foco = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const uidCobro = useRef<string>('');
+  // Espejo de `ocupado`/`cobrando` en refs: el refresco periódico los lee sin llevarlos como
+  // dependencia del efecto, así el intervalo de 30s no se reinicia cada vez que uno cambia.
+  const ocupadoRef = useRef(ocupado);
+  const cobrandoRef = useRef(cobrando);
+  useEffect(() => { ocupadoRef.current = ocupado; }, [ocupado]);
+  useEffect(() => { cobrandoRef.current = cobrando; }, [cobrando]);
 
   const total = items.reduce((a, it) => a + it.precio * it.cantidad, 0);
   const vuelto = calcularVuelto(Number(pagoTxt), total);
@@ -66,6 +74,20 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
     document.addEventListener('click', recuperar);
     return () => { clearInterval(id); document.removeEventListener('click', recuperar); };
   }, [cobrando]);
+
+  // El aviso "Contar el cierre de X" depende de un evento que ocurre en OTRO dispositivo (el
+  // secundario cerrando su caja): sin refrescar, el principal nunca se entera salvo que alguien
+  // recargue la pestaña a mano. Solo aplica al principal — el secundario no tiene nada
+  // equivalente que esperar. No se dispara mientras hay un cobro en curso, para no pisarle la
+  // pantalla al cajero a mitad de una venta.
+  useEffect(() => {
+    if (mostrador.tipo !== 'PRINCIPAL') return;
+    const id = setInterval(() => {
+      if (ocupadoRef.current || cobrandoRef.current) return;
+      router.refresh();
+    }, 30000);
+    return () => clearInterval(id);
+  }, [mostrador.tipo, router]);
 
   function agregar(p: { id: string; nombre: string; precio: number }) {
     setError('');
@@ -106,6 +128,12 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
     if (!r.ok) { setError(r.error); return; }
     setCaja(r.data.caja);
     setItems([]); setPagoTxt(''); setMedio('EFECTIVO'); setCobrando(false); setError('');
+    // `asignado`/`pendientes` vienen de props del server component y no se actualizan solos:
+    // sin esto, "Tenés N" y el aviso de sin-stock quedan congelados en el valor con el que se
+    // abrió la pantalla, y la próxima venta del mismo producto puede pasarse del asignado.
+    // Es seguro: `caja` vive en useState y no se pisa con la prop `inicial`, y el carrito ya
+    // se vació arriba, así que no hay nada en pantalla que el refresh pueda arruinar.
+    router.refresh();
   }
 
   // El principal necesita entregar stock o contar un cierre pendiente ANTES de abrir su propia
@@ -250,7 +278,7 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
           Cobrar {money(total)}
         </button>
         <button type="button" disabled={ocupado} onMouseDown={(e) => e.preventDefault()}
-          onClick={async () => { if (!confirm(`¿Cerrar la caja? Se vendieron ${money(caja.totalMonto)}.`)) return; setOcupado(true); const r = await cerrarCaja(); setOcupado(false); if (r.ok) { alert(`Caja cerrada.\nEfectivo ${money(r.data.totalEfectivo)} · Transferencia ${money(r.data.totalTransferencia)}`); setCaja(null); setItems([]); } else setError(r.error); }}
+          onClick={async () => { if (!confirm(`¿Cerrar la caja? Se vendieron ${money(caja.totalMonto)}.`)) return; setOcupado(true); const r = await cerrarCaja(); setOcupado(false); if (r.ok) { alert(`Caja cerrada.\nEfectivo ${money(r.data.totalEfectivo)} · Transferencia ${money(r.data.totalTransferencia)}`); setCaja(null); setItems([]); router.refresh(); } else setError(r.error); }}
           className="h-16 flex-1 rounded-2xl bg-neutral-900 text-lg font-semibold text-white active:scale-95">
           Cerrar caja
         </button>

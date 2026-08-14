@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { mostradorDeSesion } from '@/lib/buffet-session';
+import { mostradorDeSesion, manejarBuffetNoAutorizado } from '@/lib/buffet-session';
 import { buffetFetch } from '@/lib/buffet-api';
 import { ApiError } from '@/lib/types';
 import type { LineaConciliacion } from '@/lib/types';
@@ -22,6 +22,8 @@ export default async function ConciliarPage({ params }: { params: Promise<{ caja
   try {
     lineas = await buffetFetch<LineaConciliacion[]>(`/buffet/cajas/${encodeURIComponent(cajaId)}/conciliacion`);
   } catch (e) {
+    // Un mostrador desactivado (401) manda al PIN, no al error.tsx genérico.
+    await manejarBuffetNoAutorizado(e);
     // El backend rechaza con 409 una caja que ya tiene conteos (mismo guard y mismo mensaje que
     // usa `conciliar`). Mostramos ese mensaje tal cual en vez de dejar que el error caiga en el
     // error.tsx genérico: el operador tiene que ver POR QUÉ no puede contar esta caja, no un

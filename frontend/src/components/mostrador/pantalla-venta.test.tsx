@@ -27,9 +27,9 @@ describe('calcularVuelto', () => {
 
 describe('filtrarProductos', () => {
   const prods = [
-    { id: '1', nombre: 'Coca Cola', precio: 1500 },
-    { id: '2', nombre: 'Café', precio: 800 },
-    { id: '3', nombre: 'Agua', precio: 1000 },
+    { id: '1', nombre: 'Coca Cola', precio: 1500, stock: 10 },
+    { id: '2', nombre: 'Café', precio: 800, stock: 10 },
+    { id: '3', nombre: 'Agua', precio: 1000, stock: 10 },
   ];
   it('query vacío devuelve todos', () => {
     expect(filtrarProductos(prods, '')).toHaveLength(3);
