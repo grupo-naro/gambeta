@@ -6,11 +6,15 @@ describe('asignadoPorProducto', () => {
     expect(asignadoPorProducto([{ productoId: 'a', cantidad: 7 }])).toEqual({ a: 7 });
   });
 
-  it('un producto sin fila no aparece, y se lee como cero', () => {
+  it('cada producto queda con su propia cantidad', () => {
     // Es lo que permite que la botonera del secundario deshabilite lo que no tiene sin
     // pedirle al backend una fila en cero por cada producto del catalogo.
-    const mapa = asignadoPorProducto([{ productoId: 'a', cantidad: 7 }]);
-    expect(mapa['b'] ?? 0).toBe(0);
+    // Con una sola fila, un bug de indexado (usar la cantidad del ultimo, o indexar por la
+    // clave equivocada) pasaria igual. Con dos, no.
+    expect(asignadoPorProducto([
+      { productoId: 'a', cantidad: 7 },
+      { productoId: 'b', cantidad: 3 },
+    ])).toEqual({ a: 7, b: 3 });
   });
 
   it('sin filas devuelve un mapa vacio', () => {
