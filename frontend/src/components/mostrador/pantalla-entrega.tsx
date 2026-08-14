@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { entregarStock } from '@/lib/buffet-actions';
 import { asignadoPorProducto } from '@/lib/mostrador-stock';
@@ -11,6 +11,10 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
   const [cant, setCant] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
   const [enviando, setEnviando] = useState(false);
+  // router.refresh() es asíncrono: entre que limpiamos el form y que llegan los números nuevos
+  // del server (el "ya tiene" actualizado), useTransition nos dice cuándo terminó de verdad.
+  const [refrescando, startRefresh] = useTransition();
+  const [confirmacion, setConfirmacion] = useState<{ productoId: string; nombre: string; cantidad: number }[] | null>(null);
 
   const items = Object.entries(cant)
     .map(([productoId, cantidad]) => ({ productoId, cantidad }))
@@ -23,10 +27,22 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
 
   function entregar() {
     if (items.length === 0) { setError('Cargá al menos un producto'); return; }
-    setError(''); setEnviando(true);
+    setError(''); setEnviando(true); setConfirmacion(null);
     void entregarStock(items).then((r) => {
       setEnviando(false);
-      if (r.ok) { setCant({}); router.refresh(); }
+      if (r.ok) {
+        // La confirmación explícita queda en pantalla mientras dura el refresh: sin esto el
+        // form queda en blanco y el "ya tiene" sigue viejo, el operador duda si se aplicó, y
+        // como el POST no tiene clave de idempotencia, entregar "por las dudas" mueve stock de
+        // verdad una segunda vez.
+        setConfirmacion(items.map((i) => ({
+          productoId: i.productoId,
+          nombre: productos.find((p) => p.id === i.productoId)?.nombre ?? i.productoId,
+          cantidad: i.cantidad,
+        })));
+        setCant({});
+        startRefresh(() => { router.refresh(); });
+      }
       // La entrega es todo o nada: el servicio la hace en una transacción. Si falla, no se
       // movió nada, y decirlo evita que el operador entregue dos veces por las dudas.
       else setError(`${r.error} — no se entregó nada.`);
@@ -40,7 +56,20 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
         <a href="/mostrador" className="rounded-lg border px-3 py-1 text-sm font-medium">Volver</a>
       </header>
 
-      {error && <p aria-live="polite" className="text-lg font-semibold text-red-600">{error}</p>}
+      <p aria-live="polite" className={error ? 'text-lg font-semibold text-red-600' : 'sr-only'}>{error}</p>
+
+      {confirmacion && (
+        <div aria-live="polite" className="rounded-2xl border border-emerald-600 bg-emerald-50 p-3">
+          <p className="font-semibold text-emerald-800">
+            {refrescando ? 'Entregado, actualizando la pantalla…' : 'Entregado.'}
+          </p>
+          <ul className="mt-1 text-sm text-emerald-800">
+            {confirmacion.map((c) => (
+              <li key={c.productoId}>{c.nombre} × {c.cantidad}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <ul className="divide-y rounded-2xl border bg-white">
         {productos.map((p) => (

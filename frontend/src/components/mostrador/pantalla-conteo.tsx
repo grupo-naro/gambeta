@@ -52,7 +52,7 @@ export function PantallaConteo({ cajaId, lineas }: { cajaId: string; lineas: Lin
         </p>
       </header>
 
-      {error && <p aria-live="polite" className="text-lg font-semibold text-red-600">{error}</p>}
+      <p aria-live="polite" className={error ? 'text-lg font-semibold text-red-600' : 'sr-only'}>{error}</p>
 
       <ul className="divide-y rounded-2xl border bg-white">
         {lineas.map((l) => {
