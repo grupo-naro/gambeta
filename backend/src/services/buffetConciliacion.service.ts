@@ -51,8 +51,18 @@ async function calcularResumen(cajaId: string): Promise<{ lineas: LineaConciliac
   return { lineas: [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), entregaIds };
 }
 
-/** Parte pública de `calcularResumen`: solo las líneas, forma que especifica el brief. */
+/**
+ * Parte pública de `calcularResumen`: solo las líneas, forma que especifica el brief.
+ *
+ * El guard de "ya conciliada" va acá, con la misma pregunta que ya usa `conciliar` (¿hay
+ * `ConteoCierreLinea` para esta caja?), no inferido de un síntoma como `esperado < 0`: una
+ * entrega nueva sobre el mismo producto después de conciliar puede compensar exactamente el
+ * `vendido` viejo y hacer que todas las líneas den cero, burlando esa heurística y mostrando
+ * cifras del turno siguiente como si fueran del cierre ya conciliado.
+ */
 async function resumenDe(cajaId: string): Promise<LineaConciliacion[]> {
+  const ya = await prisma.conteoCierreLinea.count({ where: { cajaId } });
+  if (ya > 0) throw Conflict('Esta caja ya fue conciliada');
   return (await calcularResumen(cajaId)).lineas;
 }
 

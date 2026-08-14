@@ -127,6 +127,20 @@ describe('cajas que esperan conteo', () => {
     expect(r.body).toHaveLength(0);
   });
 
+  it('una caja ya conciliada: el GET de conciliación da 409, no cifras inventadas del turno siguiente', async () => {
+    // Guard real, no heurística: si se infiriera "ya conciliada" de un síntoma como esperado < 0,
+    // una entrega nueva del mismo producto después de conciliar podría compensar el vendido viejo
+    // y dar todas las líneas en cero, colando el turno siguiente como si fuera el cierre viejo.
+    const cajaId = await turnoDelSecundario(3);
+    const principal = await tokenDe('1111');
+    await comoMostrador(supertest(app).post(`/buffet/cajas/${cajaId}/conciliacion`), principal)
+      .send({ conteos: [{ productoId, contado: 7 }] });
+
+    const r = await comoMostrador(supertest(app).get(`/buffet/cajas/${cajaId}/conciliacion`), principal);
+    expect(r.status).toBe(409);
+    expect(r.body.error.message).toMatch(/ya fue conciliada/);
+  });
+
   it('no lista cajas todavia abiertas', async () => {
     const principal = await tokenDe('1111');
     await comoMostrador(supertest(app).post('/buffet/entregas'), principal)
