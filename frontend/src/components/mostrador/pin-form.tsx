@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { verificarPin } from '@/lib/buffet-actions';
 
-export function PinForm() {
+export function PinForm({ mensaje }: { mensaje?: string }) {
   const router = useRouter();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -28,6 +28,11 @@ export function PinForm() {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-sm flex-col items-center justify-center gap-8 p-6">
       <h1 className="text-3xl font-semibold">Buffet</h1>
+
+      {/* Motivo real por el que se volvió acá (mostrador desactivado, key rotada), no el
+          genérico "no se pudo cargar" del error.tsx. Va separado del error transitorio de un
+          PIN mal tipeado: no se limpia solo, describe por qué arrancó en esta pantalla. */}
+      {mensaje && <p className="text-center text-lg font-medium text-amber-700">{mensaje}</p>}
 
       <div className="flex gap-3" aria-label="PIN ingresado">
         {[0, 1, 2, 3].map((i) => (

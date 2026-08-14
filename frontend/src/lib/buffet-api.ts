@@ -35,13 +35,15 @@ export async function buffetFetch<T = unknown>(path: string, init: RequestInit =
     headers: cabecerasBuffet(key, await tokenMostradorDeSesion(), (init.headers ?? {}) as Record<string, string>),
     cache: 'no-store',
   });
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : null;
   // Igual que `apiFetch`: un 401 no es "no se pudo cargar", es "el token murió" — un mostrador
   // desactivado o una rotación de BUFFET_API_KEY dejan la cookie del dispositivo firmada y
   // vigente pero inválida contra el backend. Distinguirlo permite mandar al PIN en vez de al
-  // error.tsx genérico.
-  if (res.status === 401) throw new ApiAuthError();
-  const text = await res.text();
-  const body = text ? JSON.parse(text) : null;
+  // error.tsx genérico. El body se lee ANTES de tirar el error: si no, se pierde el motivo que
+  // mandó el backend y las actions (`cobrar`, `abrirCaja`, etc) terminan mostrando un
+  // "No autorizado" genérico en vez del mensaje real.
+  if (res.status === 401) throw new ApiAuthError(parseApiError(body, res.status));
   if (!res.ok) throw new ApiError(res.status, parseApiError(body, res.status));
   return body as T;
 }

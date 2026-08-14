@@ -98,18 +98,25 @@ export async function requireSesionBuffet(): Promise<void> {
 }
 
 /**
- * Si `e` es un 401 (`buffetFetch` ya lo distingue como `ApiAuthError`), borra la cookie del
- * dispositivo y manda al PIN; para cualquier otro error, no hace nada y deja que el catch
- * del caller lo siga manejando (409, error.tsx genérico, etc).
+ * Si `e` es un 401 (`buffetFetch` ya lo distingue como `ApiAuthError`), manda al PIN con una
+ * marca en la URL; para cualquier otro error, no hace nada y deja que el catch del caller lo
+ * siga manejando (409, error.tsx genérico, etc).
  *
- * El orden importa: hay que borrar la cookie ANTES de redirigir. La cookie firmada sigue
- * siendo válida aunque el mostrador se haya desactivado en el backend — es solo una firma
- * HMAC + fecha de expiración, no consulta al servidor — así que si no la borramos acá,
- * `sesionBuffetValida()` en `pin/page.tsx` la ve "válida" y rebota de nuevo a `/mostrador`,
- * cerrando el loop del que este helper existe para sacar al operador.
+ * NO borra la cookie acá. Esto se llama desde el `catch` de un Server Component en fase de
+ * render (`page.tsx`), y `cookies().delete()`/`.set()` solo se pueden usar en un Server
+ * Function o Route Handler — llamarlos durante el render tira `ReadonlyRequestCookiesError`
+ * ("The `.delete` method can only be called in a Server Function or Route Handler", ver
+ * `frontend/node_modules/next/dist/docs/01-app/03-api-reference/04-functions/cookies.md`).
+ * Esa excepción reemplazaría al 401 que se quería manejar y terminaría en el mismo error.tsx
+ * genérico de antes — el bug que este helper existe para evitar.
+ *
+ * Por eso la cookie vieja se deja vivir: es inútil (el backend la sigue rechazando con 401)
+ * pero inofensiva. `pin/page.tsx` deja de confiar en `sesionBuffetValida()` cuando ve esta
+ * marca, así no rebota de nuevo a `/mostrador`. Cuando el operador carga un PIN válido,
+ * `verificarPin` — que sí es una Server Action — pisa la cookie vieja con `crearSesionBuffet`
+ * sin problema.
  */
 export async function manejarBuffetNoAutorizado(e: unknown): Promise<void> {
   if (!(e instanceof ApiAuthError)) return;
-  await borrarSesionBuffet();
-  redirect('/mostrador/pin');
+  redirect('/mostrador/pin?motivo=revocado');
 }
