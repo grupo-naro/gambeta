@@ -4,6 +4,7 @@ import type { ProductoBuffet, MostradorAdmin } from '@/lib/types';
 import { estaBajo, stockTotal } from '@/lib/stock-buffet';
 import { ProductosTable } from '@/components/buffet/productos-table';
 import { MostradoresPanel } from '@/components/buffet/mostradores-panel';
+import { SubNavBuffet } from '@/components/buffet/sub-nav';
 
 export default async function BuffetPage() {
   await requireAdmin();
@@ -18,6 +19,7 @@ export default async function BuffetPage() {
         <h1 className="text-xl font-semibold tracking-tight">Buffet</h1>
         <p className="text-sm text-neutral-600">Catálogo y stock</p>
       </header>
+      <SubNavBuffet activa="catalogo" />
 
       {bajos.length > 0 && (
         <div className="rounded-xl bg-amber-50 p-4 ring-1 ring-inset ring-amber-600/20">

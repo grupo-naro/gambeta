@@ -130,6 +130,7 @@ export interface CajaBuffetEstado {
 export interface LineaCierreBuffet { productoId: string; nombre: string; unidades: number; monto: number }
 export interface CierreBuffet {
   id: string; abiertaEn: string; cerradaEn: string;
+  mostradorId: string; mostradorNombre: string;
   totalUnidades: number; totalMonto: number; totalEfectivo: number; totalTransferencia: number;
   porProducto: LineaCierreBuffet[];
 }
