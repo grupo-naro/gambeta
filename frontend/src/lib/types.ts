@@ -109,6 +109,8 @@ export class ApiAuthError extends ApiError { constructor(message = 'No autorizad
 export interface ProductoBuffet {
   id: string; nombre: string; codigoBarra: string | null; precio: number;
   stock: number; stockMinimo: number; enBotonera: boolean; orden: number; activo: boolean;
+  /** Unidades de este producto que están en el mostrador secundario. */
+  asignado: number;
 }
 export type TipoMostrador = 'PRINCIPAL' | 'SECUNDARIO';
 export interface MostradorAdmin {

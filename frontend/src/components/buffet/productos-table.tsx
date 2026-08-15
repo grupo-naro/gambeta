@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ProductoBuffet } from '@/lib/types';
+import { estaBajo } from '@/lib/stock-buffet';
 import { ProductoDialog } from './producto-dialog';
 import { reponerStock } from '@/lib/buffet-admin-actions';
 
@@ -53,13 +54,18 @@ export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
               </TableHeader>
               <TableBody>
                 {productos.map((p) => {
-                  const bajo = p.stock <= p.stockMinimo;
+                  const bajo = estaBajo(p);
                   return (
                     <TableRow key={p.id} onClick={() => abrir(p)} className={`cursor-pointer hover:bg-neutral-50 ${p.activo ? '' : 'opacity-60'}`}>
                       <TableCell className="font-medium">{p.nombre}</TableCell>
                       <TableCell className="text-neutral-600">{p.codigoBarra || '—'}</TableCell>
                       <TableCell>{money(p.precio)}</TableCell>
-                      <TableCell className={bajo ? 'font-medium text-red-600' : ''}>{p.stock}</TableCell>
+                      <TableCell className={bajo ? 'font-medium text-red-600' : ''}>
+                        {p.stock}
+                        {p.asignado > 0 && (
+                          <span className="ml-1 text-xs font-normal text-neutral-500">+{p.asignado} en el secundario</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-neutral-600">{p.enBotonera ? 'Sí' : 'No'}</TableCell>
                     </TableRow>
                   );
@@ -71,14 +77,18 @@ export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
           {/* Mobile stacked cards */}
           <div className="md:hidden space-y-3">
             {productos.map((p) => {
-              const bajo = p.stock <= p.stockMinimo;
+              const bajo = estaBajo(p);
               return (
                 <button key={p.id} type="button" onClick={() => abrir(p)} className={`block w-full rounded-lg border bg-white p-3 text-left transition active:scale-[0.99]${p.activo ? '' : ' opacity-60'}`}>
                   <span className="block text-sm font-medium">{p.nombre}</span>
                   <span className="mt-2 block space-y-1 text-sm text-neutral-600">
                     <span className="block"><span className="text-xs text-neutral-500">Código</span> {p.codigoBarra || '—'}</span>
                     <span className="block"><span className="text-xs text-neutral-500">Precio</span> {money(p.precio)}</span>
-                    <span className="block"><span className="text-xs text-neutral-500">Stock</span> <span className={bajo ? 'font-medium text-red-600' : ''}>{p.stock}</span></span>
+                    <span className="block">
+                      <span className="text-xs text-neutral-500">Stock</span>{' '}
+                      <span className={bajo ? 'font-medium text-red-600' : ''}>{p.stock}</span>
+                      {p.asignado > 0 && <span className="text-xs text-neutral-500"> +{p.asignado} en el secundario</span>}
+                    </span>
                     <span className="block"><span className="text-xs text-neutral-500">Botonera</span> {p.enBotonera ? 'Sí' : 'No'}</span>
                   </span>
                 </button>
