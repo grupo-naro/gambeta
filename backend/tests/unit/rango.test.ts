@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { rangoDeFechas } from '../../src/utils/rango.js';
+import { AppError } from '../../src/utils/errors.js';
 
 describe('rangoDeFechas', () => {
   it('sin parametros abarca los ultimos 90 dias', () => {
@@ -22,7 +23,18 @@ describe('rangoDeFechas', () => {
     expect(end.getTime()).toBeGreaterThan(Date.now() - 1000);
   });
 
-  it('`desde` posterior a `hasta` se rechaza', () => {
-    expect(() => rangoDeFechas('2026-08-10', '2026-08-01')).toThrow();
+  it('`desde` posterior a `hasta` se rechaza con un error de negocio (no un Error crudo)', () => {
+    // `toThrow()` a secas pasa con cualquier excepción, incluido un `throw new Error(...)` crudo
+    // que violaría la regla del proyecto y haría que el endpoint devuelva 500 en vez de 400.
+    // Por eso se afirma sobre `status`/`code` de `AppError`, no solo sobre que algo se lanzó.
+    let error: unknown;
+    try {
+      rangoDeFechas('2026-08-10', '2026-08-01');
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).status).toBe(400);
+    expect((error as AppError).code).toBe('BAD_REQUEST');
   });
 });
