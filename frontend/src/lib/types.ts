@@ -143,3 +143,12 @@ export interface LineaConciliacion {
   productoId: string; nombre: string; entregado: number; vendido: number; esperado: number;
 }
 export interface CobroResultado { ticketId: string; total: number; vuelto: number; medioPago: MedioPago; caja: CajaBuffetEstado }
+
+export interface ResumenConciliacion {
+  productoId: string; nombre: string; cierres: number;
+  entregado: number; vendido: number; contado: number; diferencia: number;
+}
+export interface EntregaPanel {
+  id: string; creadaEn: string; conciliada: boolean;
+  lineas: { productoId: string; nombre: string; cantidad: number }[];
+}
