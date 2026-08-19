@@ -78,7 +78,7 @@ export const alquilerArticuloService = {
     });
     await auditService.record(adminId, {
       accion: 'AJUSTAR_STOCK', entidad: 'ArticuloAlquiler', entidadId: id,
-      descripcion: `Ajustó ${cantidad >= 0 ? '+' : ''}${cantidad} de ${actual.nombre} (${actual.stock} → ${nuevo})`,
+      descripcion: `Ajustó ${cantidad >= 0 ? '+' : ''}${cantidad} de ${actual.nombre} (${actual.stock} → ${upd.stock})`,
     });
     return toDTO(upd);
   },
