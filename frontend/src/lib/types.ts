@@ -125,14 +125,19 @@ export interface TicketBuffet { id: string; total: number; medioPago: MedioPago;
 export interface CajaBuffetEstado {
   id: string; abiertaEn: string;
   totalUnidades: number; totalMonto: number; totalEfectivo: number; totalTransferencia: number;
+  /** Cuánto de `totalMonto` vino de alquileres. */
+  totalAlquileres: number;
   ultimosTickets: TicketBuffet[];
 }
 export interface LineaCierreBuffet { productoId: string; nombre: string; unidades: number; monto: number }
+export interface LineaCierreAlquiler { articuloId: string; nombre: string; unidades: number; monto: number }
 export interface CierreBuffet {
   id: string; abiertaEn: string; cerradaEn: string;
   mostradorId: string; mostradorNombre: string;
   totalUnidades: number; totalMonto: number; totalEfectivo: number; totalTransferencia: number;
+  totalAlquileres: number;
   porProducto: LineaCierreBuffet[];
+  porArticulo: LineaCierreAlquiler[];
 }
 export interface ProductoCobro { id: string; nombre: string; precio: number; stock: number }
 export interface StockAsignado { productoId: string; cantidad: number }

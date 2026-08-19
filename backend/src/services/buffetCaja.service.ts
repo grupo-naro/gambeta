@@ -18,13 +18,18 @@ export interface CajaEstado {
   id: string; abiertaEn: string;
   totalUnidades: number; totalMonto: number;
   totalEfectivo: number; totalTransferencia: number;
+  /// Cuánto de `totalMonto` vino de alquileres. Aparte, para poder mirarlo solo.
+  totalAlquileres: number;
   ultimosTickets: TicketDTO[];
 }
 export interface LineaCierre { productoId: string; nombre: string; unidades: number; monto: number }
+export interface LineaCierreAlquiler { articuloId: string; nombre: string; unidades: number; monto: number }
 export interface CierreDTO {
   id: string; abiertaEn: string; cerradaEn: string;
   totalUnidades: number; totalMonto: number; totalEfectivo: number; totalTransferencia: number;
+  totalAlquileres: number;
   porProducto: LineaCierre[];
+  porArticulo: LineaCierreAlquiler[];
 }
 export interface CobrarInput { mostradorId: string; uid: string; medioPago: Medio; montoPagado: number; items: { productoId: string; cantidad: number }[] }
 export interface CobroResultado { ticketId: string; total: number; vuelto: number; medioPago: Medio; caja: CajaEstado }
@@ -40,9 +45,22 @@ async function estadoDe(cajaId: string): Promise<CajaEstado> {
     for (const l of t.lineas) totalUnidades += l.cantidad;
     if (t.medioPago === 'EFECTIVO') totalEfectivo += Number(t.total); else totalTransferencia += Number(t.total);
   }
+  // Los alquileres son plata de esta caja igual que un ticket, así que suman al total y a su
+  // medio de pago. `totalUnidades` NO se toca: cuenta productos de buffet y es lo que mira la
+  // conciliación del secundario. Tampoco se filtra por estado: un alquiler devuelto o perdido
+  // se cobró igual cuando salió.
+  const alquileres = await prisma.alquiler.findMany({ where: { cajaId } });
+  let totalAlquileres = 0;
+  for (const a of alquileres) {
+    const monto = Number(a.total);
+    totalAlquileres += monto;
+    totalMonto += monto;
+    if (a.medioPago === 'EFECTIVO') totalEfectivo += monto; else totalTransferencia += monto;
+  }
   return {
     id: caja.id, abiertaEn: caja.abiertaEn.toISOString(),
     totalUnidades, totalMonto, totalEfectivo, totalTransferencia,
+    totalAlquileres,
     ultimosTickets: tickets.slice(0, 10).map((t) => ({
       id: t.id, total: Number(t.total), medioPago: t.medioPago as Medio, vuelto: Number(t.vuelto), creadoEn: t.creadoEn.toISOString(),
       lineas: t.lineas.map((l) => ({ productoId: l.productoId, nombre: l.producto.nombre, cantidad: l.cantidad, precioUnit: Number(l.precioUnit) })),
@@ -74,10 +92,28 @@ async function detalleCierre(cajaId: string): Promise<CierreDTO | null> {
       mapa.set(l.productoId, cur);
     }
   }
+  const alquileres = await prisma.alquiler.findMany({
+    where: { cajaId }, include: { articulo: { select: { nombre: true } } },
+  });
+  const porArticulo = new Map<string, LineaCierreAlquiler>();
+  let totalAlquileres = 0;
+  for (const a of alquileres) {
+    const monto = Number(a.total);
+    totalAlquileres += monto;
+    totalMonto += monto;
+    if (a.medioPago === 'EFECTIVO') totalEfectivo += monto; else totalTransferencia += monto;
+    const cur = porArticulo.get(a.articuloId)
+      ?? { articuloId: a.articuloId, nombre: a.articulo.nombre, unidades: 0, monto: 0 };
+    cur.unidades += a.cantidad;
+    cur.monto += monto;
+    porArticulo.set(a.articuloId, cur);
+  }
   return {
     id: caja.id, abiertaEn: caja.abiertaEn.toISOString(), cerradaEn: caja.cerradaEn.toISOString(),
     totalUnidades, totalMonto, totalEfectivo, totalTransferencia,
+    totalAlquileres,
     porProducto: [...mapa.values()].sort((a, b) => b.monto - a.monto),
+    porArticulo: [...porArticulo.values()].sort((a, b) => b.monto - a.monto),
   };
 }
 
@@ -201,7 +237,15 @@ export const buffetCajaService = {
     const est = await estadoDe(caja.id);
     await prisma.cajaBuffet.update({
       where: { id: caja.id },
-      data: { estado: 'CERRADA', cerradaEn: new Date(), totalUnidades: est.totalUnidades, totalMonto: est.totalMonto },
+      data: {
+        estado: 'CERRADA', cerradaEn: new Date(),
+        totalUnidades: est.totalUnidades,
+        // `est.totalMonto` ya incluye los alquileres (Step 4), y esta columna NO puede
+        // incluirlos: significa "lo que vendió el buffet" en todos los cierres ya guardados y
+        // tiene que seguir significando eso. Por eso se resta.
+        totalMonto: est.totalMonto - est.totalAlquileres,
+        totalAlquileres: est.totalAlquileres,
+      },
     });
     return (await detalleCierre(caja.id))!;
   },

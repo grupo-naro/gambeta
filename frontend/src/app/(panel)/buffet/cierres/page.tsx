@@ -48,6 +48,12 @@ export default async function CierresBuffetPage({ searchParams }: { searchParams
             <span className="text-lg font-semibold tabular-nums">{money(c.totalMonto)}</span>
           </div>
           <p className="text-sm text-neutral-600">{c.totalUnidades} productos</p>
+          {c.totalAlquileres > 0 && (
+            <p className="text-sm text-neutral-600">
+              Incluye {money(c.totalAlquileres)} de alquileres
+              {c.porArticulo.length > 0 && ` · ${c.porArticulo.map((a) => `${a.nombre} ×${a.unidades}`).join(' · ')}`}
+            </p>
+          )}
           <p className="text-sm text-neutral-600">Efectivo <span className="tabular-nums">{money(c.totalEfectivo)}</span> · Transferencia <span className="tabular-nums">{money(c.totalTransferencia)}</span></p>
           <ul className="mt-2 space-y-1 text-sm">
             {c.porProducto.map((l) => (
