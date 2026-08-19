@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Alquiler, ArticuloAlquiler, EstadoCierreAlquiler, MedioPago } from '@/lib/types';
 import { entregarAlquiler, cerrarAlquiler } from '@/lib/alquiler-actions';
@@ -17,6 +17,16 @@ export function puedeEntregar(a: { disponible: number }, cantidad: number): bool
   return Number.isFinite(cantidad) && cantidad >= 1 && cantidad <= a.disponible;
 }
 
+/**
+ * El uid de un intento de entrega: reusa el que ya está en curso, y solo acuña uno nuevo cuando
+ * no hay ninguno vivo. Si un intento falla no queda alquiler en la base, así que se puede
+ * corregir y reenviar; y si lo que se perdió fue la respuesta de un intento que SÍ entró, el
+ * reenvío con el mismo uid devuelve el mismo alquiler en vez de prestar dos veces.
+ */
+export function uidDeIntento(actual: string | null): string {
+  return actual ?? crypto.randomUUID();
+}
+
 export function PantallaAlquileres({
   articulos, afuera,
 }: { articulos: ArticuloAlquiler[]; afuera: Alquiler[] }) {
@@ -29,6 +39,7 @@ export function PantallaAlquileres({
   const [montoPagado, setMontoPagado] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const uidEntrega = useRef<string | null>(null);
 
   const total = sel ? calcularTotalAlquiler(sel.precio, Number(cantidad)) : 0;
 
@@ -41,15 +52,15 @@ export function PantallaAlquileres({
     if (!puedeEntregar(sel, Number(cantidad))) { setError(`Solo quedan ${sel.disponible}`); return; }
     if (!quienRetira.trim()) { setError('Poné a nombre de quién sale'); return; }
     setOcupado(true); setError(null);
-    // El uid hace idempotente el cobro: si el toque se repite o la red reintenta, el backend
-    // devuelve el mismo alquiler en vez de prestar otra raqueta.
+    uidEntrega.current = uidDeIntento(uidEntrega.current);
     const r = await entregarAlquiler({
-      uid: crypto.randomUUID(), articuloId: sel.id, cantidad: Number(cantidad),
+      uid: uidEntrega.current, articuloId: sel.id, cantidad: Number(cantidad),
       quienRetira: quienRetira.trim(), garantia: garantia.trim() || null,
       medioPago, montoPagado: medioPago === 'EFECTIVO' ? Number(montoPagado) || 0 : 0,
     });
     setOcupado(false);
     if (!r.ok) { setError(r.error); return; }
+    uidEntrega.current = null;
     limpiar();
     router.refresh();
   }
