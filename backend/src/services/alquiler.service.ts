@@ -3,6 +3,8 @@ import { BusinessRule, Conflict, Forbidden, NotFound } from '../utils/errors.js'
 import { cajaAbierta } from './buffetCaja.service.js';
 import { calcularCobro, esViolacionInventario, saleDelInventario } from './alquiler.reglas.js';
 import type { EstadoAlquiler, EstadoCierre, MedioAlquiler } from './alquiler.reglas.js';
+import { getEnv } from '../config/env.js';
+import { dayWindowUtc } from '../utils/tz.js';
 
 // Se reexportan para que routes y tests tengan un solo lugar del que importar el módulo.
 export type { EstadoAlquiler, EstadoCierre, MedioAlquiler };
@@ -91,5 +93,62 @@ export const alquilerService = {
       if (esViolacionInventario(e)) throw BusinessRule(`No quedan suficientes ${art.nombre}`);
       throw e;
     }
+  },
+
+  /**
+   * Cierra un alquiler. DEVUELTO solo libera el disponible; PERDIDO y ROTO además sacan la
+   * unidad del inventario, porque esa raqueta ya no existe.
+   */
+  async cerrar(id: string, estado: EstadoCierre): Promise<AlquilerDTO> {
+    const actual = await prisma.alquiler.findUnique({ where: { id } });
+    if (!actual) throw NotFound('Alquiler', id);
+
+    const saleDelStock = saleDelInventario(estado);
+    return prisma.$transaction(async (tx) => {
+      // Compare-and-set: el filtro por estado es lo que hace atómica la transición. Leer el
+      // estado y después escribir dejaría que dos toques simultáneos descuenten dos veces.
+      const { count } = await tx.alquiler.updateMany({
+        where: { id, estado: 'ENTREGADO' },
+        data: { estado, cerradoEn: new Date() },
+      });
+      if (count === 0) throw BusinessRule('Ese alquiler ya está cerrado');
+
+      await tx.articuloAlquiler.update({
+        where: { id: actual.articuloId },
+        data: {
+          prestado: { decrement: actual.cantidad },
+          ...(saleDelStock ? { stock: { decrement: actual.cantidad } } : {}),
+        },
+      });
+      const cerrado = await tx.alquiler.findUniqueOrThrow({ where: { id }, include: conArticulo });
+      return toDTO(cerrado);
+    });
+  },
+
+  /** Lo que está afuera ahora: es la lista que el mostrador usa para recibir devoluciones. */
+  async afuera(): Promise<AlquilerDTO[]> {
+    const rows = await prisma.alquiler.findMany({
+      where: { estado: 'ENTREGADO' }, include: conArticulo, orderBy: { entregadoEn: 'asc' },
+    });
+    return rows.map(toDTO);
+  },
+
+  async historial(opts: { desde?: string; hasta?: string; estado?: EstadoAlquiler }): Promise<AlquilerDTO[]> {
+    const tz = getEnv().TZ_NEGOCIO;
+    // `hasta` es inclusivo para el usuario: dayWindowUtc devuelve el arranque del día siguiente
+    // como `end`, así que un `lt` sobre eso cubre el día entero.
+    const desde = opts.desde ? dayWindowUtc(opts.desde, tz).start : undefined;
+    const hasta = opts.hasta ? dayWindowUtc(opts.hasta, tz).end : undefined;
+    const rows = await prisma.alquiler.findMany({
+      where: {
+        ...(opts.estado ? { estado: opts.estado } : {}),
+        ...(desde || hasta
+          ? { entregadoEn: { ...(desde ? { gte: desde } : {}), ...(hasta ? { lt: hasta } : {}) } }
+          : {}),
+      },
+      include: conArticulo,
+      orderBy: { entregadoEn: 'desc' },
+    });
+    return rows.map(toDTO);
   },
 };
