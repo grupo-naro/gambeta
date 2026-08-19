@@ -27,6 +27,8 @@ export async function resetTables(): Promise<void> {
     p.entregaMostradorLinea.deleteMany(),
     p.conteoCierreLinea.deleteMany(),
     p.entregaMostrador.deleteMany(),
+    p.alquiler.deleteMany(),
+    p.articuloAlquiler.deleteMany(),
     p.ticketBuffet.deleteMany(),
     p.cajaBuffet.deleteMany(),
     p.stockMostrador.deleteMany(),
