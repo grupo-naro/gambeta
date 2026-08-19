@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { BusinessRule, NotFound } from '../utils/errors.js';
 import { auditService } from './audit.service.js';
+import { esViolacionInventario } from './alquiler.reglas.js';
 
 export interface ArticuloAlquilerDTO {
   id: string; nombre: string; precio: number;
@@ -70,12 +71,23 @@ export const alquilerArticuloService = {
     if (nuevo < actual.prestado) {
       throw BusinessRule(`No podés dejar el stock en ${nuevo}: hay ${actual.prestado} ${actual.nombre} afuera`);
     }
-    const upd = await prisma.articuloAlquiler.update({
-      where: { id },
-      // Atómico a propósito: `stock: nuevo` con `nuevo` calculado sobre una lectura previa
-      // pierde ajustes concurrentes (5, dos +3 a la vez, terminaba en 8 en vez de 11).
-      data: { stock: { increment: cantidad } },
-    });
+    let upd;
+    try {
+      upd = await prisma.articuloAlquiler.update({
+        where: { id },
+        // Atómico a propósito: `stock: nuevo` con `nuevo` calculado sobre una lectura previa
+        // pierde ajustes concurrentes (5, dos +3 a la vez, terminaba en 8 en vez de 11).
+        data: { stock: { increment: cantidad } },
+      });
+    } catch (e) {
+      // Entre el pre-chequeo y este update, otra transacción subió `prestado`: el decremento
+      // dejaría el stock por debajo de lo prestado y el CHECK de la base lo frena. Es el mismo
+      // caso de negocio del pre-chequeo de arriba, descubierto más tarde.
+      if (esViolacionInventario(e)) {
+        throw BusinessRule(`No podés dejar el stock por debajo de lo que está afuera de ${actual.nombre}`);
+      }
+      throw e;
+    }
     await auditService.record(adminId, {
       accion: 'AJUSTAR_STOCK', entidad: 'ArticuloAlquiler', entidadId: id,
       descripcion: `Ajustó ${cantidad >= 0 ? '+' : ''}${cantidad} de ${actual.nombre} (${actual.stock} → ${upd.stock})`,
