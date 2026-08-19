@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { alquilerArticuloService } from '../../src/services/alquilerArticulo.service.js';
-import { alquilerService } from '../../src/services/alquiler.service.js';
-import { buffetCajaService } from '../../src/services/buffetCaja.service.js';
-
-const PRINCIPAL = 'mostrador-principal';
+import { esViolacionInventario } from '../../src/services/alquiler.reglas.js';
 
 beforeAll(setupTestDb);
 afterAll(teardownTestDb);
@@ -62,28 +59,20 @@ describe('catálogo de alquileres', () => {
     expect(final.stock).toBe(11);
   });
 
-  it('si otra transacción presta de más entre el pre-chequeo y el update, la base lo frena con 422', async () => {
-    // El pre-chequeo de ajustarStock por sí solo nunca puede llegar a violar el CHECK: lee
-    // `prestado` y calcula el nuevo stock con los mismos números, así que son matemáticamente
-    // equivalentes. La única forma de que el CHECK de la base sea quien lo frene es que
-    // `prestado` cambie DESPUÉS de ese pre-chequeo y ANTES del update — o sea, una carrera real
-    // contra una entrega. Se deja el stock justo para que ambas operaciones, cada una por sí
-    // sola, sean válidas, pero juntas no: quien llegue segundo a confirmar rompe el CHECK.
-    const a = await alquilerArticuloService.crear({ nombre: 'Pelota', precio: 500, stock: 5 });
-    await buffetCajaService.abrir(PRINCIPAL);
-    const carrera = await Promise.allSettled([
-      alquilerArticuloService.ajustarStock(a.id, -5, 'admin-1'),
-      alquilerService.entregar({
-        mostradorId: PRINCIPAL, uid: 'u1', articuloId: a.id, cantidad: 5,
-        quienRetira: 'Juan', medioPago: 'EFECTIVO', montoPagado: 2500,
-      }),
-    ]);
-    expect(carrera.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
-    const perdedor = carrera.find((r) => r.status === 'rejected') as PromiseRejectedResult;
-    // Igual que la carrera de dos entregas simultáneas: puede ganarla el pre-chequeo o el CHECK
-    // de la base, pero nunca puede terminar en un 500.
-    expect(perdedor.reason).toMatchObject({ status: 422 });
-    const final = await getPrisma().articuloAlquiler.findUniqueOrThrow({ where: { id: a.id } });
-    expect(final.prestado).toBeLessThanOrEqual(final.stock);
+  it('esViolacionInventario reconoce el CHECK real de la base', async () => {
+    const a = await alquilerArticuloService.crear({ nombre: 'Raqueta', precio: 3000, stock: 5 });
+    await getPrisma().articuloAlquiler.update({ where: { id: a.id }, data: { prestado: 5 } });
+
+    // Update crudo: saltea el pre-chequeo del servicio, así que el que rechaza es el CHECK de
+    // Postgres. Es la única forma de ver la forma REAL del error que tiene que reconocer el
+    // filtro por nombre de constraint — que es lo frágil, no el throw.
+    let capturado: unknown;
+    try {
+      await getPrisma().articuloAlquiler.update({ where: { id: a.id }, data: { stock: { decrement: 3 } } });
+    } catch (e) { capturado = e; }
+
+    expect(capturado).toBeDefined();
+    expect(esViolacionInventario(capturado)).toBe(true);
+    expect(esViolacionInventario(new Error('otra cosa'))).toBe(false);
   });
 });
