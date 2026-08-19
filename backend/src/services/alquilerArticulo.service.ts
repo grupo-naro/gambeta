@@ -70,7 +70,12 @@ export const alquilerArticuloService = {
     if (nuevo < actual.prestado) {
       throw BusinessRule(`No podés dejar el stock en ${nuevo}: hay ${actual.prestado} ${actual.nombre} afuera`);
     }
-    const upd = await prisma.articuloAlquiler.update({ where: { id }, data: { stock: nuevo } });
+    const upd = await prisma.articuloAlquiler.update({
+      where: { id },
+      // Atómico a propósito: `stock: nuevo` con `nuevo` calculado sobre una lectura previa
+      // pierde ajustes concurrentes (5, dos +3 a la vez, terminaba en 8 en vez de 11).
+      data: { stock: { increment: cantidad } },
+    });
     await auditService.record(adminId, {
       accion: 'AJUSTAR_STOCK', entidad: 'ArticuloAlquiler', entidadId: id,
       descripcion: `Ajustó ${cantidad >= 0 ? '+' : ''}${cantidad} de ${actual.nombre} (${actual.stock} → ${nuevo})`,

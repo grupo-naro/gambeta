@@ -47,4 +47,14 @@ describe('catálogo de alquileres', () => {
   it('actualizar sobre un id inexistente da 404', async () => {
     await expect(alquilerArticuloService.actualizar('no-existe', { nombre: 'X' })).rejects.toMatchObject({ status: 404 });
   });
+
+  it('dos ajustes simultáneos no se pisan', async () => {
+    const a = await alquilerArticuloService.crear({ nombre: 'Pelota', precio: 500, stock: 5 });
+    await Promise.all([
+      alquilerArticuloService.ajustarStock(a.id, 3, 'admin-1'),
+      alquilerArticuloService.ajustarStock(a.id, 3, 'admin-1'),
+    ]);
+    const final = await getPrisma().articuloAlquiler.findUniqueOrThrow({ where: { id: a.id } });
+    expect(final.stock).toBe(11);
+  });
 });
