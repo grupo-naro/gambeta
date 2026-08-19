@@ -87,6 +87,10 @@ model Alquiler {
   precioUnit  Decimal          @db.Decimal(10, 2)
   total       Decimal          @db.Decimal(10, 2)
   medioPago   MedioPago
+  /// Igual que `TicketBuffet`: sin guardar lo pagado y el vuelto, un reintento con el mismo
+  /// `uid` no puede responder el vuelto que ya se entregó.
+  montoPagado Decimal          @db.Decimal(10, 2)
+  vuelto      Decimal          @db.Decimal(10, 2)
   estado      EstadoAlquiler   @default(ENTREGADO)
   entregadoEn DateTime         @default(now())
   cerradoEn   DateTime?
@@ -107,8 +111,10 @@ model Alquiler {
 | Cerrar perdido / roto | `-= cantidad` | `-= cantidad` | PERDIDO / ROTO |
 
 Son las únicas que tocan contadores, y cada una ocurre dentro de una transacción junto con la
-escritura del `Alquiler`. Cerrar un alquiler que ya está cerrado no vuelve a descontar: la
-transición solo se aplica desde `ENTREGADO`.
+escritura del `Alquiler`. Cerrar un alquiler que ya está cerrado no vuelve a descontar, y no
+alcanza con leer el estado y después escribir: el cierre se hace con un `updateMany` filtrado
+por `estado: 'ENTREGADO'`, y si afecta cero filas la operación se rechaza. Ese compare-and-set
+es lo que impide que dos toques simultáneos devuelvan la misma unidad dos veces.
 
 ### La base es la que garantiza
 
@@ -153,10 +159,14 @@ lo que está prestado se rechaza con `BusinessRule`.
 | POST | `/alquileres/entregas` | `authMostrador` |
 | GET | `/alquileres/afuera` | `authMostrador` |
 | POST | `/alquileres/:id/cerrar` | `authMostrador` |
-| GET | `/alquileres/articulos` | `authJwt` |
+| GET | `/alquileres/articulos` | `authJwt` + `requireRole('ADMIN')` |
 | POST | `/alquileres/articulos` | `authJwt` + `requireRole('ADMIN')` |
 | PATCH | `/alquileres/articulos/:id` | `authJwt` + `requireRole('ADMIN')` |
-| GET | `/alquileres` | `authJwt` |
+| POST | `/alquileres/articulos/:id/reponer` | `authJwt` + `requireRole('ADMIN')` |
+| GET | `/alquileres` | `authJwt` + `requireRole('ADMIN')` |
+
+Todas las de admin son ADMIN, incluidas las lecturas: es lo que hace hoy cada ruta admin de
+`buffet.routes.ts`, y el recepcionista no tiene nada que hacer en el catálogo de alquileres.
 
 Las rutas literales (`/botonera`, `/afuera`, `/entregas`, `/articulos`) van **antes** que
 `/:id/cerrar`, con el mismo comentario de orden que lleva `buffet.routes.ts`. Las mutaciones de
