@@ -55,7 +55,16 @@ export const alquilerArticuloService = {
   }): Promise<ArticuloAlquilerDTO> {
     const actual = await prisma.articuloAlquiler.findUnique({ where: { id } });
     if (!actual) throw NotFound('ArticuloAlquiler', id);
-    const upd = await prisma.articuloAlquiler.update({ where: { id }, data: input });
+    // Se arma explícito, no `data: input`: hoy el schema de Zod hace strip de lo que no sea
+    // uno de estos cuatro campos, pero si algún día se colara un `stock` acá lo escribiría
+    // directo, saltándose la invariante del inventario (y sin atrapar esViolacionInventario
+    // como sí hace ajustarStock, terminaría en un 500 en vez de un 422).
+    const data: { nombre?: string; precio?: number; orden?: number; activo?: boolean } = {};
+    if (input.nombre !== undefined) data.nombre = input.nombre;
+    if (input.precio !== undefined) data.precio = input.precio;
+    if (input.orden !== undefined) data.orden = input.orden;
+    if (input.activo !== undefined) data.activo = input.activo;
+    const upd = await prisma.articuloAlquiler.update({ where: { id }, data });
     return toDTO(upd);
   },
 

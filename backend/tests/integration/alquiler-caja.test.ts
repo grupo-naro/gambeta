@@ -60,20 +60,28 @@ describe('alquileres en la caja del mostrador', () => {
   });
 
   it('el cierre persiste el total de alquileres y lo desglosa por artículo', async () => {
-    const { art } = await escenario();
+    const { art, coca } = await escenario();
+    // Sin un ticket de buffet real, `totalMonto - totalAlquileres` daba 0 tanto si la resta
+    // estaba bien como si alguien la borraba (6000 - 6000 = 0 de cualquier forma): el invariante
+    // quedaba sin ver. Con un ticket de 1500 antes de la entrega, el resultado esperado (1500)
+    // solo sale si la resta se hace de verdad.
+    await buffetCajaService.cobrar({
+      mostradorId: PRINCIPAL, uid: 'b1', medioPago: 'EFECTIVO', montoPagado: 1500,
+      items: [{ productoId: coca.id, cantidad: 1 }],
+    });
     await alquilerService.entregar({
       mostradorId: PRINCIPAL, uid: 'a1', articuloId: art.id, cantidad: 2,
       quienRetira: 'Juan', medioPago: 'EFECTIVO', montoPagado: 6000,
     });
     const cierre = await buffetCajaService.cerrar(PRINCIPAL);
     expect(cierre.totalAlquileres).toBe(6000);
-    expect(cierre.totalMonto).toBe(6000);
+    expect(cierre.totalMonto).toBe(7500);
     expect(cierre.porArticulo).toEqual([{ articuloId: art.id, nombre: 'Raqueta', unidades: 2, monto: 6000 }]);
 
     const fila = await getPrisma().cajaBuffet.findFirstOrThrow({ where: { mostradorId: PRINCIPAL } });
     expect(Number(fila.totalAlquileres)).toBe(6000);
     // El totalMonto guardado sigue siendo el del buffet: no se le cambia el sentido.
-    expect(Number(fila.totalMonto)).toBe(0);
+    expect(Number(fila.totalMonto)).toBe(1500);
   });
 
   it('una caja sin alquileres reporta 0, no null', async () => {

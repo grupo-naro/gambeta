@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Alquiler, ArticuloAlquiler, EstadoCierreAlquiler, MedioPago } from '@/lib/types';
 import { entregarAlquiler, cerrarAlquiler } from '@/lib/alquiler-actions';
+import { calcularVuelto } from './pantalla-venta';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
@@ -39,12 +40,34 @@ export function PantallaAlquileres({
   const [montoPagado, setMontoPagado] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [vueltoEntregado, setVueltoEntregado] = useState<number | null>(null);
   const uidEntrega = useRef<string | null>(null);
 
   const total = sel ? calcularTotalAlquiler(sel.precio, Number(cantidad)) : 0;
+  // Solo tiene sentido mostrarlo mientras se tipea un monto que ya cubre el total: por
+  // transferencia no hay vuelto, y en efectivo con lo justo (o de menos) no hay nada que
+  // devolver todavía.
+  const vueltoPreview = medioPago === 'EFECTIVO' && Number(montoPagado) > total
+    ? calcularVuelto(Number(montoPagado), total) : null;
 
   function limpiar() {
     setSel(null); setCantidad('1'); setQuienRetira(''); setGarantia(''); setMontoPagado(''); setMedioPago('EFECTIVO');
+  }
+
+  /**
+   * Elegir otro artículo (o cambiar cantidad/medio/monto) cambia lo que se va a cobrar: el uid
+   * en curso tiene que morir con el intento, si no un reintento tardío de un cobro viejo puede
+   * confundirse con el nuevo y el server devolvería el alquiler equivocado con 200. Solo tiene
+   * que sobrevivir un reintento del MISMO cobro, nunca uno distinto.
+   */
+  function limpiarUidEnCurso() {
+    uidEntrega.current = null;
+  }
+
+  function elegirArticulo(a: ArticuloAlquiler) {
+    setSel(a); setCantidad('1'); setQuienRetira(''); setGarantia(''); setMontoPagado('');
+    limpiarUidEnCurso();
+    setVueltoEntregado(null);
   }
 
   async function confirmar() {
@@ -61,6 +84,8 @@ export function PantallaAlquileres({
     setOcupado(false);
     if (!r.ok) { setError(r.error); return; }
     uidEntrega.current = null;
+    // Caja en efectivo: si no se muestra acá, quien atiende no tiene dónde ver cuánto devolver.
+    if (r.data.vuelto > 0) setVueltoEntregado(r.data.vuelto);
     limpiar();
     router.refresh();
   }
@@ -84,13 +109,25 @@ export function PantallaAlquileres({
 
       {error && <p className="rounded-xl bg-red-50 p-3 text-red-700 ring-1 ring-inset ring-red-600/20">{error}</p>}
 
+      {vueltoEntregado !== null && (
+        <div className="flex items-center justify-between rounded-2xl bg-emerald-50 p-4 ring-1 ring-inset ring-emerald-600/30">
+          <p className="text-2xl font-bold text-emerald-800">
+            Vuelto: <span className="tabular-nums">{money(vueltoEntregado)}</span>
+          </p>
+          <button type="button" onClick={() => setVueltoEntregado(null)}
+            className="rounded-lg border border-emerald-600 px-3 py-1 text-sm font-medium text-emerald-700">
+            Cerrar
+          </button>
+        </div>
+      )}
+
       <section className="space-y-3">
         <h2 className="text-sm font-medium uppercase text-neutral-500">Entregar</h2>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {articulos.map((a) => (
             <button
               key={a.id} type="button" disabled={a.disponible < 1}
-              onClick={() => { setSel(a); setCantidad('1'); }}
+              onClick={() => elegirArticulo(a)}
               className={`rounded-2xl p-4 text-left ${
                 sel?.id === a.id ? 'bg-emerald-600 text-white' : 'border bg-white'
               } ${a.disponible < 1 ? 'opacity-40' : ''}`}
@@ -107,7 +144,7 @@ export function PantallaAlquileres({
             <div className="flex flex-wrap gap-3">
               <label className="text-sm">Cantidad
                 <input type="number" min="1" max={sel.disponible} value={cantidad}
-                  onChange={(e) => setCantidad(e.target.value)}
+                  onChange={(e) => { setCantidad(e.target.value); limpiarUidEnCurso(); }}
                   className="ml-2 w-20 rounded-lg border px-2 py-1" />
               </label>
               <label className="text-sm flex-1">Quién retira
@@ -122,16 +159,22 @@ export function PantallaAlquileres({
 
             <div className="flex flex-wrap items-center gap-2">
               {(['EFECTIVO', 'TRANSFERENCIA'] as const).map((m) => (
-                <button key={m} type="button" onClick={() => setMedioPago(m)}
+                <button key={m} type="button" onClick={() => { setMedioPago(m); limpiarUidEnCurso(); }}
                   className={`rounded-xl px-4 py-2 font-semibold ${medioPago === m ? 'bg-neutral-900 text-white' : 'border'}`}>
                   {m === 'EFECTIVO' ? 'Efectivo' : 'Transferencia'}
                 </button>
               ))}
               {medioPago === 'EFECTIVO' && (
-                <input type="number" value={montoPagado} onChange={(e) => setMontoPagado(e.target.value)}
+                <input type="number" value={montoPagado}
+                  onChange={(e) => { setMontoPagado(e.target.value); limpiarUidEnCurso(); }}
                   placeholder="Con cuánto paga" className="w-40 rounded-lg border px-2 py-1" />
               )}
-              <span className="ml-auto text-lg font-semibold tabular-nums">{money(total)}</span>
+              <span className="ml-auto text-right">
+                <span className="block text-lg font-semibold tabular-nums">{money(total)}</span>
+                {vueltoPreview !== null && (
+                  <span className="block text-sm font-medium tabular-nums text-emerald-700">Vuelto: {money(vueltoPreview)}</span>
+                )}
+              </span>
             </div>
 
             <button type="button" disabled={ocupado} onClick={() => void confirmar()}

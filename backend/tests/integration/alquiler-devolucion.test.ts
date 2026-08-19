@@ -86,7 +86,9 @@ describe('alquileres: devolución', () => {
 
   it('el historial incluye el día `hasta` completo', async () => {
     await prestar(1, 5, 'u1');
-    const hoy = new Date().toISOString().slice(0, 10);
+    // La fecha del negocio es la de TZ_NEGOCIO, no la UTC: entre las 21:00 y las 23:59 de
+    // Argentina, `toISOString().slice(0, 10)` ya da el día siguiente y el test fallaría solo.
+    const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date());
     expect(await alquilerService.historial({ desde: hoy, hasta: hoy })).toHaveLength(1);
   });
 });

@@ -23,9 +23,14 @@ export default async function MovimientosAlquileresPage({
   if (desde) qs.set('desde', desde);
   if (hasta) qs.set('hasta', hasta);
   if (estado) qs.set('estado', estado);
-  const movimientos = await apiFetch<Alquiler[]>(`/alquileres${qs.size ? `?${qs}` : ''}`);
+  // "Afuera ahora" es un dato global, no del período filtrado: con estado=DEVUELTO o un rango
+  // que no cubre hoy, `movimientos` puede no traer ni una de las raquetas que siguen en la
+  // calle. Va en un pedido aparte, sin rango, en paralelo con el listado filtrado.
+  const [movimientos, afuera] = await Promise.all([
+    apiFetch<Alquiler[]>(`/alquileres${qs.size ? `?${qs}` : ''}`),
+    apiFetch<Alquiler[]>('/alquileres?estado=ENTREGADO'),
+  ]);
 
-  const afuera = movimientos.filter((m) => m.estado === 'ENTREGADO');
   const perdidos = movimientos.filter((m) => m.estado === 'PERDIDO' || m.estado === 'ROTO');
 
   return (
@@ -41,7 +46,7 @@ export default async function MovimientosAlquileresPage({
           <p className="text-2xl font-semibold tabular-nums">{afuera.length}</p>
         </div>
         <div className="rounded-xl border bg-white p-4">
-          <p className="text-sm text-neutral-600">Perdidos o rotos</p>
+          <p className="text-sm text-neutral-600">Perdidos o rotos en el período</p>
           <p className="text-2xl font-semibold tabular-nums">{perdidos.length}</p>
         </div>
       </div>
