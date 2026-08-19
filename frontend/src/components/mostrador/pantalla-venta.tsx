@@ -162,6 +162,9 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
           <a href="/mostrador/entregar" className="rounded-xl border border-emerald-600 px-4 py-2 font-semibold text-emerald-700">
             Entregar al secundario
           </a>
+          <a href="/mostrador/alquileres" className="rounded-xl border border-sky-600 px-4 py-2 font-semibold text-sky-700">
+            Alquileres
+          </a>
           {/* El conteo es presencial: el secundario cierra, trae lo que sobro y se cuenta ahi
               mismo. Por eso el aviso va arriba de todo y no escondido en un menu. */}
           {pendientes.map((p) => (
@@ -205,6 +208,9 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
         <p className="text-sm font-medium text-emerald-700">Total del turno</p>
         <p className="text-3xl font-bold tabular-nums text-emerald-800">{money(caja.totalMonto)}</p>
         <p className="mt-1 text-sm text-emerald-700">Efectivo {money(caja.totalEfectivo)} · Transferencia {money(caja.totalTransferencia)}</p>
+        {caja.totalAlquileres > 0 && (
+          <p className="mt-1 text-sm text-emerald-700">Incluye {money(caja.totalAlquileres)} de alquileres</p>
+        )}
       </header>
 
       <div aria-live="polite" className="min-h-8 text-center text-xl font-semibold text-red-600">{error}</div>

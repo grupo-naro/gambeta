@@ -157,3 +157,18 @@ export interface EntregaPanel {
   id: string; creadaEn: string; conciliada: boolean;
   lineas: { productoId: string; nombre: string; cantidad: number }[];
 }
+
+export interface ArticuloAlquiler {
+  id: string; nombre: string; precio: number;
+  stock: number; prestado: number; disponible: number;
+  activo: boolean; orden: number;
+}
+export type EstadoAlquiler = 'ENTREGADO' | 'DEVUELTO' | 'PERDIDO' | 'ROTO';
+export type EstadoCierreAlquiler = Exclude<EstadoAlquiler, 'ENTREGADO'>;
+export interface Alquiler {
+  id: string; articuloId: string; articuloNombre: string; cantidad: number;
+  quienRetira: string; garantia: string | null;
+  precioUnit: number; total: number; medioPago: MedioPago;
+  estado: EstadoAlquiler; entregadoEn: string; cerradoEn: string | null;
+}
+export interface EntregaAlquilerResultado { alquiler: Alquiler; vuelto: number }
