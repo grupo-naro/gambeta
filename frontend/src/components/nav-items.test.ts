@@ -16,7 +16,7 @@ describe('navAgrupado', () => {
   it('ADMIN ve los 3 grupos, en orden y con las cantidades correctas', () => {
     const r = navAgrupado('ADMIN');
     expect(r.map((g) => g.grupo)).toEqual(['Operación', 'Programación', 'Administración']);
-    expect(r.map((g) => g.items.length)).toEqual([6, 3, 4 + CON_SOCIOS]);
+    expect(r.map((g) => g.items.length)).toEqual([7, 3, 4 + CON_SOCIOS]);
   });
 
   it('RECEPCIONISTA ve solo Operación y Programación (sin Administración)', () => {
