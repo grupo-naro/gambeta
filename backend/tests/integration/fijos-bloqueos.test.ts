@@ -2,15 +2,24 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
-import { dayOfWeekInTz } from '../../src/utils/tz.js';
+import { dayOfWeekInTz, hoyEnTz, sumarDias } from '../../src/utils/tz.js';
 
+const TZ = 'America/Argentina/Buenos_Aires';
 let app: any;
 let token: string;
 
+// Basado en hoyEnTz/sumarDias (calendario ART), no en Date.now() + i*86400000 (calendario UTC):
+// algunas de estas fechas se usan para crear reservas con x-api-key (sin JWT de admin), así que
+// tienen que caer dentro de la ventana de anticipación pública. Con aritmética UTC el resultado
+// podía quedar hasta un día más lejos que "hoy" en ART (el corrimiento de huso), empujando el
+// próximo día de la semana buscado a 8 días — fuera de la ventana por defecto (7). Buscando en
+// calendario ART el máximo es exactamente 7 días (todo día de la semana aparece una vez en
+// cualquier ventana de 7 días consecutivos), que es el borde inclusive permitido.
 function proximoDia(dow: number) {
+  const hoy = hoyEnTz(TZ);
   for (let i = 1; i <= 14; i++) {
-    const f = new Date(Date.now() + i * 86400000).toISOString().slice(0, 10);
-    if (dayOfWeekInTz(f, 'America/Argentina/Buenos_Aires') === dow) return f;
+    const f = sumarDias(hoy, i);
+    if (dayOfWeekInTz(f, TZ) === dow) return f;
   }
   throw new Error('no day');
 }

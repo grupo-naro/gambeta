@@ -81,7 +81,10 @@ describe('PATCH /reservas/:id/reprogramar', () => {
   });
 
   it('409 al mover a una cancha ocupada en ese horario', async () => {
-    const fecha = fechaFutura(7);
+    // El día no es significativo para lo que prueba este caso (un conflicto de cancha), así que
+    // se baja a +2 con margen de sobra: a +7 el corrimiento ART/UTC lo pone a veces en +8, fuera
+    // de la ventana de anticipación que reprogramar valida desde la Task 4b.
+    const fecha = fechaFutura(2);
     const r = await crearAPI(fecha, '20:00');
     const canchaB = (await getPrisma().cancha.create({ data: { nombre: 'B2', tipo: 'f5', precioHora: 12000 } })).id;
     await supertest(app).post('/reservas').set('x-api-key', 'svc').send({ canchaId: canchaB, whatsapp: '+5491150009999', nombreCliente: 'Otro', esContacto: true, fecha, horaInicio: '20:00' });

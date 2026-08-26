@@ -58,7 +58,10 @@ describe.skipIf(!SOCIOS_HABILITADO)('bordes de suscripcion', () => {
   it('turno para DESPUES del vencimiento queda bonificado igual (congelado al reservar)', async () => {
     const vence = enDias(2);
     await socioVigenteHasta(vence, '5491178100002');
-    const res = await reservar('5491178100002', enDias(10)); // el turno cae después del vencimiento
+    // Lo único significativo es que el turno caiga DESPUÉS del vencimiento (enDias(2)); +10 no
+    // aportaba nada y quedaba fuera de la ventana de anticipación pública (esta reserva se crea
+    // con x-api-key, sin JWT). +3 alcanza para "después" y queda cómodo dentro de la ventana.
+    const res = await reservar('5491178100002', enDias(3)); // el turno cae después del vencimiento
     expect(res.status).toBe(201);
     // La vigencia se evalúa contra HOY, no contra la fecha del turno: el socio está vigente
     // al momento de reservar, así que el turno queda bonificado para siempre.

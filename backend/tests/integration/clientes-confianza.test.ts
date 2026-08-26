@@ -9,7 +9,10 @@ afterAll(teardownTestDb);
 beforeEach(async () => { await resetTables(); canchaId = (await getPrisma().cancha.create({ data: { nombre: 'C', tipo: 'f5', precioHora: 10000, jugadores: 5 } })).id; });
 
 const admin = () => signAdminToken({ adminId: 'a', email: 'a@b.com', rol: 'ADMIN' });
-const fechaFutura = (d = 7) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
+// El default no es significativo (solo hace falta una fecha futura válida): se usa +2, con
+// margen de sobra frente al corrimiento ART/UTC que a +7 puede caer fuera de la ventana de
+// anticipación pública (estas reservas se crean con x-api-key, sin JWT de admin).
+const fechaFutura = (d = 2) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
 const reservar = (over: Record<string, unknown> = {}) =>
   supertest(app).post('/reservas').set('x-api-key', 'svc').send({
     canchaId, whatsapp: '5491150000010', nombreCliente: 'Ana', esContacto: false,
