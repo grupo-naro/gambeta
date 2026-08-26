@@ -34,6 +34,8 @@ export interface MetodosPago {
   titular: string;
   adminWhatsapp: string;
   senaTimeoutMinutos: number;
+  /** Cuántos días adelante se puede reservar, contando hoy como día 0. */
+  diasAnticipacionMax: number;
 }
 
 export type Resultado<T> = { ok: true; data: T } | { ok: false; error: string };
