@@ -6,7 +6,7 @@ export default function PagoExitoPage() {
       <div className="text-6xl">✅</div>
       <h1 className="text-2xl font-bold">¡Gracias!</h1>
       <p className="text-neutral-400">Estamos confirmando tu pago. En unos minutos vas a recibir la confirmación por WhatsApp.</p>
-      <Link href="/reservar" className="rounded-xl border-2 border-lime-500 px-6 py-3 font-semibold text-lime-400">Hacer otra reserva</Link>
+      <Link href="/" className="rounded-xl border-2 border-lime-500 px-6 py-3 font-semibold text-lime-400">Hacer otra reserva</Link>
     </main>
   );
 }

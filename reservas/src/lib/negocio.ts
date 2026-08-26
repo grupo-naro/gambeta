@@ -1,4 +1,4 @@
-// Datos del predio. Fuente única para toda la landing.
+// Datos del predio. Fuente única del sitio de reservas.
 //
 // Los campos vacíos están PENDIENTES del cliente. Se dejan vacíos a propósito:
 // la UI degrada de forma visible cuando faltan. NO inventar números ni handles.

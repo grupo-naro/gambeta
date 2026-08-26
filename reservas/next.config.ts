@@ -3,6 +3,14 @@ import path from "node:path";
 
 const nextConfig: NextConfig = {
   turbopack: { root: path.resolve(__dirname) },
+  // El panel de reserva vive en la raíz: este subdominio no hace otra cosa.
+  // `source` es un match exacto (no anida), así que /reservar/pago/exito y
+  // /reservar/pago/pendiente —a donde vuelve el checkout de Mercado Pago— no se tocan.
+  redirects() {
+    return Promise.resolve([
+      { source: "/reservar", destination: "/", permanent: true },
+    ]);
+  },
 };
 
 export default nextConfig;
