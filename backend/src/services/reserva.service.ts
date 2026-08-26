@@ -11,7 +11,7 @@ import { configService } from './config.service.js';
 import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
-import { combineDateTimeUtc, dayWindowUtc, hhmmAMin, cierreMin, dayOfWeekInTz } from '../utils/tz.js';
+import { combineDateTimeUtc, dayWindowUtc, hhmmAMin, cierreMin, dayOfWeekInTz, hoyEnTz, sumarDias } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
@@ -70,7 +70,24 @@ export const reservaService = {
     const duracionMin = input.duracionMin ?? DURACION_DEFAULT_MIN;
     const fechaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
     const fechaFin = new Date(fechaInicio.getTime() + duracionMin * 60 * 1000);
+    const cfg = await configService.get();
     if (fechaInicio.getTime() <= Date.now()) throw BusinessRule('No se puede reservar en el pasado');
+
+    // El público reserva dentro de una ventana móvil; el staff no tiene techo, porque tiene que
+    // poder tomar por teléfono una reserva para dentro de un mes. Va pegado al chequeo del pasado
+    // a propósito: son la misma pregunta —¿la fecha cae en la ventana permitida?— y separarlos
+    // invita a que en un refactor se olvide uno.
+    //
+    // El límite es una FECHA de calendario, no un instante: con `Date.now() + N días` el último
+    // día quedaría partido al medio y los turnos de la noche se rechazarían sin motivo visible.
+    if (!opts.porStaff) {
+      const limiteYmd = sumarDias(hoyEnTz(tz), cfg.diasAnticipacionMax);
+      const finLimite = dayWindowUtc(limiteYmd, tz).end;
+      if (fechaInicio >= finLimite) {
+        const [, mes, dia] = limiteYmd.split('-');
+        throw BusinessRule(`Por ahora solo se puede reservar hasta el ${dia}/${mes}`);
+      }
+    }
 
     const iniMin = hhmmAMin(input.horaInicio);
     const finMin = iniMin + duracionMin;
@@ -89,7 +106,6 @@ export const reservaService = {
 
     // La reserva tiene que terminar antes o justo en el cierre. Antes no hacía falta:
     // todos los turnos medían lo mismo y la grilla ya no ofrecía horarios inválidos.
-    const cfg = await configService.get();
     const dow = dayOfWeekInTz(input.fecha, tz);
     const esFinde = dow === 0 || dow === 6;
     const cierre = cierreMin(esFinde ? cfg.horaCierreFinde : cfg.horaCierre);
