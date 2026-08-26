@@ -9,6 +9,10 @@ import { DatosTransferencia } from './datos-transferencia';
 const money = (n: number | null) => (n == null ? '' : '$' + Number(n).toLocaleString('es-AR'));
 const etiquetaDuracion = (min: number) => (min === 60 ? '1 hora' : min === 90 ? '1½ horas' : `${min / 60} horas`);
 const hoyISO = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date());
+const sumarDiasISO = (fecha: string, dias: number) => {
+  const [y, m, d] = fecha.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
+};
 const fechaLarga = (fecha: string) => {
   const [y, m, d] = fecha.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -22,6 +26,8 @@ const DEPORTES: { key: Deporte; label: string; icon: string }[] = [
 export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
   const [deporte, setDeporte] = useState<Deporte>('futbol');
   const [fecha, setFecha] = useState(hoyISO());
+  const hoy = hoyISO();
+  const maxFecha = sumarDiasISO(hoy, metodos.diasAnticipacionMax);
   const [canchaSelId, setCanchaSelId] = useState('');
   const [grilla, setGrilla] = useState<Grilla | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -43,6 +49,13 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
     ? `${sel.canchaNombre} · ${fechaLarga(sel.fecha)} · ${sel.hora}` +
       (opcionSel ? ` a ${opcionSel.horaFin} · ${etiquetaDuracion(opcionSel.min)}` : '')
     : '';
+
+  // Con la pestaña abierta cruzando la medianoche, `fecha` puede quedar fuera de la ventana.
+  // Se corrige antes de pedir la grilla: si no, el cliente elige un turno que el backend va a
+  // rechazar recién al confirmar.
+  useEffect(() => {
+    if (fecha < hoy || fecha > maxFecha) setFecha(hoy);
+  }, [fecha, hoy, maxFecha]);
 
   useEffect(() => {
     let vivo = true;
@@ -148,7 +161,7 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
             Seleccioná y completá el formulario.
           </div>
           {deporteBotones}
-          <Calendario value={fecha} onChange={setFecha} min={hoyISO()} />
+          <Calendario value={fecha} onChange={setFecha} min={hoy} max={maxFecha} />
         </aside>
         <section className="flex min-w-0 flex-col">
           <h2 className="mb-3 text-lg font-bold uppercase text-lime-400">{tituloGrilla}</h2>
@@ -191,7 +204,7 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
       {/* ===== Mobile: select de cancha + lista ===== */}
       <div className="flex flex-1 flex-col gap-4 p-4 md:hidden">
         {deporteBotones}
-        <SelectorFechaMobile value={fecha} onChange={setFecha} />
+        <SelectorFechaMobile value={fecha} onChange={setFecha} min={hoy} max={maxFecha} />
         <h2 className="text-base font-bold uppercase text-lime-400">{tituloGrilla}</h2>
         {cargando ? <p className="p-6 text-center text-neutral-500">Cargando…</p>
           : errorGrilla ? <p className="p-6 text-center text-red-400">{errorGrilla}</p>
