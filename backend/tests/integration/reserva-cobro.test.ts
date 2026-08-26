@@ -11,7 +11,7 @@ beforeEach(async () => {
   await getPrisma().configuracion.create({ data: { senaMontoFijo: 5000 } });
   canchaId = (await getPrisma().cancha.create({ data: { nombre: 'C', tipo: 'futbol', precioHora: 20000, jugadores: 5, senaMonto: 10000 } })).id;
 });
-const fut = () => new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const fut = () => new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 const crear = (extra: Record<string, unknown>) =>
   supertest(app).post('/reservas').set('authorization', `Bearer ${token}`)
     .send({ canchaId, whatsapp: '+5491150000031', nombreCliente: 'Staff', fecha: fut(), horaInicio: '18:00', ...extra });

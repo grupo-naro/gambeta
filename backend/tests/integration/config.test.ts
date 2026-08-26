@@ -149,7 +149,7 @@ describe('disponibilidad usa horario global', () => {
     await configService.update({ horaApertura: '09:00', horaCierre: '12:00', horaAperturaFinde: '09:00', horaCierreFinde: '12:00' });
     const cancha = await getPrisma().cancha.create({ data: { nombre: 'C', tipo: 'f5', precioHora: 12000 } });
     const { disponibilidadService } = await import('../../src/services/disponibilidad.service.js');
-    const fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const fecha = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
     const r = await disponibilidadService.listar(cancha.id, fecha);
     // Granularidad de 30 minutos (Task 4): el rango 09:00-12:00 produce turnos cada media
     // hora; 11:30 queda afuera porque ninguna duración (mínimo 60') entra antes del cierre.

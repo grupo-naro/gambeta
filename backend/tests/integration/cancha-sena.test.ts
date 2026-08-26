@@ -10,7 +10,7 @@ beforeEach(async () => {
   await getPrisma().configuracion.create({ data: { senaModo: 'PORCENTAJE', senaPorcentaje: 50, senaMontoFijo: 5000 } });
 });
 
-const reservaFutura = () => new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const reservaFutura = () => new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 
 describe('seña por cancha', () => {
   it('usa el senaMonto de la cancha cuando está seteado', async () => {

@@ -24,7 +24,7 @@ async function crearEsperandoSena() {
     whatsapp: '+5491150000000',
     nombreCliente: 'Juan',
     esContacto: false,
-    fecha: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+    fecha: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
     horaInicio: '18:00',
     montoSena: 500,
   });

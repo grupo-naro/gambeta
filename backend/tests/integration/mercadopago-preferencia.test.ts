@@ -13,7 +13,7 @@ beforeEach(async () => {
   canchaId = (await getPrisma().cancha.create({ data: { nombre: 'Cancha 1', tipo: 'futbol', precioHora: 20000, jugadores: 5, senaMonto: 10000 } })).id;
 });
 const svc = (r: any) => r.set('x-api-key', 'svc');
-const fut = () => new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const fut = () => new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 const crearEsperandoSena = () =>
   svc(supertest(app).post('/reservas')).send({ canchaId, whatsapp: '5491150000070', nombreCliente: 'Nuevo', esContacto: false, fecha: fut(), horaInicio: '18:00' });
 

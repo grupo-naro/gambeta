@@ -7,7 +7,7 @@ beforeAll(async () => { await setupTestDb(); const { buildApp } = await import('
 afterAll(teardownTestDb);
 beforeEach(resetTables);
 
-const fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const fecha = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 
 /** Complejo abierto de 8 a 23, con franja pico de 18:00 al cierre (semana y finde). */
 async function abrirDe8a23() {

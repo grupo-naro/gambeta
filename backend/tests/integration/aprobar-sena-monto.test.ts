@@ -10,7 +10,7 @@ beforeEach(async () => {
   await getPrisma().configuracion.create({ data: { senaMontoFijo: 5000 } });
   canchaId = (await getPrisma().cancha.create({ data: { nombre: 'C', tipo: 'futbol', precioHora: 20000, jugadores: 5, senaMonto: 10000 } })).id;
 });
-const fut = () => new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const fut = () => new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 const crearEsperandoSena = (whatsapp: string) =>
   supertest(app).post('/reservas').set('x-api-key', 'svc')
     .send({ canchaId, whatsapp, nombreCliente: 'Nuevo', esContacto: false, fecha: fut(), horaInicio: '18:00' });
