@@ -14,6 +14,9 @@ export const updateConfigSchema = z.object({
     senaModo: z.enum(['PORCENTAJE', 'FIJO']).optional(),
     senaPorcentaje: z.coerce.number().int().min(0).max(100).optional(),
     senaMontoFijo: z.coerce.number().nonnegative().optional(),
+    // min(1) porque 0 dejaría reservar solo el día en curso: apaga el sitio, y es más fácil
+    // de conseguir por accidente que a propósito.
+    diasAnticipacionMax: z.coerce.number().int().min(1).max(365).optional(),
     cbu: z.string().optional(),
     alias: z.string().optional(),
     titular: z.string().optional(),

@@ -102,6 +102,21 @@ describe('GET/PATCH /config', () => {
       .send({ horaAperturaFinde: '20:00', horaCierreFinde: '18:00' });
     expect(r.status).toBe(400);
   });
+  it('diasAnticipacionMax arranca en 7 y se puede cambiar por PATCH', async () => {
+    const token = signAdminToken({ adminId: 'x', email: 'a@b.com', rol: 'ADMIN' });
+    const get = await supertest(app).get('/config').set('authorization', `Bearer ${token}`);
+    expect(get.body.diasAnticipacionMax).toBe(7);
+
+    const patch = await supertest(app).patch('/config').set('authorization', `Bearer ${token}`).send({ diasAnticipacionMax: 14 });
+    expect(patch.status).toBe(200);
+    expect(patch.body.diasAnticipacionMax).toBe(14);
+  });
+
+  it('diasAnticipacionMax rechaza 0 y valores no enteros', async () => {
+    const token = signAdminToken({ adminId: 'x', email: 'a@b.com', rol: 'ADMIN' });
+    expect((await supertest(app).patch('/config').set('authorization', `Bearer ${token}`).send({ diasAnticipacionMax: 0 })).status).toBe(400);
+    expect((await supertest(app).patch('/config').set('authorization', `Bearer ${token}`).send({ diasAnticipacionMax: 2.5 })).status).toBe(400);
+  });
 });
 
 describe('senaService desde DB', () => {
