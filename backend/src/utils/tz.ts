@@ -37,3 +37,18 @@ export function dayWindowUtc(date: string, timeZone: string): { start: Date; end
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { start, end };
 }
+
+/** El día de hoy en la zona del negocio, como "YYYY-MM-DD". */
+export function hoyEnTz(timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
+/**
+ * Suma días de calendario a un "YYYY-MM-DD". Se usa `Date.UTC` a propósito: la fecha es un
+ * rótulo sin hora, así que sumarle días en UTC no puede caer en un salto de huso.
+ */
+export function sumarDias(date: string, dias: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + dias));
+  return t.toISOString().slice(0, 10);
+}
