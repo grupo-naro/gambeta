@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Anton } from "next/font/google";
 import { negocio } from "@/lib/negocio";
+import { FirmaNaro } from "@/components/firma-naro";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,7 +31,10 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${anton.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <FirmaNaro />
+      </body>
     </html>
   );
 }

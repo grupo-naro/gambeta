@@ -11,7 +11,7 @@ export default async function Home() {
   const metodos = await getMetodosPago();
   const hayAlgunMetodo = metodos.mercadoPago || metodos.transferencia;
   return (
-    <main className="flex min-h-screen flex-1 flex-col bg-neutral-950 text-neutral-100">
+    <main className="flex flex-1 flex-col bg-neutral-950 text-neutral-100">
       {hayAlgunMetodo ? <PantallaReserva metodos={metodos} /> : <ReservasCerradas />}
     </main>
   );
