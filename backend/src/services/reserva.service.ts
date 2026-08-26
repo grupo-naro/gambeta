@@ -49,6 +49,16 @@ function mensajeSenaAprobada(r: { cancha: { nombre: string }; fechaInicio: Date 
   return `¡Listo! Confirmamos tu seña ✅. Tu turno de ${r.cancha.nombre} ${dia} a las ${hora} quedó reservado. ¡Te esperamos!`;
 }
 
+/**
+ * Fin de la ventana de anticipación pública: el instante exacto (medianoche del día siguiente,
+ * en la zona del negocio) en el que deja de poder reservarse. Se usa tanto en `crear` como en
+ * `reprogramar` para no duplicar la aritmética de calendario ni el mensaje de error.
+ */
+function limiteAnticipacion(cfg: { diasAnticipacionMax: number }, tz: string): { fin: Date; ymd: string } {
+  const ymd = sumarDias(hoyEnTz(tz), cfg.diasAnticipacionMax);
+  return { fin: dayWindowUtc(ymd, tz).end, ymd };
+}
+
 export interface CreateReservaInput {
   canchaId: string;
   whatsapp: string;
@@ -81,10 +91,9 @@ export const reservaService = {
     // El límite es una FECHA de calendario, no un instante: con `Date.now() + N días` el último
     // día quedaría partido al medio y los turnos de la noche se rechazarían sin motivo visible.
     if (!opts.porStaff) {
-      const limiteYmd = sumarDias(hoyEnTz(tz), cfg.diasAnticipacionMax);
-      const finLimite = dayWindowUtc(limiteYmd, tz).end;
-      if (fechaInicio >= finLimite) {
-        const [, mes, dia] = limiteYmd.split('-');
+      const { fin, ymd } = limiteAnticipacion(cfg, tz);
+      if (fechaInicio >= fin) {
+        const [, mes, dia] = ymd.split('-');
         throw BusinessRule(`Por ahora solo se puede reservar hasta el ${dia}/${mes}`);
       }
     }
@@ -333,12 +342,26 @@ export const reservaService = {
       throw BusinessRule(`Solo se puede reprogramar hasta ${horas}h antes del turno`);
     }
     const tz = getEnv().TZ_NEGOCIO;
+    const cfg = await configService.get();
     const nuevaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
     const duracionMs = r.fechaFin.getTime() - r.fechaInicio.getTime();
     const nuevaFin = new Date(nuevaInicio.getTime() + duracionMs);
     if (nuevaInicio.getTime() <= Date.now()) {
       throw BusinessRule('No se puede reprogramar a un horario en el pasado');
     }
+
+    // Mismo hueco que en `crear`: sin este chequeo, reprogramar es una puerta trasera a la
+    // ventana de anticipación pública (crear una reserva cercana y después reprogramarla lejos).
+    // El bot de n8n entra por acá con clave de servicio, así que queda tan limitado como el
+    // público — solo el staff (`by.adminId`) puede mover una reserva fuera de la ventana.
+    if (!by.adminId) {
+      const { fin, ymd } = limiteAnticipacion(cfg, tz);
+      if (nuevaInicio >= fin) {
+        const [, mes, dia] = ymd.split('-');
+        throw BusinessRule(`Por ahora solo se puede reservar hasta el ${dia}/${mes}`);
+      }
+    }
+
     // Cancha destino: la nueva si vino, o la misma. El cambio de cancha se valida contra el slot destino.
     const cambiaCancha = !!input.canchaId && input.canchaId !== r.canchaId;
     const canchaDestino = input.canchaId ?? r.canchaId;
@@ -348,7 +371,6 @@ export const reservaService = {
     // Mismo chequeo que `crear`: la reserva reprogramada tiene que terminar antes o justo en el
     // cierre. Sin esto, reprogramar una reserva larga a un horario tardío la desborda al día
     // siguiente sin que nada lo impida.
-    const cfg = await configService.get();
     const dowNuevo = dayOfWeekInTz(input.fecha, tz);
     const cierre = cierreMin(dowNuevo === 0 || dowNuevo === 6 ? cfg.horaCierreFinde : cfg.horaCierre);
     if (iniMin + duracionMs / 60000 > cierre) throw BusinessRule('La reserva termina después del horario de cierre');

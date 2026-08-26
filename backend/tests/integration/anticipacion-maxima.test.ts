@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
@@ -28,6 +28,19 @@ const body = (fecha: string) => ({
 const token = () => signAdminToken({ adminId: 'x', email: 'a@b.com', rol: 'ADMIN' });
 
 describe('anticipación máxima', () => {
+  // Congelado a un mediodía fijo, lejos de las 22:00-24:00 ART: la ventana es una FECHA de
+  // calendario, y una implementación que corte por milisegundos (`Date.now() + N días`) solo se
+  // delata si "ahora" cae antes de la hora del turno límite. Sin congelar, correr la suite de
+  // noche (22:00-24:00 ART) esconde el bug en vez de reventarlo. Solo se fakea `Date`: el resto
+  // de los timers queda real para no colgar supertest/Postgres.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-08-26T15:00:00.000Z')); // 12:00 en America/Argentina/Buenos_Aires
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('el público puede reservar el último día de la ventana', async () => {
     const ultimo = sumarDias(hoyEnTz(TZ), 7);
     const res = await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body(ultimo));
@@ -35,10 +48,15 @@ describe('anticipación máxima', () => {
   });
 
   it('el público NO puede reservar un día después de la ventana', async () => {
+    const limite = sumarDias(hoyEnTz(TZ), 7);
     const pasado = sumarDias(hoyEnTz(TZ), 8);
     const res = await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body(pasado));
     expect(res.status).toBe(422);
     expect(res.body.error.message).toContain('solo se puede reservar hasta');
+    // El mensaje tiene que nombrar la FECHA límite, no una cantidad de días: un texto como
+    // "...hasta 7 días" pasaría el toContain de arriba pero es justo la formulación prohibida.
+    const [, mes, dia] = limite.split('-');
+    expect(res.body.error.message).toContain(`${dia}/${mes}`);
   });
 
   it('el staff SÍ puede reservar fuera de la ventana', async () => {
