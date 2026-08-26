@@ -13,7 +13,8 @@ export function ConfigForm({ config }: { config: Config }) {
   const [f, setF] = useState({
     horaApertura: config.horaApertura, horaCierre: config.horaCierre,
     horaAperturaFinde: config.horaAperturaFinde, horaCierreFinde: config.horaCierreFinde,
-    adminWhatsapp: config.adminWhatsapp, diasAnticipacionMax: String(config.diasAnticipacionMax),
+    adminWhatsapp: config.adminWhatsapp,
+    diasAnticipacionMax: config.diasAnticipacionMax != null ? String(config.diasAnticipacionMax) : '',
     senaModo: 'FIJO',
     senaPorcentaje: String(config.senaPorcentaje), senaMontoFijo: String(Number(config.senaMontoFijo)),
     cbu: config.cbu, alias: config.alias, titular: config.titular,

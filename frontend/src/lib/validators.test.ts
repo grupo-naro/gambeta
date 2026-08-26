@@ -39,6 +39,46 @@ describe('configSchema', () => {
   });
 });
 
+// El backend y el panel se despliegan por separado (ver CLAUDE.md): si el backend todavía no
+// tiene diasAnticipacionMax, GET /config puede devolver la config sin esa clave. El resto del
+// formulario (horarios, WhatsApp, seña, etc.) tiene que poder guardarse igual.
+describe('configSchema sin diasAnticipacionMax (deploy escalonado)', () => {
+  const cfgCompleta = { horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', diasAnticipacionMax:'7', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'pago.x', titular:'Juan', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' };
+  it('acepta la config cuando la clave directamente no está presente', () => {
+    const { diasAnticipacionMax, ...sinCampo } = cfgCompleta;
+    const r = configSchema.safeParse(sinCampo);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.diasAnticipacionMax).toBeUndefined();
+  });
+  it('acepta la config cuando el campo llega como string vacío (guarda del estado inicial)', () => {
+    const r = configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.diasAnticipacionMax).toBeUndefined();
+  });
+  it('no arrastra la clave al payload cuando está vacía, para no mandar NaN al backend', () => {
+    const r = configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '' });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const payload = JSON.parse(JSON.stringify(r.data));
+      expect('diasAnticipacionMax' in payload).toBe(false);
+    }
+  });
+  it('sigue validando el resto de los campos aunque falte diasAnticipacionMax', () => {
+    const { diasAnticipacionMax, ...sinCampo } = cfgCompleta;
+    const r = configSchema.safeParse({ ...sinCampo, horaApertura: '23:00', horaCierre: '09:00' });
+    expect(r.success).toBe(false);
+  });
+  it('rechaza diasAnticipacionMax fuera de rango cuando sí llega', () => {
+    expect(configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '400' }).success).toBe(false);
+    expect(configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '0' }).success).toBe(false);
+  });
+  it('acepta diasAnticipacionMax válido y lo coerciona a número', () => {
+    const r = configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '14' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.diasAnticipacionMax).toBe(14);
+  });
+});
+
 describe('canchaDivisibleSchema', () => {
   it('acepta divisible válida', () => {
     expect(canchaDivisibleSchema.safeParse({ nombre: 'Cancha 4', partes: '3', precioEntera: '30000', precioParte: '12000', jugadoresEntera: '11', jugadoresParte: '5' }).success).toBe(true);

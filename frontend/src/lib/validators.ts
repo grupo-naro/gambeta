@@ -48,13 +48,18 @@ export const canchaDivisibleSchema = z.object({
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora inválida (HH:MM)');
 const hhmmOrEmpty = z.string().regex(/^(([01]\d|2[0-3]):[0-5]\d)?$/, 'Hora inválida (HH:MM)');
+// Opcional a propósito: el backend puede no tenerlo todavía (deploy escalonado panel/backend),
+// y en ese caso el campo debe poder quedar vacío sin bloquear el resto del formulario ni viajar en el PATCH.
+const diasAnticipacionMaxOrEmpty = z.string().optional()
+  .transform((s) => (s === undefined || s === '' ? undefined : Number(s)))
+  .refine((n) => n === undefined || (Number.isInteger(n) && n >= 1 && n <= 365), 'Tiene que ser un entero entre 1 y 365 días');
 export const configSchema = z.object({
   horaApertura: hhmm,
   horaCierre: hhmm,
   horaAperturaFinde: hhmm,
   horaCierreFinde: hhmm,
   adminWhatsapp: z.string().min(8, 'WhatsApp inválido'),
-  diasAnticipacionMax: z.coerce.number().int().min(1, 'Tiene que ser al menos 1 día').max(365, 'Máximo 365 días'),
+  diasAnticipacionMax: diasAnticipacionMaxOrEmpty,
   senaModo: z.enum(['PORCENTAJE', 'FIJO']),
   senaPorcentaje: z.coerce.number().int().min(0).max(100),
   senaMontoFijo: z.coerce.number().nonnegative(),
