@@ -32,7 +32,7 @@ describe('canchaSchema', () => {
 
 describe('configSchema', () => {
   it('acepta config válida', () => {
-    expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'pago.x', titular:'Juan', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(true);
+    expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', diasAnticipacionMax:'7', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'pago.x', titular:'Juan', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(true);
   });
   it('rechaza apertura >= cierre', () => {
     expect(configSchema.safeParse({ horaApertura:'23:00', horaCierre:'09:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'', titular:'', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(false);
@@ -113,7 +113,7 @@ describe('canchaSchema con precioHoraPico', () => {
 });
 
 describe('configSchema con franjas pico', () => {
-  const baseCfg = { horaApertura: '16:00', horaCierre: '23:00', horaAperturaFinde: '16:00', horaCierreFinde: '00:00', adminWhatsapp: '5491100000000', senaModo: 'PORCENTAJE', senaPorcentaje: '50', senaMontoFijo: '0', cbu: '', alias: '', titular: '', alias2: '', cbu2: '', titular2: '' };
+  const baseCfg = { horaApertura: '16:00', horaCierre: '23:00', horaAperturaFinde: '16:00', horaCierreFinde: '00:00', adminWhatsapp: '5491100000000', diasAnticipacionMax: '7', senaModo: 'PORCENTAJE', senaPorcentaje: '50', senaMontoFijo: '0', cbu: '', alias: '', titular: '', alias2: '', cbu2: '', titular2: '' };
   it('acepta franjas vacías', () => {
     const r = configSchema.safeParse({ ...baseCfg, picoDesde: '', picoHasta: '', picoFindeDesde: '', picoFindeHasta: '' });
     expect(r.success).toBe(true);

@@ -50,6 +50,7 @@ export interface Config {
   horaApertura: string; horaCierre: string;
   horaAperturaFinde: string; horaCierreFinde: string;
   adminWhatsapp: string;
+  diasAnticipacionMax: number;
   senaModo: 'PORCENTAJE' | 'FIJO';
   senaPorcentaje: number; senaMontoFijo: number | string;
   cbu: string; alias: string; titular: string;

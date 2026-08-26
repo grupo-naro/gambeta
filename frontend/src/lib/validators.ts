@@ -54,6 +54,7 @@ export const configSchema = z.object({
   horaAperturaFinde: hhmm,
   horaCierreFinde: hhmm,
   adminWhatsapp: z.string().min(8, 'WhatsApp inválido'),
+  diasAnticipacionMax: z.coerce.number().int().min(1, 'Tiene que ser al menos 1 día').max(365, 'Máximo 365 días'),
   senaModo: z.enum(['PORCENTAJE', 'FIJO']),
   senaPorcentaje: z.coerce.number().int().min(0).max(100),
   senaMontoFijo: z.coerce.number().nonnegative(),
