@@ -13,6 +13,7 @@ const CAMPO_LABEL: Record<string, string> = {
   horaApertura: 'el horario de apertura', horaCierre: 'el horario de cierre',
   horaAperturaFinde: 'el horario de apertura (finde)', horaCierreFinde: 'el horario de cierre (finde)',
   adminWhatsapp: 'el WhatsApp del administrador',
+  diasAnticipacionMax: 'la anticipación máxima para reservar',
   senaModo: 'el modo de seña', senaPorcentaje: 'el porcentaje de seña', senaMontoFijo: 'el monto de seña',
   picoDesde: 'la franja pico (semana)', picoHasta: 'la franja pico (semana)',
   picoFindeDesde: 'la franja pico (finde)', picoFindeHasta: 'la franja pico (finde)',

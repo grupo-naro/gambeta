@@ -26,7 +26,7 @@ const body = (over: Partial<any> = {}) => ({
   whatsapp: '+5491150000000',
   nombreCliente: 'Juan',
   esContacto: false,
-  fecha: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+  fecha: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10),
   horaInicio: '18:00',
   montoSena: 500,
   ...over,
@@ -105,7 +105,7 @@ describe('POST /reservas — precio por hora pico', () => {
     await configService.update({ picoDesde: '19:00', picoHasta: '23:00', picoFindeDesde: '', picoFindeHasta: '' });
     const cancha = await getPrisma().cancha.create({ data: { nombre: 'P', tipo: 'f5', precioHora: 1000, jugadores: 5, precioHoraPico: 3000 } });
     // un día de semana futuro (no sábado/domingo) a las 20:00 → pico
-    let fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    let fecha = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
     while (true) {
       const wd = dayOfWeekInTz(fecha, process.env.TZ_NEGOCIO || 'America/Argentina/Buenos_Aires');
       if (wd !== 0 && wd !== 6) break;
@@ -120,7 +120,7 @@ describe('POST /reservas — precio por hora pico', () => {
   it('aplica el precio base fuera de la franja', async () => {
     await configService.update({ picoDesde: '19:00', picoHasta: '23:00' });
     const cancha = await getPrisma().cancha.create({ data: { nombre: 'P2', tipo: 'f5', precioHora: 1000, jugadores: 5, precioHoraPico: 3000 } });
-    let fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    let fecha = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
     while (true) {
       const wd = dayOfWeekInTz(fecha, process.env.TZ_NEGOCIO || 'America/Argentina/Buenos_Aires');
       if (wd !== 0 && wd !== 6) break;
@@ -139,10 +139,18 @@ describe('GET /reservas — filtro por rango', () => {
     // dentro: dentro de 3 días; fuera: dentro de 30 días
     const dentro = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
     const fuera = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-    await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body({ esContacto: true, fecha: dentro, horaInicio: '18:00' }));
-    await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body({ esContacto: true, fecha: fuera, horaInicio: '18:00' }));
+
+    const resDentro = await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body({ esContacto: true, fecha: dentro, horaInicio: '18:00' }));
+    // `fuera` va con JWT a propósito: son 30 días de anticipación, y el público está limitado a
+    // la ventana de `diasAnticipacionMax`. Con x-api-key esta reserva no se crearía, y el test
+    // pasaría en falso: lo único que afirma es que esa fecha NO aparece en el rango.
+    const resFuera = await supertest(app).post('/reservas').set('authorization', `Bearer ${token}`).send(body({ esContacto: true, fecha: fuera, horaInicio: '18:00' }));
+    // Se afirma el 201 de las dos: sin esto, un 422 futuro vuelve a vaciar el test en silencio.
+    expect(resDentro.status).toBe(201);
+    expect(resFuera.status).toBe(201);
+
     const desde = new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10);
-    const hasta = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const hasta = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
     const res = await supertest(app).get(`/reservas?desde=${desde}&hasta=${hasta}`).set('authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     const fechas = (res.body as any[]).map((r) => r.fechaInicio.slice(0, 10));
@@ -157,7 +165,8 @@ describe('GET /reservas — filtro por rango', () => {
     await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body({ esContacto: true, fecha: dentro, horaInicio: '18:00' }));
     await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body({ esContacto: false, fecha: dentro, horaInicio: '19:00', montoSena: 500 }));
     const desde = new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10);
-    const hasta = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    // hasta a +5 para que "dentro" (+3) quede cómodo dentro del rango, no en el borde.
+    const hasta = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
     const res = await supertest(app).get(`/reservas?desde=${desde}&hasta=${hasta}&estado=CONFIRMADA`).set('authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect((res.body as any[]).every((r) => r.estado === 'CONFIRMADA')).toBe(true);

@@ -2,7 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
+import { hoyEnTz, sumarDias } from '../../src/utils/tz.js';
 
+const TZ = 'America/Argentina/Buenos_Aires';
 let app: any; let canchaId: string; let clienteId: string; let token: string;
 beforeAll(async () => {
   await setupTestDb();
@@ -79,7 +81,10 @@ describe('PATCH /reservas/:id/reprogramar', () => {
   });
 
   it('409 al mover a una cancha ocupada en ese horario', async () => {
-    const fecha = fechaFutura(7);
+    // El día no es significativo para lo que prueba este caso (un conflicto de cancha), así que
+    // se baja a +2 con margen de sobra: a +7 el corrimiento ART/UTC lo pone a veces en +8, fuera
+    // de la ventana de anticipación que reprogramar valida desde la Task 4b.
+    const fecha = fechaFutura(2);
     const r = await crearAPI(fecha, '20:00');
     const canchaB = (await getPrisma().cancha.create({ data: { nombre: 'B2', tipo: 'f5', precioHora: 12000 } })).id;
     await supertest(app).post('/reservas').set('x-api-key', 'svc').send({ canchaId: canchaB, whatsapp: '+5491150009999', nombreCliente: 'Otro', esContacto: true, fecha, horaInicio: '20:00' });
@@ -97,5 +102,17 @@ describe('PATCH /reservas/:id/reprogramar', () => {
     const r = await reservaEnHoras(72);
     const res = await supertest(app).patch(`/reservas/${r.id}/reprogramar`).set('x-api-key', 'svc').send({ fecha: '2020-01-01', horaInicio: '20:00' });
     expect(res.status).toBe(422);
+  });
+
+  it('la reprogramación respeta la ventana de anticipación: 422 para el bot con clave de servicio, 200 para admin', async () => {
+    // Sin este chequeo, reprogramar es una puerta trasera a la ventana de `crear`: se crea una
+    // reserva cercana y después se la reprograma lejos. authAny deja pasar `x-api-key`, así que
+    // el bot de n8n tiene que quedar tan limitado como el público.
+    const r = await reservaEnHoras(72);
+    const lejos = sumarDias(hoyEnTz(TZ), 30);
+    const svc = await supertest(app).patch(`/reservas/${r.id}/reprogramar`).set('x-api-key', 'svc').send({ fecha: lejos, horaInicio: '20:00' });
+    expect(svc.status).toBe(422);
+    const adm = await supertest(app).patch(`/reservas/${r.id}/reprogramar`).set('authorization', `Bearer ${token}`).send({ fecha: lejos, horaInicio: '20:00' });
+    expect(adm.status).toBe(200);
   });
 });

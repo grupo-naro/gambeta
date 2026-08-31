@@ -8,7 +8,7 @@ afterAll(teardownTestDb);
 beforeEach(resetTables);
 
 // Fecha futura fija para que "no se puede reservar en el pasado" nunca interfiera.
-const fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const fecha = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 
 async function crearCancha() {
   return getPrisma().cancha.create({ data: { nombre: 'Pádel 1', tipo: 'padel', precioHora: 30000, precioHoraPico: 36000 } });

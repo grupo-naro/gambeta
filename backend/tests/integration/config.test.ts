@@ -102,6 +102,21 @@ describe('GET/PATCH /config', () => {
       .send({ horaAperturaFinde: '20:00', horaCierreFinde: '18:00' });
     expect(r.status).toBe(400);
   });
+  it('diasAnticipacionMax arranca en 7 y se puede cambiar por PATCH', async () => {
+    const token = signAdminToken({ adminId: 'x', email: 'a@b.com', rol: 'ADMIN' });
+    const get = await supertest(app).get('/config').set('authorization', `Bearer ${token}`);
+    expect(get.body.diasAnticipacionMax).toBe(7);
+
+    const patch = await supertest(app).patch('/config').set('authorization', `Bearer ${token}`).send({ diasAnticipacionMax: 14 });
+    expect(patch.status).toBe(200);
+    expect(patch.body.diasAnticipacionMax).toBe(14);
+  });
+
+  it('diasAnticipacionMax rechaza 0 y valores no enteros', async () => {
+    const token = signAdminToken({ adminId: 'x', email: 'a@b.com', rol: 'ADMIN' });
+    expect((await supertest(app).patch('/config').set('authorization', `Bearer ${token}`).send({ diasAnticipacionMax: 0 })).status).toBe(400);
+    expect((await supertest(app).patch('/config').set('authorization', `Bearer ${token}`).send({ diasAnticipacionMax: 2.5 })).status).toBe(400);
+  });
 });
 
 describe('senaService desde DB', () => {
@@ -134,7 +149,7 @@ describe('disponibilidad usa horario global', () => {
     await configService.update({ horaApertura: '09:00', horaCierre: '12:00', horaAperturaFinde: '09:00', horaCierreFinde: '12:00' });
     const cancha = await getPrisma().cancha.create({ data: { nombre: 'C', tipo: 'f5', precioHora: 12000 } });
     const { disponibilidadService } = await import('../../src/services/disponibilidad.service.js');
-    const fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const fecha = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
     const r = await disponibilidadService.listar(cancha.id, fecha);
     // Granularidad de 30 minutos (Task 4): el rango 09:00-12:00 produce turnos cada media
     // hora; 11:30 queda afuera porque ninguna duración (mínimo 60') entra antes del cierre.

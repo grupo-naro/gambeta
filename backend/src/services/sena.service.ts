@@ -16,6 +16,8 @@ export interface DatosPago {
   transferenciaDisponible: boolean;
   /** Cuánto aguanta la reserva sin pagar antes de que el job libere el horario. */
   senaTimeoutMinutos: number;
+  /** Cuántos días adelante puede reservar el público. El sitio recorta el calendario con esto. */
+  diasAnticipacionMax: number;
 }
 
 export const senaService = {
@@ -47,6 +49,7 @@ export const senaService = {
       // los datos, y duplicarla garantiza que se desincronicen.
       transferenciaDisponible: c.cbu.trim() !== '' || c.alias.trim() !== '',
       senaTimeoutMinutos: getEnv().SENA_TIMEOUT_MINUTOS,
+      diasAnticipacionMax: c.diasAnticipacionMax,
     };
   },
 };

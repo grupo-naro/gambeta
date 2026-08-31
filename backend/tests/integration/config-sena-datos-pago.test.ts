@@ -68,4 +68,10 @@ describe('GET /config/sena', () => {
     await getPrisma().configuracion.create({ data: { id: 'default', adminWhatsapp: 'no es un telefono' } });
     expect((await pedir()).body.adminWhatsapp).toBe('');
   });
+
+  it('expone diasAnticipacionMax para que el sitio público recorte el calendario', async () => {
+    const res = await supertest(app).get('/config/sena').set('x-api-key', 'svc');
+    expect(res.status).toBe(200);
+    expect(res.body.diasAnticipacionMax).toBe(7);
+  });
 });

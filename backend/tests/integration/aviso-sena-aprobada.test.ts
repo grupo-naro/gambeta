@@ -16,7 +16,7 @@ beforeEach(async () => {
   token = signAdminToken({ adminId: admin.id, email: admin.email, rol: 'ADMIN' });
 });
 
-const fut = () => new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const fut = () => new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 const crear = (whatsapp: string) =>
   supertest(app).post('/reservas').set('x-api-key', 'svc')
     .send({ canchaId, whatsapp, nombreCliente: 'Nuevo', esContacto: false, fecha: fut(), horaInicio: '18:00' });

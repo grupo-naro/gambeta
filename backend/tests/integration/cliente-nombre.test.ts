@@ -30,7 +30,7 @@ describe('POST /reservas — nombreConfirmado', () => {
   async function cancha() {
     return (await getPrisma().cancha.create({ data: { nombre: 'C', tipo: 'f5', precioHora: 10000, jugadores: 5 } })).id;
   }
-  const fechaFutura = () => new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const fechaFutura = () => new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
   const reservar = (canchaId: string, over: Record<string, unknown>) =>
     supertest(app).post('/reservas').set('x-api-key', 'svc').send({
       canchaId, whatsapp: '+5491150000001', nombreCliente: 'X', esContacto: true,

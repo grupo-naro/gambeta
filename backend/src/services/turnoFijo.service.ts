@@ -11,6 +11,7 @@ import { sheetsSync } from './sheets/sheetsSync.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { adminUserRepo } from '../repositories/adminUser.repo.js';
+import { limiteAnticipacion } from './reserva.service.js';
 
 const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 const assertFecha = (fecha: string) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw BusinessRule('Fecha inválida (YYYY-MM-DD)'); };
@@ -164,7 +165,7 @@ export const turnoFijoService = {
     sheetsSync.marcarSemanaSucia();
     return { ok: true };
   },
-  async materializar(fijoId: string, fecha: string) {
+  async materializar(fijoId: string, fecha: string, opts: { porStaff?: boolean } = {}) {
     const tz = getEnv().TZ_NEGOCIO;
     const fijo = await prisma.turnoFijo.findUnique({ where: { id: fijoId }, include: { cancha: true } });
     if (!fijo || !fijo.activo) throw NotFound('TurnoFijo', fijoId);
@@ -174,10 +175,23 @@ export const turnoFijoService = {
     const exc = await prisma.turnoFijoExcepcion.findUnique({ where: { turnoFijoId_fecha: { turnoFijoId: fijoId, fecha: fechaDate } } });
     if (exc) throw BusinessRule('Ese turno fijo está liberado en esa fecha');
     const fechaInicio = combineDateTimeUtc(fecha, fijo.horaInicio, tz);
+    const cfg = await configService.get();
+
+    // Mismo hueco que en reserva.service.crear/reprogramar: materializar también escribe
+    // fechaInicio directamente, así que es una tercera puerta a la ventana de anticipación
+    // pública. Sin esta guarda, un llamador con clave de servicio podría enumerar un fijo con
+    // GET /turnos-fijos/mios y materializarlo a meses de distancia.
+    if (!opts.porStaff) {
+      const { fin, ymd } = limiteAnticipacion(cfg, tz);
+      if (fechaInicio >= fin) {
+        const [, mes, dia] = ymd.split('-');
+        throw BusinessRule(`Por ahora solo se puede reservar hasta el ${dia}/${mes}`);
+      }
+    }
+
     const existente = await prisma.reserva.findUnique({ where: { turnoFijoId_fechaInicio: { turnoFijoId: fijoId, fechaInicio } } });
     if (existente) return existente;
     const fechaFin = combineDateTimeUtc(fecha, fijo.horaFin, tz);
-    const cfg = await configService.get();
     // cierreMin() mapea "00:00" a 1440: un fijo que cierra a medianoche no debe dar duración
     // negativa (hoy inalcanzable por validación zod, pero queda como riesgo con datos legacy).
     const duracion = cierreMin(fijo.horaFin) - hhmmAMin(fijo.horaInicio);

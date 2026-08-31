@@ -5,6 +5,8 @@ import type { Deporte, Grilla, MetodoSena, MetodosPago, PreferenciaPago, Reserva
 // Default del backend cuando `SENA_TIMEOUT_MINUTOS` no está seteado (ver `src/config/env.ts`).
 // Se usa acá si el backend es viejo y no manda `senaTimeoutMinutos` en absoluto.
 const SENA_TIMEOUT_MINUTOS_DEFAULT = 30;
+// Default cuando el backend no responde o es viejo y no manda `diasAnticipacionMax`.
+const DIAS_ANTICIPACION_DEFAULT = 7;
 
 export async function getGrilla(deporte: Deporte, fecha: string): Promise<Resultado<Grilla>> {
   try {
@@ -25,12 +27,13 @@ export async function getMetodosPago(): Promise<MetodosPago> {
   const vacio: MetodosPago = {
     mercadoPago: false, transferencia: false,
     cbu: '', alias: '', titular: '', adminWhatsapp: '', senaTimeoutMinutos: SENA_TIMEOUT_MINUTOS_DEFAULT,
+    diasAnticipacionMax: DIAS_ANTICIPACION_DEFAULT,
   };
   try {
     const d = await apiReservas<{
       cobrosOnline?: boolean; transferenciaDisponible?: boolean;
       cbu?: string; alias?: string; titular?: string;
-      adminWhatsapp?: string; senaTimeoutMinutos?: number;
+      adminWhatsapp?: string; senaTimeoutMinutos?: number; diasAnticipacionMax?: number;
     }>('/config/sena');
     return {
       mercadoPago: d.cobrosOnline === true,
@@ -39,6 +42,11 @@ export async function getMetodosPago(): Promise<MetodosPago> {
       adminWhatsapp: d.adminWhatsapp ?? '',
       // Si el backend es viejo y no manda el plazo, cae al default del backend.
       senaTimeoutMinutos: d.senaTimeoutMinutos ?? SENA_TIMEOUT_MINUTOS_DEFAULT,
+      // Default 7 y no 0: si el backend no contesta o es viejo, el sitio se cae a la ventana
+      // esperada en vez de apagar el calendario entero. `??` no alcanza acá: un 0 (o un negativo,
+      // cargado a mano en la DB) no es nullish y pasaría derecho, dejando el selector con un solo
+      // chip o sin ninguna fecha elegible. Por eso el chequeo es explícito por positividad.
+      diasAnticipacionMax: d.diasAnticipacionMax != null && d.diasAnticipacionMax > 0 ? d.diasAnticipacionMax : DIAS_ANTICIPACION_DEFAULT,
     };
   } catch (e) {
     console.error('[config] no se pudieron consultar los métodos de pago', { error: e instanceof Error ? e.message : e });

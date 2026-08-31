@@ -37,7 +37,7 @@ describe('DELETE /clientes/:id', () => {
   });
 
   it('bloquea eliminar si el cliente tiene reservas (409)', async () => {
-    const fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const fecha = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
     await supertest(app).post('/reservas').set('x-api-key', 'svc').send({ canchaId, whatsapp: '+5491150000004', nombreCliente: 'Con Reserva', esContacto: true, fecha, horaInicio: '18:00' });
     const c = (await getPrisma().cliente.findMany())[0]; // único cliente tras el reset
     const r = await supertest(app).delete(`/clientes/${c.id}`).set('authorization', `Bearer ${token}`);

@@ -19,10 +19,16 @@ export function matrizMes(anio: number, mes0: number): (number | null)[][] {
   return semanas;
 }
 
-export function Calendario({ value, onChange, min }: { value: string; onChange: (fecha: string) => void; min?: string }) {
+export function Calendario({ value, onChange, min, max }: { value: string; onChange: (fecha: string) => void; min?: string; max?: string }) {
   const [y0, m0] = value.split('-').map(Number);
   const [vista, setVista] = useState({ anio: y0, mes0: m0 - 1 });
   const semanas = matrizMes(vista.anio, vista.mes0);
+  // Si el mes de al lado cae entero fuera de la ventana, se apaga la flecha: navegar hasta un
+  // mes con 31 días grises es peor que no poder navegar.
+  const primeroDelMes = iso(vista.anio, vista.mes0, 1);
+  const ultimoDelMes = iso(vista.anio, vista.mes0, new Date(vista.anio, vista.mes0 + 1, 0).getDate());
+  const hayAnterior = !min || primeroDelMes > min;
+  const haySiguiente = !max || ultimoDelMes < max;
   const cambiarMes = (delta: number) => {
     const d = new Date(vista.anio, vista.mes0 + delta, 1);
     setVista({ anio: d.getFullYear(), mes0: d.getMonth() });
@@ -30,9 +36,9 @@ export function Calendario({ value, onChange, min }: { value: string; onChange: 
   return (
     <div className="rounded-xl border border-neutral-700 bg-neutral-900 p-3 text-neutral-200">
       <div className="mb-2 flex items-center justify-between">
-        <button type="button" onClick={() => cambiarMes(-1)} aria-label="Mes anterior" className="px-3 py-1 text-lg text-neutral-400 hover:text-white">‹</button>
+        <button type="button" disabled={!hayAnterior} onClick={() => cambiarMes(-1)} aria-label="Mes anterior" className="px-3 py-1 text-lg text-neutral-400 hover:text-white disabled:text-neutral-700 disabled:hover:text-neutral-700">‹</button>
         <span className="font-semibold text-lime-400">{MESES[vista.mes0]} {vista.anio}</span>
-        <button type="button" onClick={() => cambiarMes(1)} aria-label="Mes siguiente" className="px-3 py-1 text-lg text-neutral-400 hover:text-white">›</button>
+        <button type="button" disabled={!haySiguiente} onClick={() => cambiarMes(1)} aria-label="Mes siguiente" className="px-3 py-1 text-lg text-neutral-400 hover:text-white disabled:text-neutral-700 disabled:hover:text-neutral-700">›</button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center text-xs text-neutral-500">
         {DIAS.map((d) => <div key={d} className="py-1">{d}</div>)}
@@ -41,7 +47,7 @@ export function Calendario({ value, onChange, min }: { value: string; onChange: 
         {semanas.flat().map((d, i) => {
           if (d == null) return <div key={i} />;
           const fecha = iso(vista.anio, vista.mes0, d);
-          const deshab = min ? fecha < min : false;
+          const deshab = (min ? fecha < min : false) || (max ? fecha > max : false);
           const sel = fecha === value;
           return (
             <button key={i} type="button" disabled={deshab} onClick={() => onChange(fecha)}

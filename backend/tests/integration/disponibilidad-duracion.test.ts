@@ -5,7 +5,7 @@ beforeAll(setupTestDb);
 afterAll(teardownTestDb);
 beforeEach(resetTables);
 
-const fecha = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+const fecha = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
 
 async function escenario() {
   const { configService } = await import('../../src/services/config.service.js');

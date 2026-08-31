@@ -32,10 +32,50 @@ describe('canchaSchema', () => {
 
 describe('configSchema', () => {
   it('acepta config válida', () => {
-    expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'pago.x', titular:'Juan', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(true);
+    expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', diasAnticipacionMax:'7', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'pago.x', titular:'Juan', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(true);
   });
   it('rechaza apertura >= cierre', () => {
     expect(configSchema.safeParse({ horaApertura:'23:00', horaCierre:'09:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'', titular:'', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(false);
+  });
+});
+
+// El backend y el panel se despliegan por separado (ver CLAUDE.md): si el backend todavía no
+// tiene diasAnticipacionMax, GET /config puede devolver la config sin esa clave. El resto del
+// formulario (horarios, WhatsApp, seña, etc.) tiene que poder guardarse igual.
+describe('configSchema sin diasAnticipacionMax (deploy escalonado)', () => {
+  const cfgCompleta = { horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', diasAnticipacionMax:'7', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'pago.x', titular:'Juan', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' };
+  it('acepta la config cuando la clave directamente no está presente', () => {
+    const { diasAnticipacionMax, ...sinCampo } = cfgCompleta;
+    const r = configSchema.safeParse(sinCampo);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.diasAnticipacionMax).toBeUndefined();
+  });
+  it('acepta la config cuando el campo llega como string vacío (guarda del estado inicial)', () => {
+    const r = configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.diasAnticipacionMax).toBeUndefined();
+  });
+  it('no arrastra la clave al payload cuando está vacía, para no mandar NaN al backend', () => {
+    const r = configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '' });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const payload = JSON.parse(JSON.stringify(r.data));
+      expect('diasAnticipacionMax' in payload).toBe(false);
+    }
+  });
+  it('sigue validando el resto de los campos aunque falte diasAnticipacionMax', () => {
+    const { diasAnticipacionMax, ...sinCampo } = cfgCompleta;
+    const r = configSchema.safeParse({ ...sinCampo, horaApertura: '23:00', horaCierre: '09:00' });
+    expect(r.success).toBe(false);
+  });
+  it('rechaza diasAnticipacionMax fuera de rango cuando sí llega', () => {
+    expect(configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '400' }).success).toBe(false);
+    expect(configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '0' }).success).toBe(false);
+  });
+  it('acepta diasAnticipacionMax válido y lo coerciona a número', () => {
+    const r = configSchema.safeParse({ ...cfgCompleta, diasAnticipacionMax: '14' });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.diasAnticipacionMax).toBe(14);
   });
 });
 
@@ -113,7 +153,7 @@ describe('canchaSchema con precioHoraPico', () => {
 });
 
 describe('configSchema con franjas pico', () => {
-  const baseCfg = { horaApertura: '16:00', horaCierre: '23:00', horaAperturaFinde: '16:00', horaCierreFinde: '00:00', adminWhatsapp: '5491100000000', senaModo: 'PORCENTAJE', senaPorcentaje: '50', senaMontoFijo: '0', cbu: '', alias: '', titular: '', alias2: '', cbu2: '', titular2: '' };
+  const baseCfg = { horaApertura: '16:00', horaCierre: '23:00', horaAperturaFinde: '16:00', horaCierreFinde: '00:00', adminWhatsapp: '5491100000000', diasAnticipacionMax: '7', senaModo: 'PORCENTAJE', senaPorcentaje: '50', senaMontoFijo: '0', cbu: '', alias: '', titular: '', alias2: '', cbu2: '', titular2: '' };
   it('acepta franjas vacías', () => {
     const r = configSchema.safeParse({ ...baseCfg, picoDesde: '', picoHasta: '', picoFindeDesde: '', picoFindeHasta: '' });
     expect(r.success).toBe(true);

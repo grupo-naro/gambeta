@@ -13,7 +13,9 @@ export function ConfigForm({ config }: { config: Config }) {
   const [f, setF] = useState({
     horaApertura: config.horaApertura, horaCierre: config.horaCierre,
     horaAperturaFinde: config.horaAperturaFinde, horaCierreFinde: config.horaCierreFinde,
-    adminWhatsapp: config.adminWhatsapp, senaModo: 'FIJO',
+    adminWhatsapp: config.adminWhatsapp,
+    diasAnticipacionMax: config.diasAnticipacionMax != null ? String(config.diasAnticipacionMax) : '',
+    senaModo: 'FIJO',
     senaPorcentaje: String(config.senaPorcentaje), senaMontoFijo: String(Number(config.senaMontoFijo)),
     cbu: config.cbu, alias: config.alias, titular: config.titular,
     alias2: config.alias2 ?? '', cbu2: config.cbu2 ?? '', titular2: config.titular2 ?? '',
@@ -28,7 +30,15 @@ export function ConfigForm({ config }: { config: Config }) {
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     start(async () => {
       const r = await guardarConfig(parsed.data);
-      if (r.ok) toast.success('Configuración guardada'); else toast.error(r.error);
+      if (r.ok) {
+        toast.success('Configuración guardada');
+        // Si el admin vació el campo, no viajó en el patch y el backend conservó el valor
+        // anterior: repoblarlo desde la config recién guardada evita que el input quede vacío
+        // mintiendo que no hay ningún límite cargado.
+        setF((p) => ({ ...p, diasAnticipacionMax: r.config.diasAnticipacionMax != null ? String(r.config.diasAnticipacionMax) : '' }));
+      } else {
+        toast.error(r.error);
+      }
     });
   }
 
@@ -58,6 +68,19 @@ export function ConfigForm({ config }: { config: Config }) {
         <CardHeader><CardTitle className="text-base">Contacto</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-1"><Label htmlFor="wa">WhatsApp del administrador</Label><Input id="wa" value={f.adminWhatsapp} onChange={(e) => set('adminWhatsapp', e.target.value)} placeholder="5491159582039" /></div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Reservas del sitio público</CardTitle></CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <Label htmlFor="antic">Anticipación máxima (días)</Label>
+            <Input id="antic" type="number" min="1" max="365" value={f.diasAnticipacionMax} onChange={(e) => set('diasAnticipacionMax', e.target.value)} />
+            <p className="text-xs text-neutral-600">
+              Cuántos días adelante puede reservar un cliente desde la web. Con 7, hoy se puede reservar
+              hasta dentro de una semana. No afecta al panel: desde acá se puede cargar cualquier fecha.
+            </p>
+          </div>
         </CardContent>
       </Card>
       <Card>
