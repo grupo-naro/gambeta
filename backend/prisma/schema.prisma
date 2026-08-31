@@ -35,6 +35,17 @@ enum EstadoSuscripcion {
   CANCELADA
 }
 
+/// Canal por el que llegó la visita. La etiqueta del link es libre (`qr-entrada`, `ig-bio`);
+/// el tipo la agrupa para que el panel muestre un resumen estable aunque los QR cambien.
+enum TipoOrigen {
+  WHATSAPP
+  QR
+  REDES
+  LANDING
+  DIRECTO
+  OTRO
+}
+
 model CanchaGrupo {
   id       String   @id @default(cuid())
   nombre   String
@@ -210,31 +221,36 @@ enum MetodoSena {
 }
 
 model Reserva {
-  id            String          @id @default(cuid())
-  canchaId      String
-  cancha        Cancha          @relation(fields: [canchaId], references: [id])
-  clienteId     String
-  cliente       Cliente         @relation(fields: [clienteId], references: [id])
-  fechaInicio   DateTime        @db.Timestamptz(3)
-  fechaFin      DateTime        @db.Timestamptz(3)
-  estado        EstadoReserva
-  esContacto    Boolean
-  monto         Decimal         @db.Decimal(10, 2)
-  montoSena     Decimal?        @db.Decimal(10, 2)
+  id             String          @id @default(cuid())
+  canchaId       String
+  cancha         Cancha          @relation(fields: [canchaId], references: [id])
+  clienteId      String
+  cliente        Cliente         @relation(fields: [clienteId], references: [id])
+  fechaInicio    DateTime        @db.Timestamptz(3)
+  fechaFin       DateTime        @db.Timestamptz(3)
+  estado         EstadoReserva
+  esContacto     Boolean
+  monto          Decimal         @db.Decimal(10, 2)
+  montoSena      Decimal?        @db.Decimal(10, 2)
   /// Nullable y sin default a propósito: las reservas anteriores a este campo, las que carga el
   /// panel y las de socio no eligieron nada, y `null` es la lectura honesta. Un default
   /// fabricaría un método que nadie eligió.
-  metodoSena    MetodoSena?
-  notas         String?
-  turnoFijoId   String?
-  turnoFijo     TurnoFijo?      @relation(fields: [turnoFijoId], references: [id])
-  suscripcionId String?
-  suscripcion   Suscripcion?    @relation(fields: [suscripcionId], references: [id])
-  montoLista    Decimal?        @db.Decimal(10, 2)
-  creadoEn      DateTime        @default(now())
-  pago          Pago?
-  sectores      ReservaSector[]
-  cobros        Cobro[]
+  metodoSena     MetodoSena?
+  /// Por qué link llegó el cliente que hizo esta reserva (last-touch). Nullable y sin default
+  /// por el mismo motivo que `metodoSena`: las reservas que carga el panel, las del bot y las
+  /// anteriores a este campo no vinieron de ningún link, y `null` es la lectura honesta.
+  origenEtiqueta String?
+  origenTipo     TipoOrigen?
+  notas          String?
+  turnoFijoId    String?
+  turnoFijo      TurnoFijo?      @relation(fields: [turnoFijoId], references: [id])
+  suscripcionId  String?
+  suscripcion    Suscripcion?    @relation(fields: [suscripcionId], references: [id])
+  montoLista     Decimal?        @db.Decimal(10, 2)
+  creadoEn       DateTime        @default(now())
+  pago           Pago?
+  sectores       ReservaSector[]
+  cobros         Cobro[]
 
   @@unique([turnoFijoId, fechaInicio])
   @@index([canchaId, fechaInicio])
@@ -294,30 +310,30 @@ enum SenaModo {
 }
 
 model Configuracion {
-  id                String   @id @default("default")
-  horaApertura      String   @default("16:00")
-  horaCierre        String   @default("23:00")
-  horaAperturaFinde String   @default("16:00")
-  horaCierreFinde   String   @default("00:00")
-  picoDesde         String   @default("")
-  picoHasta         String   @default("")
-  picoFindeDesde    String   @default("")
-  picoFindeHasta    String   @default("")
-  adminWhatsapp     String   @default("")
-  senaModo          SenaModo @default(PORCENTAJE)
-  senaPorcentaje    Int      @default(50)
-  senaMontoFijo     Decimal  @default(5000) @db.Decimal(10, 2)
-  cbu               String   @default("")
-  alias             String   @default("")
-  titular           String   @default("")
-  cbu2              String   @default("")
-  alias2            String   @default("")
-  titular2          String   @default("")
-  buffetPinHash     String   @default("")
+  id                  String   @id @default("default")
+  horaApertura        String   @default("16:00")
+  horaCierre          String   @default("23:00")
+  horaAperturaFinde   String   @default("16:00")
+  horaCierreFinde     String   @default("00:00")
+  picoDesde           String   @default("")
+  picoHasta           String   @default("")
+  picoFindeDesde      String   @default("")
+  picoFindeHasta      String   @default("")
+  adminWhatsapp       String   @default("")
+  senaModo            SenaModo @default(PORCENTAJE)
+  senaPorcentaje      Int      @default(50)
+  senaMontoFijo       Decimal  @default(5000) @db.Decimal(10, 2)
+  cbu                 String   @default("")
+  alias               String   @default("")
+  titular             String   @default("")
+  cbu2                String   @default("")
+  alias2              String   @default("")
+  titular2            String   @default("")
+  buffetPinHash       String   @default("")
   /// Cuántos días adelante puede reservar el público. El staff no tiene techo.
   /// La ventana es móvil e inclusiva: hoy .. hoy + este valor.
   diasAnticipacionMax Int      @default(7)
-  actualizadoEn     DateTime @updatedAt
+  actualizadoEn       DateTime @updatedAt
 }
 
 /// Fila única (id "default"): la cuenta de Mercado Pago del complejo, vinculada por OAuth.
@@ -399,22 +415,22 @@ model Mostrador {
 }
 
 model CajaBuffet {
-  id               String             @id @default(cuid())
-  abiertaEn        DateTime           @default(now())
+  id               String              @id @default(cuid())
+  abiertaEn        DateTime            @default(now())
   cerradaEn        DateTime?
-  estado           EstadoCajaBuffet   @default(ABIERTA)
+  estado           EstadoCajaBuffet    @default(ABIERTA)
   totalUnidades    Int?
-  totalMonto       Decimal?           @db.Decimal(10, 2)
+  totalMonto       Decimal?            @db.Decimal(10, 2)
   mostradorId      String
-  mostrador        Mostrador          @relation(fields: [mostradorId], references: [id])
+  mostrador        Mostrador           @relation(fields: [mostradorId], references: [id])
   tickets          TicketBuffet[]
   entregasRendidas EntregaMostrador[]
   conteos          ConteoCierreLinea[]
   /// Plata de alquileres cobrada en esta caja. Va aparte de `totalMonto` almacenado, que
   /// sigue significando "lo que vendió el buffet" para no cambiarle el sentido a los cierres
   /// que ya están guardados.
-  totalAlquileres Decimal?  @db.Decimal(10, 2)
-  alquileres      Alquiler[]
+  totalAlquileres  Decimal?            @db.Decimal(10, 2)
+  alquileres       Alquiler[]
 
   @@index([mostradorId])
 }
@@ -569,4 +585,21 @@ model Alquiler {
 
   @@index([estado])
   @@index([cajaId])
+}
+
+model Visita {
+  id          String     @id @default(cuid())
+  /// Etiqueta cruda del link, tal como vino en /r/<etiqueta>. `null` en la visita directa.
+  etiqueta    String?
+  tipo        TipoOrigen
+  /// Una fila por sesión. `@unique` hace idempotente el registro: si el navegador manda el
+  /// beacon dos veces (remount, doble pestaña), la segunda no duplica.
+  sesionId    String     @unique
+  visitanteId String
+  referer     String?
+  creadoEn    DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@index([creadoEn])
+  @@index([tipo, creadoEn])
+  @@index([etiqueta, creadoEn])
 }
