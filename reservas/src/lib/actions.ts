@@ -1,5 +1,7 @@
 'use server';
+import { cookies } from 'next/headers';
 import { apiReservas } from './api';
+import { COOKIE_ORIGEN, etiquetaDeReserva } from './origen';
 import type { Deporte, Grilla, MetodoSena, MetodosPago, PreferenciaPago, ReservaCreada, Resultado } from './types';
 
 // Default del backend cuando `SENA_TIMEOUT_MINUTOS` no está seteado (ver `src/config/env.ts`).
@@ -56,6 +58,9 @@ export async function getMetodosPago(): Promise<MetodosPago> {
 
 export async function crearReserva(input: { canchaId: string; fecha: string; horaInicio: string; nombre: string; telefono: string; duracionMin?: number; metodoSena?: MetodoSena }): Promise<Resultado<ReservaCreada>> {
   try {
+    // Last-touch: el último link por el que pasó el cliente, dentro de los 30 días de la
+    // cookie. No se manda nada si no hay cookie — el backend deja las columnas en null.
+    const origenEtiqueta = etiquetaDeReserva((await cookies()).get(COOKIE_ORIGEN)?.value);
     const data = await apiReservas<ReservaCreada>('/reservas', {
       method: 'POST',
       body: JSON.stringify({
@@ -67,6 +72,7 @@ export async function crearReserva(input: { canchaId: string; fecha: string; hor
         esContacto: false,
         ...(input.duracionMin != null ? { duracionMin: input.duracionMin } : {}),
         ...(input.metodoSena ? { metodoSena: input.metodoSena } : {}),
+        ...(origenEtiqueta ? { origenEtiqueta } : {}),
       }),
     });
     return { ok: true, data };
