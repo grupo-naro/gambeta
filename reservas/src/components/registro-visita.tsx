@@ -1,18 +1,19 @@
 'use client';
-import { useEffect } from 'react';
-
-// Guarda a nivel de módulo, no `useRef`: en desarrollo React monta dos veces con StrictMode y
-// serían dos requests. El backend igual deduplica por sesión; esto sólo ahorra el viaje.
-let enviado = false;
+import { useEffect, useRef } from 'react';
 
 /**
  * Avisa que alguien entró al sitio. Vive en el navegador a propósito: es lo que deja afuera a
  * las previsualizaciones de links y a los crawlers, que no ejecutan JavaScript.
  */
 export function RegistroVisita() {
+  // Guarda por instancia, no de módulo: alcanza para cubrir el doble-montaje de StrictMode en
+  // dev (setup → cleanup → setup corren sobre la misma instancia, así que el ref persiste), pero
+  // se resetea ante un desmontaje/montaje real. La autoridad sobre si la visita ya se contó es
+  // la cookie de sesión del route handler, no un flag que sobreviva más que el componente.
+  const enviado = useRef(false);
   useEffect(() => {
-    if (enviado) return;
-    enviado = true;
+    if (enviado.current) return;
+    enviado.current = true;
     fetch('/api/visita', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
