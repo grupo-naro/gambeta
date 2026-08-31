@@ -173,3 +173,13 @@ export interface Alquiler {
   estado: EstadoAlquiler; entregadoEn: string; cerradoEn: string | null;
 }
 export interface EntregaAlquilerResultado { alquiler: Alquiler; vuelto: number }
+
+export type TipoOrigen = 'WHATSAPP' | 'QR' | 'REDES' | 'LANDING' | 'DIRECTO' | 'OTRO';
+export interface OrigenPorTipo { tipo: TipoOrigen; visitas: number; unicos: number }
+export interface OrigenPorEtiqueta extends OrigenPorTipo { etiqueta: string | null }
+export interface Origenes {
+  total: number;
+  unicos: number;
+  porTipo: OrigenPorTipo[];
+  porEtiqueta: OrigenPorEtiqueta[];
+}
