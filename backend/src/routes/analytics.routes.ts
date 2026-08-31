@@ -40,3 +40,11 @@ analyticsRoutes.get('/horarios-pico', async (req, res, next) => {
 analyticsRoutes.get('/ocupacion', async (req, res, next) => {
   try { const { desde, hasta } = rango(req); res.json(serializeBigInt(await analyticsService.ocupacion(desde, hasta))); } catch (e) { next(e); }
 });
+analyticsRoutes.get('/origenes', async (req, res, next) => {
+  try {
+    const { desde, hasta } = rango(req);
+    const r = await analyticsService.origenes(desde, hasta);
+    // `total` y `unicos` ya vienen convertidos; los agrupados son filas crudas con BigInt.
+    res.json({ ...r, porTipo: serializeBigInt(r.porTipo), porEtiqueta: serializeBigInt(r.porEtiqueta) });
+  } catch (e) { next(e); }
+});
