@@ -2,7 +2,11 @@ name: gambeta-prod
 
 services:
   traefik:
-    image: traefik:v3.3
+    # El daemon del host (Docker Engine 29.x) exige API >= 1.40. Traefik <= v3.5
+    # fija el cliente Docker en API 1.24 y NO respeta DOCKER_API_VERSION, por lo
+    # que el provider docker falla en bucle. Desde v3.6 negocia la version con el
+    # daemon (usa API 1.55). No bajar de v3.6.
+    image: traefik:v3.6
     container_name: gambeta-prod-traefik
     command:
       - "--providers.docker=true"
