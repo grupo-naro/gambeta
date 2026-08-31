@@ -1,4 +1,5 @@
 import type { TipoOrigen } from '../db/client.js';
+import { visitaRepo } from '../repositories/visita.repo.js';
 
 // El primer segmento de la etiqueta —lo que va antes del primer guion— manda el tipo. Así
 // `whatsapp`, `whatsapp-bot` y `wsp-bot` caen todas en WHATSAPP sin que cada etiqueta tenga
@@ -22,3 +23,22 @@ export function clasificarOrigen(etiqueta: string | null | undefined): TipoOrige
   if (!etiqueta) return 'DIRECTO';
   return TIPO_POR_SEGMENTO[etiqueta.split('-')[0]!] ?? 'OTRO';
 }
+
+export interface RegistrarVisitaInput {
+  etiqueta?: string | null;
+  sesionId: string;
+  visitanteId: string;
+  referer?: string | null;
+}
+
+export const visitaService = {
+  registrar(input: RegistrarVisitaInput): Promise<void> {
+    return visitaRepo.registrar({
+      etiqueta: input.etiqueta ?? null,
+      tipo: clasificarOrigen(input.etiqueta),
+      sesionId: input.sesionId,
+      visitanteId: input.visitanteId,
+      referer: input.referer ?? null,
+    });
+  },
+};
