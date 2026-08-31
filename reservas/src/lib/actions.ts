@@ -43,8 +43,10 @@ export async function getMetodosPago(): Promise<MetodosPago> {
       // Si el backend es viejo y no manda el plazo, cae al default del backend.
       senaTimeoutMinutos: d.senaTimeoutMinutos ?? SENA_TIMEOUT_MINUTOS_DEFAULT,
       // Default 7 y no 0: si el backend no contesta o es viejo, el sitio se cae a la ventana
-      // esperada en vez de apagar el calendario entero.
-      diasAnticipacionMax: d.diasAnticipacionMax ?? DIAS_ANTICIPACION_DEFAULT,
+      // esperada en vez de apagar el calendario entero. `??` no alcanza acá: un 0 (o un negativo,
+      // cargado a mano en la DB) no es nullish y pasaría derecho, dejando el selector con un solo
+      // chip o sin ninguna fecha elegible. Por eso el chequeo es explícito por positividad.
+      diasAnticipacionMax: d.diasAnticipacionMax != null && d.diasAnticipacionMax > 0 ? d.diasAnticipacionMax : DIAS_ANTICIPACION_DEFAULT,
     };
   } catch (e) {
     console.error('[config] no se pudieron consultar los métodos de pago', { error: e instanceof Error ? e.message : e });

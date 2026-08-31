@@ -35,7 +35,8 @@ turnoFijoRoutes.post('/liberar', authAny, validate(liberarFijoSchema), async (re
 turnoFijoRoutes.post('/:id/materializar', authAny, validate(materializarFijoSchema), async (req, res, next) => {
   try {
     const { fecha } = (req as any).valid.body;
-    const creada = await turnoFijoService.materializar(String(req.params.id), fecha);
+    const porStaff = req.principal?.kind === 'admin';
+    const creada = await turnoFijoService.materializar(String(req.params.id), fecha, { porStaff });
     const reserva = await reservaService.get(creada.id); // incluye cliente + cancha
     const agg = await prisma.cobro.aggregate({ where: { reservaId: reserva.id }, _sum: { monto: true } });
     const pagado = Number(agg._sum.monto ?? 0);

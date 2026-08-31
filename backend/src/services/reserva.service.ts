@@ -54,7 +54,7 @@ function mensajeSenaAprobada(r: { cancha: { nombre: string }; fechaInicio: Date 
  * en la zona del negocio) en el que deja de poder reservarse. Se usa tanto en `crear` como en
  * `reprogramar` para no duplicar la aritmética de calendario ni el mensaje de error.
  */
-function limiteAnticipacion(cfg: { diasAnticipacionMax: number }, tz: string): { fin: Date; ymd: string } {
+export function limiteAnticipacion(cfg: { diasAnticipacionMax: number }, tz: string): { fin: Date; ymd: string } {
   const ymd = sumarDias(hoyEnTz(tz), cfg.diasAnticipacionMax);
   return { fin: dayWindowUtc(ymd, tz).end, ymd };
 }
@@ -80,8 +80,8 @@ export const reservaService = {
     const duracionMin = input.duracionMin ?? DURACION_DEFAULT_MIN;
     const fechaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
     const fechaFin = new Date(fechaInicio.getTime() + duracionMin * 60 * 1000);
-    const cfg = await configService.get();
     if (fechaInicio.getTime() <= Date.now()) throw BusinessRule('No se puede reservar en el pasado');
+    const cfg = await configService.get();
 
     // El público reserva dentro de una ventana móvil; el staff no tiene techo, porque tiene que
     // poder tomar por teléfono una reserva para dentro de un mes. Va pegado al chequeo del pasado
@@ -342,13 +342,13 @@ export const reservaService = {
       throw BusinessRule(`Solo se puede reprogramar hasta ${horas}h antes del turno`);
     }
     const tz = getEnv().TZ_NEGOCIO;
-    const cfg = await configService.get();
     const nuevaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
     const duracionMs = r.fechaFin.getTime() - r.fechaInicio.getTime();
     const nuevaFin = new Date(nuevaInicio.getTime() + duracionMs);
     if (nuevaInicio.getTime() <= Date.now()) {
       throw BusinessRule('No se puede reprogramar a un horario en el pasado');
     }
+    const cfg = await configService.get();
 
     // Mismo hueco que en `crear`: sin este chequeo, reprogramar es una puerta trasera a la
     // ventana de anticipación pública (crear una reserva cercana y después reprogramarla lejos).

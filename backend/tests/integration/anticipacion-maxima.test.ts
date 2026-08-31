@@ -72,6 +72,16 @@ describe('anticipación máxima', () => {
     expect(res.status).toBe(201);
   });
 
+  it('una ventana más chica que el default también achica lo que se puede reservar', async () => {
+    // Complementa el caso de arriba: ese solo prueba que la ventana crece con la config.
+    // Una implementación con Math.max(7, cfg.diasAnticipacionMax) pasaría ese test igual,
+    // porque nunca deja la ventana por debajo del default. Achicarla a 2 y pedir +5 lo delata.
+    await supertest(app).patch('/config').set('authorization', `Bearer ${token()}`).send({ diasAnticipacionMax: 2 });
+    const dia5 = sumarDias(hoyEnTz(TZ), 5);
+    const res = await supertest(app).post('/reservas').set('x-api-key', 'svc').send(body(dia5));
+    expect(res.status).toBe(422);
+  });
+
   it('el último día de la ventana vale entero, hasta el último turno de la noche', async () => {
     // El bug que rompería una implementación por milisegundos: a las 20:00 de hoy, un corte
     // hecho con Date.now() + 7 días caería a las 20:00 del día 7 y rechazaría este turno.

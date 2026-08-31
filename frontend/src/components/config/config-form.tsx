@@ -30,7 +30,15 @@ export function ConfigForm({ config }: { config: Config }) {
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     start(async () => {
       const r = await guardarConfig(parsed.data);
-      if (r.ok) toast.success('Configuración guardada'); else toast.error(r.error);
+      if (r.ok) {
+        toast.success('Configuración guardada');
+        // Si el admin vació el campo, no viajó en el patch y el backend conservó el valor
+        // anterior: repoblarlo desde la config recién guardada evita que el input quede vacío
+        // mintiendo que no hay ningún límite cargado.
+        setF((p) => ({ ...p, diasAnticipacionMax: r.config.diasAnticipacionMax != null ? String(r.config.diasAnticipacionMax) : '' }));
+      } else {
+        toast.error(r.error);
+      }
     });
   }
 
