@@ -25,6 +25,9 @@ export const createReservaSchema = z.object({
     montoCobro: z.number().nonnegative().optional(),
     nombreConfirmado: z.boolean().default(false),
     notas: z.string().optional(),
+    // La manda sólo la web pública, con la etiqueta del link por el que llegó el cliente.
+    // Mismo formato que valida `POST /visitas`.
+    origenEtiqueta: z.string().regex(/^[a-z0-9-]{1,40}$/).nullish(),
     cobroInicial: z.enum(['ninguno', 'sena', 'total']).default('ninguno'),
     medioCobro: z.enum(['EFECTIVO', 'TRANSFERENCIA']).default('EFECTIVO'),
   }),

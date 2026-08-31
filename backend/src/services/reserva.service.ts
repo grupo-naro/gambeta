@@ -11,6 +11,7 @@ import { configService } from './config.service.js';
 import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.service.js';
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
+import { clasificarOrigen } from './visita.service.js';
 import { combineDateTimeUtc, dayWindowUtc, hhmmAMin, cierreMin, dayOfWeekInTz, hoyEnTz, sumarDias } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
@@ -71,6 +72,7 @@ export interface CreateReservaInput {
   metodoSena?: 'MERCADO_PAGO' | 'TRANSFERENCIA';
   nombreConfirmado?: boolean;
   notas?: string;
+  origenEtiqueta?: string | null;
 }
 
 export const reservaService = {
@@ -179,6 +181,11 @@ export const reservaService = {
           // CONFIRMADA (socio, staff, cliente confiable), guardarlo registraría una intención
           // que nunca se va a ejecutar. La condición es el ESTADO, no el monto.
           metodoSena: estado === 'ESPERANDO_SENA' ? (input.metodoSena ?? null) : null,
+          // Mismo criterio que `metodoSena`: si el cliente no vino de ningún link, `null`.
+          // El panel y el bot nunca mandan etiqueta, y fabricarles un DIRECTO sería mentir:
+          // esa reserva no entró por la web.
+          origenEtiqueta: input.origenEtiqueta ?? null,
+          origenTipo: input.origenEtiqueta ? clasificarOrigen(input.origenEtiqueta) : null,
         },
         tx,
       );

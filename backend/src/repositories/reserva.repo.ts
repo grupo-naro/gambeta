@@ -1,4 +1,4 @@
-import { Prisma, EstadoReserva, MetodoSena } from '../db/client.js';
+import { Prisma, EstadoReserva, MetodoSena, TipoOrigen } from '../db/client.js';
 import { prisma } from '../db/prisma.js';
 import { Conflict } from '../utils/errors.js';
 
@@ -16,6 +16,8 @@ export interface CreateReservaData {
   suscripcionId?: string | null;
   notas?: string | null;
   turnoFijoId?: string | null;
+  origenEtiqueta?: string | null;
+  origenTipo?: TipoOrigen | null;
 }
 
 export function isExclusionViolation(e: unknown): boolean {
