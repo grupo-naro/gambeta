@@ -12,9 +12,12 @@ export function parseApiError(body: unknown, status: number): string {
 }
 
 export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  // `cookies()` va ANTES del chequeo de API_URL a propósito: leerlo marca la ruta como
+  // dinámica y saca a las páginas del panel del prerender de `next build`, donde API_URL no
+  // existe. Si el `throw` corriera primero, el build las intentaría prerenderizar y explotaría.
+  const token = (await cookies()).get(TOKEN_COOKIE)?.value;
   const base = process.env.API_URL;
   if (!base) throw new Error('API_URL no configurada');
-  const token = (await cookies()).get(TOKEN_COOKIE)?.value;
   const res = await fetch(`${base}${path}`, {
     ...init,
     headers: {

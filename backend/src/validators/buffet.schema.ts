@@ -82,3 +82,10 @@ export const stockAsignadoSchema = z.object({
   query: z.object({ mostradorId: z.string().min(1).optional() }),
   params: empty,
 });
+
+const fechaISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+export const rangoFechasSchema = z.object({
+  body: z.unknown(),
+  query: z.object({ desde: fechaISO.optional(), hasta: fechaISO.optional() }),
+  params: empty,
+});

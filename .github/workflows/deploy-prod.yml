@@ -1,0 +1,56 @@
+name: Deploy prod (self-hosted)
+
+# Despliegue tipo Vercel para el VPS de producción (gambeteandopadelyfutbol.ar).
+# En cada push a main, el runner self-hosted instalado en el VPS actualiza el código
+# y reconstruye el stack de deploy-prod/. El runner se conecta SALIENTE a GitHub, así
+# que no hace falta abrir puertos ni guardar claves SSH.
+#
+# Requisitos en el VPS (una sola vez, ver deploy-prod/DEPLOY-PROD.md):
+#   - runner registrado en grupo-naro/gambeta con la label `gambeta-prod`, como servicio
+#   - el repo clonado en $DEPLOY_DIR (default /home/deploy/gambeta)
+#   - deploy-prod/.env creado a mano (tiene secretos, está gitignoreado)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, gambeta-prod]
+    steps:
+      - name: Pull latest & redeploy
+        run: |
+          set -euo pipefail
+          DIR="${{ vars.DEPLOY_DIR || '/home/deploy/gambeta' }}"
+          echo "Desplegando en: $DIR ($(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo '?') -> origin/main)"
+          cd "$DIR"
+          git fetch --all --prune
+          git reset --hard origin/main
+          cd deploy-prod
+          # Rebuild + recreate. El CMD del backend corre `prisma migrate deploy` al arrancar,
+          # así que la base se migra sola. El seed NO corre acá (es manual e idempotente).
+          docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+          docker image prune -f
+          echo "Compose arriba. Commit: $(git -C "$DIR" rev-parse --short HEAD)"
+
+      - name: Health check backend
+        run: |
+          set -euo pipefail
+          DIR="${{ vars.DEPLOY_DIR || '/home/deploy/gambeta' }}"
+          cd "$DIR/deploy-prod"
+          for i in $(seq 1 30); do
+            if docker compose -f docker-compose.prod.yml exec -T backend wget -qO- http://localhost:3000/health >/dev/null 2>&1; then
+              echo "Backend OK (intento $i)"
+              exit 0
+            fi
+            echo "Backend todavía no responde (intento $i/30)…"
+            sleep 3
+          done
+          echo "::error::El backend no pasó el health check tras el deploy"
+          docker compose -f docker-compose.prod.yml logs --tail=80 backend
+          exit 1

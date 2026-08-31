@@ -1,4 +1,4 @@
-import { Sun, LayoutDashboard, CalendarDays, CalendarRange, LandPlot, CalendarClock, Ban, Settings, Users, Activity, Wallet, Contact, ShoppingBasket, BadgeCheck, type LucideIcon } from 'lucide-react';
+import { Sun, LayoutDashboard, CalendarDays, CalendarRange, LandPlot, CalendarClock, Ban, Settings, Users, Activity, Wallet, Contact, ShoppingBasket, Handshake, BadgeCheck, type LucideIcon } from 'lucide-react';
 import type { Rol } from '@/lib/types';
 import { SOCIOS_HABILITADO } from '@/lib/features';
 
@@ -20,6 +20,7 @@ export const nav: NavItem[] = [
   { href: '/caja', label: 'Caja', icon: Wallet, roles: AMBOS, grupo: 'Operación' },
   { href: '/clientes', label: 'Clientes', icon: Contact, roles: AMBOS, grupo: 'Operación' },
   { href: '/buffet', label: 'Buffet', icon: ShoppingBasket, roles: SOLO_ADMIN, grupo: 'Operación' },
+  { href: '/alquileres', label: 'Alquileres', icon: Handshake, roles: SOLO_ADMIN, grupo: 'Operación' },
   // Programación — la grilla / recursos
   { href: '/canchas', label: 'Canchas', icon: LandPlot, roles: SOLO_ADMIN, grupo: 'Programación' },
   { href: '/turnos-fijos', label: 'Turnos fijos', icon: CalendarClock, roles: AMBOS, grupo: 'Programación' },

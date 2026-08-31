@@ -1,0 +1,127 @@
+# Deploy de producción — gambeteandopadelyfutbol.ar
+
+Stack self-contained en el VPS `167.86.82.175`: Traefik v3.3 (Let's Encrypt) + Postgres 16 +
+backend + frontend + reservas. Compose: [`docker-compose.prod.yml`](docker-compose.prod.yml).
+
+Despliegue **tipo Vercel**: cada `git push` a `main` reconstruye y reinicia el stack solo, vía
+un runner self-hosted de GitHub Actions instalado en el VPS
+([`.github/workflows/deploy-prod.yml`](../.github/workflows/deploy-prod.yml)).
+
+```
+push a main ──▶ GitHub ──▶ runner en el VPS ──▶ git reset --hard origin/main
+                                              └▶ docker compose up -d --build
+                                                 (el backend corre `prisma migrate deploy` al arrancar)
+                                              └▶ health check a /health
+```
+
+Migraciones: automáticas (las corre el `CMD` del contenedor del backend al bootear).
+Seed: **manual** e idempotente — no corre en cada deploy.
+
+---
+
+## Puesta a punto (una sola vez)
+
+### 1. Clonar el repo en el VPS
+
+```bash
+# como usuario deploy
+git clone https://github.com/grupo-naro/gambeta.git /home/deploy/gambeta
+cd /home/deploy/gambeta && git checkout main
+```
+
+(Si ya está clonado, alcanza con `git fetch && git checkout main`.)
+
+### 2. Crear `deploy-prod/.env`
+
+Tiene secretos y está gitignoreado, así que vive solo en el VPS. Variables (ver
+`docker-compose.prod.yml` para la lista exacta):
+
+```
+PG_USER=…            PG_PASSWORD=…
+ACME_EMAIL=nahuelguerra56b@gmail.com
+JWT_SECRET=…         (≥32 chars)
+SERVICE_API_KEY=…    BUFFET_API_KEY=…
+MP_CLIENT_ID=…       MP_CLIENT_SECRET=…       MP_ENCRYPTION_KEY=…   MP_WEBHOOK_SECRET=…
+RESERVAS_PUBLIC_URL=https://reserva.gambeteandopadelyfutbol.ar
+BACKEND_PUBLIC_URL=https://api.gambeteandopadelyfutbol.ar
+PANEL_PUBLIC_URL=https://panel.gambeteandopadelyfutbol.ar
+ADMIN_SEED_EMAIL=admin@gruponaro.com.ar
+ADMIN_SEED_PASSWORD=…
+```
+
+`chmod 600 deploy-prod/.env`.
+
+### 3. DNS (Cloudflare)
+
+3 registros **A** → `167.86.82.175`, en **"DNS only" (nube gris)**, no proxeados:
+`api`, `panel`, `reserva`. Proxeado rompe la emisión del cert (challenge TLS-ALPN-01).
+
+### 4. Instalar el runner self-hosted
+
+En GitHub: **repo → Settings → Actions → Runners → New self-hosted runner (Linux x64)**.
+Copiar el token que muestra y, en el VPS como `deploy`:
+
+```bash
+mkdir -p ~/actions-runner && cd ~/actions-runner
+# usar la versión que sugiere la página de GitHub
+curl -o runner.tar.gz -L https://github.com/actions/runner/releases/download/v2.319.1/actions-runner-linux-x64-2.319.1.tar.gz
+tar xzf runner.tar.gz
+./config.sh --url https://github.com/grupo-naro/gambeta \
+            --token <TOKEN_DE_GITHUB> \
+            --labels gambeta-prod \
+            --name gambeta-prod-vps --unattended
+sudo ./svc.sh install deploy    # corre como usuario deploy (ya está en el grupo docker)
+sudo ./svc.sh start
+sudo ./svc.sh status
+```
+
+La label `gambeta-prod` es la que matchea el `runs-on` del workflow.
+
+### 5. Primer deploy (manual)
+
+```bash
+cd /home/deploy/gambeta/deploy-prod
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml logs -f traefik   # mirar emisión de certs
+```
+
+### 6. Seed inicial
+
+```bash
+docker compose -f docker-compose.prod.yml exec backend node dist/seed.js
+```
+
+Crea el admin (`ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD`) + canchas y horarios de ejemplo.
+Idempotente. **Ojo:** `npm run seed` no funciona en el contenedor (usa `tsx`, que es devDep y
+se excluye con `--omit=dev`).
+
+### 7. Mercado Pago
+
+Apuntar el webhook a `https://api.gambeteandopadelyfutbol.ar/webhooks`.
+
+---
+
+## Día a día
+
+- **Deployar**: `git push` a `main`. Seguir el run en la pestaña **Actions** del repo.
+- **Deploy manual / forzar**: Actions → *Deploy prod (self-hosted)* → **Run workflow**, o en el VPS:
+  ```bash
+  cd /home/deploy/gambeta && git fetch && git reset --hard origin/main
+  cd deploy-prod && docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+  ```
+- **Logs**: `docker compose -f docker-compose.prod.yml logs -f <servicio>`
+- **Rollback**: `git push --force origin <commit-bueno>:main` (o revert + push). El workflow
+  hace `git reset --hard origin/main`, así que vuelve exactamente a lo que quede en `main`.
+- **Migración nueva**: se aplica sola al deployar (el backend corre `prisma migrate deploy`
+  al arrancar). Si falla, el contenedor entra en loop de restart y el health check del
+  workflow marca el run en rojo con los últimos logs del backend.
+
+## Notas
+
+- `up -d --build` reconstruye las 3 imágenes en cada deploy; el cache de capas de Docker hace
+  que las que no cambiaron sean rápidas. Si molesta, se puede filtrar por `paths:` en el
+  workflow más adelante.
+- `reservas/` se volvió deployable en Docker con `output: "standalone"` en `next.config.ts` +
+  `reservas/Dockerfile`. En este stack va al VPS, no a Vercel.
+- El `.env` sobrevive a `git reset --hard` (está gitignoreado; `reset` no toca archivos
+  ignorados ni untracked).

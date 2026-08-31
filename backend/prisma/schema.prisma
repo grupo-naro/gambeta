@@ -407,6 +407,11 @@ model CajaBuffet {
   tickets          TicketBuffet[]
   entregasRendidas EntregaMostrador[]
   conteos          ConteoCierreLinea[]
+  /// Plata de alquileres cobrada en esta caja. Va aparte de `totalMonto` almacenado, que
+  /// sigue significando "lo que vendió el buffet" para no cambiarle el sentido a los cierres
+  /// que ya están guardados.
+  totalAlquileres Decimal?  @db.Decimal(10, 2)
+  alquileres      Alquiler[]
 
   @@index([mostradorId])
 }
@@ -515,4 +520,50 @@ model Suscripcion {
 
   @@index([clienteId, vencimiento])
   @@index([estado, vencimiento])
+}
+
+enum EstadoAlquiler {
+  ENTREGADO
+  DEVUELTO
+  PERDIDO
+  ROTO
+}
+
+model ArticuloAlquiler {
+  id         String     @id @default(cuid())
+  nombre     String
+  precio     Decimal    @db.Decimal(10, 2)
+  /// Unidades que tiene el complejo. Baja solo cuando algo se pierde o se rompe.
+  stock      Int        @default(0)
+  /// Unidades afuera AHORA. `stock - prestado` es lo que se puede prestar.
+  prestado   Int        @default(0)
+  activo     Boolean    @default(true)
+  orden      Int        @default(0)
+  alquileres Alquiler[]
+}
+
+model Alquiler {
+  id          String           @id @default(cuid())
+  /// Idempotencia del cobro, igual que `TicketBuffet.uid`: el mostrador es una pantalla táctil
+  /// y un doble toque no puede cobrar ni prestar dos veces.
+  uid         String           @unique
+  cajaId      String
+  caja        CajaBuffet       @relation(fields: [cajaId], references: [id])
+  articuloId  String
+  articulo    ArticuloAlquiler @relation(fields: [articuloId], references: [id])
+  cantidad    Int
+  quienRetira String
+  garantia    String?
+  /// Congelado al entregar: cambiar el precio del catálogo no reescribe la historia.
+  precioUnit  Decimal          @db.Decimal(10, 2)
+  total       Decimal          @db.Decimal(10, 2)
+  medioPago   MedioPago
+  montoPagado Decimal          @db.Decimal(10, 2)
+  vuelto      Decimal          @db.Decimal(10, 2)
+  estado      EstadoAlquiler   @default(ENTREGADO)
+  entregadoEn DateTime         @default(now())
+  cerradoEn   DateTime?
+
+  @@index([estado])
+  @@index([cajaId])
 }

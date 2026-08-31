@@ -25,6 +25,10 @@ export function cabecerasBuffet(
 
 /** Llama al backend con la llave del buffet. La key vive solo en el server. */
 export async function buffetFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  // Leer la sesión (y con ella `cookies()`) ANTES de los chequeos de env: marca la ruta como
+  // dinámica y la saca del prerender de `next build`, donde ni API_URL ni BUFFET_API_KEY
+  // existen. Con el `throw` primero, el build intentaría prerenderizar `/mostrador` y fallaría.
+  const tokenMostrador = await tokenMostradorDeSesion();
   const base = process.env.API_URL;
   const key = process.env.BUFFET_API_KEY;
   if (!base) throw new Error('API_URL no configurada');
@@ -32,7 +36,7 @@ export async function buffetFetch<T = unknown>(path: string, init: RequestInit =
 
   const res = await fetch(`${base}${path}`, {
     ...init,
-    headers: cabecerasBuffet(key, await tokenMostradorDeSesion(), (init.headers ?? {}) as Record<string, string>),
+    headers: cabecerasBuffet(key, tokenMostrador, (init.headers ?? {}) as Record<string, string>),
     cache: 'no-store',
   });
   const text = await res.text();

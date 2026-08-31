@@ -1,0 +1,118 @@
+name: gambeta-prod
+
+services:
+  traefik:
+    # El daemon del host (Docker Engine 29.x) exige API >= 1.40. Traefik <= v3.5
+    # fija el cliente Docker en API 1.24 y NO respeta DOCKER_API_VERSION, por lo
+    # que el provider docker falla en bucle. Desde v3.6 negocia la version con el
+    # daemon (usa API 1.55). No bajar de v3.6.
+    image: traefik:v3.6
+    container_name: gambeta-prod-traefik
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports: ["80:80", "443:443"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - gambeta-prod-acme:/letsencrypt
+    networks: [web]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gambeta-prod-postgres
+    environment:
+      POSTGRES_USER: "${PG_USER}"
+      POSTGRES_PASSWORD: "${PG_PASSWORD}"
+      POSTGRES_DB: gambeta
+    volumes: ["gambeta-prod-pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d gambeta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [web]
+    restart: unless-stopped
+
+  backend:
+    build: ../backend
+    image: gambeta-prod-backend:latest
+    container_name: gambeta-prod-backend
+    environment:
+      DATABASE_URL: "postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/gambeta?schema=public"
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_EXPIRES_IN: "365d"
+      SERVICE_API_KEY: "${SERVICE_API_KEY}"
+      BUFFET_API_KEY: "${BUFFET_API_KEY}"
+      MP_CLIENT_ID: "${MP_CLIENT_ID}"
+      MP_CLIENT_SECRET: "${MP_CLIENT_SECRET}"
+      MP_ENCRYPTION_KEY: "${MP_ENCRYPTION_KEY}"
+      MP_WEBHOOK_SECRET: "${MP_WEBHOOK_SECRET}"
+      RESERVAS_PUBLIC_URL: "${RESERVAS_PUBLIC_URL}"
+      BACKEND_PUBLIC_URL: "${BACKEND_PUBLIC_URL}"
+      PANEL_PUBLIC_URL: "${PANEL_PUBLIC_URL}"
+      TZ_NEGOCIO: "America/Argentina/Buenos_Aires"
+      ADMIN_SEED_EMAIL: "${ADMIN_SEED_EMAIL}"
+      ADMIN_SEED_PASSWORD: "${ADMIN_SEED_PASSWORD}"
+      PORT: "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [web]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gambeta-prod-api.rule=Host(`api.gambeteandopadelyfutbol.ar`)"
+      - "traefik.http.routers.gambeta-prod-api.entrypoints=websecure"
+      - "traefik.http.routers.gambeta-prod-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gambeta-prod-api.loadbalancer.server.port=3000"
+    restart: unless-stopped
+
+  frontend:
+    build: ../frontend
+    image: gambeta-prod-frontend:latest
+    container_name: gambeta-prod-frontend
+    environment:
+      API_URL: "http://backend:3000"
+      BUFFET_API_KEY: "${BUFFET_API_KEY}"
+      PORT: "3000"
+    depends_on: [backend]
+    networks: [web]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gambeta-prod-panel.rule=Host(`panel.gambeteandopadelyfutbol.ar`)"
+      - "traefik.http.routers.gambeta-prod-panel.entrypoints=websecure"
+      - "traefik.http.routers.gambeta-prod-panel.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gambeta-prod-panel.loadbalancer.server.port=3000"
+    restart: unless-stopped
+
+  reservas:
+    build: ../reservas
+    image: gambeta-prod-reservas:latest
+    container_name: gambeta-prod-reservas
+    environment:
+      API_URL: "http://backend:3000"
+      SERVICE_API_KEY: "${SERVICE_API_KEY}"
+      PORT: "3000"
+    depends_on: [backend]
+    networks: [web]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gambeta-prod-reserva.rule=Host(`reserva.gambeteandopadelyfutbol.ar`)"
+      - "traefik.http.routers.gambeta-prod-reserva.entrypoints=websecure"
+      - "traefik.http.routers.gambeta-prod-reserva.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gambeta-prod-reserva.loadbalancer.server.port=3000"
+    restart: unless-stopped
+
+volumes:
+  gambeta-prod-pg:
+  gambeta-prod-acme:
+
+networks:
+  web:

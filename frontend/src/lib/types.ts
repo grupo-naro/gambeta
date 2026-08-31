@@ -109,6 +109,8 @@ export class ApiAuthError extends ApiError { constructor(message = 'No autorizad
 export interface ProductoBuffet {
   id: string; nombre: string; codigoBarra: string | null; precio: number;
   stock: number; stockMinimo: number; enBotonera: boolean; orden: number; activo: boolean;
+  /** Unidades de este producto que están en el mostrador secundario. */
+  asignado: number;
 }
 export type TipoMostrador = 'PRINCIPAL' | 'SECUNDARIO';
 export interface MostradorAdmin {
@@ -123,13 +125,19 @@ export interface TicketBuffet { id: string; total: number; medioPago: MedioPago;
 export interface CajaBuffetEstado {
   id: string; abiertaEn: string;
   totalUnidades: number; totalMonto: number; totalEfectivo: number; totalTransferencia: number;
+  /** Cuánto de `totalMonto` vino de alquileres. */
+  totalAlquileres: number;
   ultimosTickets: TicketBuffet[];
 }
 export interface LineaCierreBuffet { productoId: string; nombre: string; unidades: number; monto: number }
+export interface LineaCierreAlquiler { articuloId: string; nombre: string; unidades: number; monto: number }
 export interface CierreBuffet {
   id: string; abiertaEn: string; cerradaEn: string;
+  mostradorId: string; mostradorNombre: string;
   totalUnidades: number; totalMonto: number; totalEfectivo: number; totalTransferencia: number;
+  totalAlquileres: number;
   porProducto: LineaCierreBuffet[];
+  porArticulo: LineaCierreAlquiler[];
 }
 export interface ProductoCobro { id: string; nombre: string; precio: number; stock: number }
 export interface StockAsignado { productoId: string; cantidad: number }
@@ -140,3 +148,27 @@ export interface LineaConciliacion {
   productoId: string; nombre: string; entregado: number; vendido: number; esperado: number;
 }
 export interface CobroResultado { ticketId: string; total: number; vuelto: number; medioPago: MedioPago; caja: CajaBuffetEstado }
+
+export interface ResumenConciliacion {
+  productoId: string; nombre: string; cierres: number;
+  entregado: number; vendido: number; contado: number; diferencia: number;
+}
+export interface EntregaPanel {
+  id: string; creadaEn: string; conciliada: boolean;
+  lineas: { productoId: string; nombre: string; cantidad: number }[];
+}
+
+export interface ArticuloAlquiler {
+  id: string; nombre: string; precio: number;
+  stock: number; prestado: number; disponible: number;
+  activo: boolean; orden: number;
+}
+export type EstadoAlquiler = 'ENTREGADO' | 'DEVUELTO' | 'PERDIDO' | 'ROTO';
+export type EstadoCierreAlquiler = Exclude<EstadoAlquiler, 'ENTREGADO'>;
+export interface Alquiler {
+  id: string; articuloId: string; articuloNombre: string; cantidad: number;
+  quienRetira: string; garantia: string | null;
+  precioUnit: number; total: number; medioPago: MedioPago;
+  estado: EstadoAlquiler; entregadoEn: string; cerradoEn: string | null;
+}
+export interface EntregaAlquilerResultado { alquiler: Alquiler; vuelto: number }

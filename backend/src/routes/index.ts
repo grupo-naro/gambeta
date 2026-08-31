@@ -18,6 +18,7 @@ import { buffetRoutes } from './buffet.routes.js';
 import { pagoRoutes } from './pago.routes.js';
 import { webhookRoutes } from './webhook.routes.js';
 import { suscripcionRoutes } from './suscripcion.routes.js';
+import { alquilerRoutes } from './alquiler.routes.js';
 
 export const apiRouter = Router();
 apiRouter.use('/auth', authRoutes);
@@ -39,3 +40,4 @@ apiRouter.use('/buffet', buffetRoutes);
 apiRouter.use('/pagos', pagoRoutes);
 apiRouter.use('/webhooks', webhookRoutes);
 apiRouter.use('/suscripciones', suscripcionRoutes);
+apiRouter.use('/alquileres', alquilerRoutes);
