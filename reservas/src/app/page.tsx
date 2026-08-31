@@ -1,4 +1,5 @@
 import { PantallaReserva } from "@/components/pantalla-reserva";
+import { RegistroVisita } from "@/components/registro-visita";
 import { ReservasCerradas } from "@/components/reservas-cerradas";
 import { getMetodosPago } from "@/lib/actions";
 
@@ -19,6 +20,7 @@ export default async function Home() {
   const hayAlgunMetodo = metodos.mercadoPago || metodos.transferencia;
   return (
     <main className="flex flex-1 flex-col bg-neutral-950 text-neutral-100">
+      <RegistroVisita />
       {hayAlgunMetodo ? <PantallaReserva metodos={metodos} /> : <ReservasCerradas />}
     </main>
   );
