@@ -599,7 +599,12 @@ model Visita {
   referer     String?
   creadoEn    DateTime   @default(now()) @db.Timestamptz(3)
 
-  @@index([creadoEn])
-  @@index([tipo, creadoEn])
-  @@index([etiqueta, creadoEn])
+  // Las tres consultas de `origenes()` filtran siempre por rango sobre `creadoEn` y agrupan
+  // por `tipo` o por `(etiqueta, tipo)`. Un índice con la columna del rango en SEGUNDA
+  // posición (como estaba antes) no sirve para un rango sin predicado en la columna líder:
+  // Postgres no lo usa. Acá `creadoEn` va primero en los dos índices, y `visitanteId` al
+  // final permite index-only scan para el `COUNT(DISTINCT "visitanteId")`. Estos dos también
+  // subsumen a un índice simple por `creadoEn`, que por eso no existe aparte.
+  @@index([creadoEn, tipo, visitanteId])
+  @@index([creadoEn, etiqueta, tipo, visitanteId])
 }
