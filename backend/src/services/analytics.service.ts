@@ -61,11 +61,15 @@ export const analyticsService = {
         FROM "Visita"
         WHERE "creadoEn" >= ${desde} AND "creadoEn" < ${hasta}
         GROUP BY 1 ORDER BY visitas DESC`,
+      // `etiqueta` no tiene allowlist (es deliberado: así un QR nuevo no toca código), así que
+      // alguien paseando por /r/aaa, /r/aab... podría generar miles de filas acá. LIMIT 50
+      // corta esa cola sin afectar el resultado real: ya viene ordenado por visitas DESC, así
+      // que lo que se corta es siempre lo menos relevante.
       prisma.$queryRaw<Array<{ etiqueta: string | null; tipo: string; visitas: bigint; unicos: bigint }>>`
         SELECT etiqueta, tipo::text AS tipo, COUNT(*) AS visitas, COUNT(DISTINCT "visitanteId") AS unicos
         FROM "Visita"
         WHERE "creadoEn" >= ${desde} AND "creadoEn" < ${hasta}
-        GROUP BY 1, 2 ORDER BY visitas DESC`,
+        GROUP BY 1, 2 ORDER BY visitas DESC LIMIT 50`,
     ]);
     return {
       total: Number(totales[0]?.visitas ?? 0),
