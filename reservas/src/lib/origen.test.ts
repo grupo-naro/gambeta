@@ -32,6 +32,16 @@ describe('etiquetaDeVisita', () => {
     expect(etiquetaDeVisita('IG BIO.123', AHORA)).toBeNull();
     expect(etiquetaDeVisita('ig-bio.no-es-numero', AHORA)).toBeNull();
   });
+
+  it('en el borde exacto de la ventana todavía cuenta como fresca (comparación es `>` estricto, no `>=`)', () => {
+    const v = serializarOrigen('qr-entrada', AHORA);
+    expect(etiquetaDeVisita(v, AHORA + MINUTOS_ORIGEN_FRESCO * MIN)).toBe('qr-entrada');
+  });
+
+  it('reloj hacia atrás (timestamp futuro en la cookie) también da null', () => {
+    const v = serializarOrigen('qr-entrada', AHORA);
+    expect(etiquetaDeVisita(v, AHORA - 1)).toBeNull();
+  });
 });
 
 describe('etiquetaDeReserva', () => {
