@@ -15,7 +15,12 @@ import { COOKIE_ORIGEN, DIAS_ORIGEN, esEtiquetaValida, serializarOrigen } from '
  */
 export async function GET(req: Request, ctx: { params: Promise<{ etiqueta: string }> }) {
   const { etiqueta } = await ctx.params;
-  const res = NextResponse.redirect(new URL('/', req.url), 302);
+  // `Location` relativo a propósito, y NO `NextResponse.redirect(new URL('/', req.url))`.
+  // En producción el sitio corre dockerizado detrás de Traefik, con el TLS terminado afuera:
+  // `req.url` trae el host interno del contenedor, así que esa forma emitía
+  // `Location: https://<id-del-contenedor>:3000/` y el navegador moría con DNS_PROBE_POSSIBLE.
+  // Un destino relativo no depende de inferir ni el host ni el esquema. No lo cambies.
+  const res = new NextResponse(null, { status: 302, headers: { Location: '/' } });
   if (esEtiquetaValida(etiqueta)) {
     res.cookies.set(COOKIE_ORIGEN, serializarOrigen(etiqueta, Date.now()), {
       httpOnly: true,
