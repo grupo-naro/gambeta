@@ -57,17 +57,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <MetricCard title="Ingresos del período" value={money(ingresos.total)} hint="Reservas confirmadas/completadas" Icon={DollarSign} />
         <MetricCard title="Reservas del período" value={String(reservas.length)} Icon={CalendarDays} />
         <MetricCard title="Cancha más reservada" value={topNombre} Icon={Trophy} />
-        <MetricCard title="Visitas al sitio" value={String(origenes.total)} hint="Sesiones en la web de reservas" Icon={Eye} />
-        <MetricCard title="Personas distintas" value={String(origenes.unicos)} Icon={Users} />
       </div>
       <IngresosChart data={ingresosData} />
       <div className="grid gap-4 lg:grid-cols-2">
         <HorariosChart data={horariosData} />
         <OcupacionHeatmap data={ocupacion} horaApertura={aperturaU} horaCierre={cierreU} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <OrigenesChart data={origenes.porTipo} />
-        <OrigenesTabla data={origenes.porEtiqueta} />
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <MetricCard title="Visitas al sitio" value={String(origenes.total)} hint="Sesiones en la web de reservas" Icon={Eye} />
+          <MetricCard title="Personas distintas" value={String(origenes.unicos)} Icon={Users} />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <OrigenesChart data={origenes.porTipo} />
+          <OrigenesTabla data={origenes.porEtiqueta} />
+        </div>
       </div>
     </div>
   );
