@@ -10,6 +10,10 @@ const NOMBRE: Record<TipoOrigen, string> = {
 };
 
 export function nombreOrigen(tipo: TipoOrigen): string {
+  // El `?? tipo` parece inalcanzable porque `TipoOrigen` es un tipo cerrado acá, pero ese tipo
+  // es una aserción sobre lo que manda la red, no una garantía: si el backend agrega un valor
+  // al enum antes de que el panel se actualice, este guard de runtime evita un `undefined` en
+  // pantalla y muestra la etiqueta cruda en su lugar.
   return NOMBRE[tipo] ?? tipo;
 }
 

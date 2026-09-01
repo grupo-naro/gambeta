@@ -49,6 +49,15 @@ export function etiquetaDeVisita(valor: string | undefined, ahora: number): stri
   return o.etiqueta;
 }
 
+// Las dos lecturas de gb_org son asimétricas a propósito, y esa asimetría tiene una
+// consecuencia diferida que conviene dejar escrita acá para que no se lea como un bug: contar
+// UNA VISITA exige que la cookie sea de esta llegada (ventana de 5 minutos), pero ATRIBUIR UNA
+// RESERVA vale toda la vida de la cookie (last-touch, 30 días). El día que el panel muestre
+// "cuántos reservaron" por etiqueta, las reservas atribuidas a un link en un período pueden
+// SUPERAR a las visitas de ese link en el mismo período: una reserva de hoy puede atribuirse a
+// un link tocado hace 29 días, que ya no aparece entre las visitas "recientes". Eso no es un
+// error de agregación — es exactamente lo que las dos ventanas distintas están diseñadas para
+// producir. "Arreglarlo" igualando las dos ventanas rompería una de las dos semánticas.
 /** Etiqueta con la que se ATRIBUYE una reserva: vale toda la vida de la cookie (last-touch). */
 export function etiquetaDeReserva(valor: string | undefined): string | null {
   return parsear(valor)?.etiqueta ?? null;
