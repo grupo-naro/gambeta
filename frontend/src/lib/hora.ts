@@ -70,3 +70,14 @@ export function hhmmDeMin(m: number): string {
   const d = ((m % 1440) + 1440) % 1440;
   return `${String(Math.floor(d / 60)).padStart(2, '0')}:${String(d % 60).padStart(2, '0')}`;
 }
+
+/**
+ * Suma (o resta, con `dias` negativo) días a un rótulo "YYYY-MM-DD". La aritmética se hace en
+ * `Date.UTC` sobre el rótulo, no restando milisegundos a un instante local, para no caer en un
+ * salto de huso horario. Espejo de `sumarDias` del backend.
+ */
+export function sumarDias(date: string, dias: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + dias));
+  return t.toISOString().slice(0, 10);
+}

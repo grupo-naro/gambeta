@@ -55,11 +55,40 @@ describe('nombreCancha', () => {
 });
 
 describe('ubicarEnTz', () => {
-  it('ubica una fecha UTC en el día y hora de Argentina (UTC-3)', () => {
-    // 2026-06-16T22:00:00Z = 19:00 ART del 16
-    const r = ubicarEnTz('2026-06-16T22:00:00.000Z');
+  it('ubica una fecha UTC en el día y hora de Argentina (UTC-3), sin corrimiento de jornada', () => {
+    // 2026-06-16T22:00:00Z = 19:00 ART del 16, muy por encima de la apertura: mismo día calendario.
+    const r = ubicarEnTz('2026-06-16T22:00:00.000Z', '07:00');
     expect(r.fecha).toBe('2026-06-16');
     expect(r.horaNum).toBe(19);
+  });
+
+  it('regresión: un horario normal (17:00 ART) no se corre de día', () => {
+    // 2026-06-16T20:00:00Z = 17:00 ART del 16.
+    const r = ubicarEnTz('2026-06-16T20:00:00.000Z', '07:00');
+    expect(r.fecha).toBe('2026-06-16');
+    expect(r.horaNum).toBe(17);
+  });
+
+  it('una reserva de las 00:00 (guardada con el instante del día siguiente) vuelve a la jornada del día anterior', () => {
+    // 2026-09-14T03:00:00Z = 2026-09-14 00:00 ART. Con apertura 07:00, esa medianoche
+    // pertenece a la jornada del 13, no al día calendario 14 en el que cae el instante.
+    const r = ubicarEnTz('2026-09-14T03:00:00.000Z', '07:00');
+    expect(r.fecha).toBe('2026-09-13');
+    expect(r.horaNum).toBe(0);
+  });
+
+  it('borde: la hora exacta de apertura no se corre de día', () => {
+    // 2026-09-14T04:00:00Z = 01:00 ART del 14. Apertura 01:00 => no hay corrimiento.
+    const r = ubicarEnTz('2026-09-14T04:00:00.000Z', '01:00');
+    expect(r.fecha).toBe('2026-09-14');
+    expect(r.horaNum).toBe(1);
+  });
+
+  it('borde: un minuto antes de la apertura sí se corre al día anterior', () => {
+    // 2026-09-14T09:59:00Z = 06:59 ART del 14. Apertura 07:00 => pertenece a la jornada del 13.
+    const r = ubicarEnTz('2026-09-14T09:59:00.000Z', '07:00');
+    expect(r.fecha).toBe('2026-09-13');
+    expect(r.horaNum).toBe(6);
   });
 });
 
@@ -151,13 +180,13 @@ describe('dividirCelda', () => {
 describe('ubicarEnTz con minutos', () => {
   it('devuelve el minuto real, no solo la hora', () => {
     // 2026-06-10T21:30:00Z = 18:30 en Argentina (UTC-3)
-    const r = ubicarEnTz('2026-06-10T21:30:00.000Z');
+    const r = ubicarEnTz('2026-06-10T21:30:00.000Z', '07:00');
     expect(r.fecha).toBe('2026-06-10');
     expect(r.horaNum).toBe(18);
     expect(r.minuto).toBe(30);
   });
   it('una hora en punto tiene minuto 0', () => {
-    expect(ubicarEnTz('2026-06-10T21:00:00.000Z').minuto).toBe(0);
+    expect(ubicarEnTz('2026-06-10T21:00:00.000Z', '07:00').minuto).toBe(0);
   });
 });
 

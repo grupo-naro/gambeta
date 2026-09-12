@@ -1,5 +1,5 @@
 import type { TurnoFijo, Bloqueo, MotivoBloqueo, EstadoReserva } from './types';
-import { hhmmAMin, minutoDeJornada, hhmmDeMin } from './hora';
+import { hhmmAMin, minutoDeJornada, hhmmDeMin, sumarDias } from './hora';
 
 export const TZ = 'America/Argentina/Buenos_Aires';
 
@@ -46,7 +46,7 @@ export function semanaDe(ancla: string): { lunes: string; domingo: string; dias:
   return { lunes: dias[0], domingo: dias[6], dias };
 }
 
-export function ubicarEnTz(iso: string): { fecha: string; horaNum: number; minuto: number } {
+export function ubicarEnTz(iso: string, apertura: string): { fecha: string; horaNum: number; minuto: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
@@ -54,7 +54,16 @@ export function ubicarEnTz(iso: string): { fecha: string; horaNum: number; minut
   const get = (t: string) => parts.find((p) => p.type === t)!.value;
   let horaNum = Number(get('hour'));
   if (horaNum === 24) horaNum = 0;
-  return { fecha: `${get('year')}-${get('month')}-${get('day')}`, horaNum, minuto: Number(get('minute')) };
+  const minuto = Number(get('minute'));
+  let fecha = `${get('year')}-${get('month')}-${get('day')}`;
+  // Si la hora calendario es anterior a la apertura, el instante pertenece a la JORNADA del día
+  // anterior, no al día calendario en el que cae — mismo criterio que minutoDeJornada del lado
+  // del backend. Sin esto, una reserva de las 00:00 (guardada con el instante del día siguiente)
+  // aparecía en la columna del día equivocado del calendario semanal.
+  if (horaNum * 60 + minuto < hhmmAMin(apertura)) {
+    fecha = sumarDias(fecha, -1);
+  }
+  return { fecha, horaNum, minuto };
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');

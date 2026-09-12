@@ -67,7 +67,7 @@ export function CalendarioSemana({
   const matPorDia = new Map<string, Set<string>>();
   for (const r of reservas) {
     if (r.estado === 'CANCELADA') continue;
-    const { fecha, horaNum, minuto } = ubicarEnTz(r.fechaInicio);
+    const { fecha, horaNum, minuto } = ubicarEnTz(r.fechaInicio, horaApertura);
     if (r.turnoFijoId) {
       const ids = matPorDia.get(fecha) ?? new Set<string>();
       ids.add(r.turnoFijoId);
