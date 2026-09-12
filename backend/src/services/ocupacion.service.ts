@@ -1,6 +1,6 @@
 import { prisma } from '../db/prisma.js';
 import { getEnv } from '../config/env.js';
-import { dayOfWeekInTz, hhmmAMin, minutoDeJornada } from '../utils/tz.js';
+import { dayOfWeekInTz, hhmmAMin, minutoDeJornada, sumarDias } from '../utils/tz.js';
 import { configService } from './config.service.js';
 
 // minutos AR (diaSemana + minuto del día) de un timestamp.
@@ -88,13 +88,6 @@ export const ocupacionService = {
     const fechaTarget = opts.fecha; // YYYY-MM-DD si puntual
     for (const a of alquileres) {
       const pi = partesAr(a.fechaInicio, tz); const pf = partesAr(a.fechaFin, tz);
-      const matchDia = opts.diaSemana != null ? pi.dia === opts.diaSemana : true;
-      // para puntual: comparar la fecha AR del alquiler
-      let matchFecha = true;
-      if (fechaTarget) {
-        const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(a.fechaInicio);
-        matchFecha = f === fechaTarget;
-      }
       // Una reserva que termina exactamente a medianoche cae en el día SIGUIENTE, así que su
       // minuto AR es 0 y la comparación `iniMin < 0` nunca se cumplía: esa reserva quedaba
       // invisible y el admin podía bloquear una cancha ya reservada sin ningún aviso. La
@@ -103,6 +96,21 @@ export const ocupacionService = {
       // se interpreta con la misma regla que `minutoDeJornada`, no como día calendario.
       const esFindePi = pi.dia === 0 || pi.dia === 6;
       const apertura = esFindePi ? cfg.horaAperturaFinde : cfg.horaApertura;
+      // Y por la misma regla, el DÍA/FECHA al que pertenece la reserva no es necesariamente el
+      // día calendario del instante: un fijo "viernes 00:00-01:00" se juega la madrugada del
+      // sábado y pertenece al viernes (diaSemana se refiere a la jornada, no al día calendario).
+      // Una reserva real de sábado 00:30 tiene que "verse" como viernes acá, o el admin podría
+      // crear ese fijo encima de una cancha ya vendida sin que nada lo detecte.
+      const antesDeApertura = pi.min < hhmmAMin(apertura);
+      const diaJornada = antesDeApertura ? (pi.dia + 6) % 7 : pi.dia;
+      const matchDia = opts.diaSemana != null ? diaJornada === opts.diaSemana : true;
+      // para puntual: comparar la fecha de jornada del alquiler, no la fecha calendario
+      let matchFecha = true;
+      if (fechaTarget) {
+        const fCal = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(a.fechaInicio);
+        const fJornada = antesDeApertura ? sumarDias(fCal, -1) : fCal;
+        matchFecha = fJornada === fechaTarget;
+      }
       const iniAr = minJornada(pi, apertura);
       const finAr = pf.dia !== pi.dia ? pf.min + 1440 : minJornada(pf, apertura);
       const overlap = iniAr < finMin && iniMin < finAr;
