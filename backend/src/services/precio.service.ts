@@ -1,12 +1,16 @@
 import { getEnv } from '../config/env.js';
-import { dayOfWeekInTz, hhmmAMin, cierreMin } from '../utils/tz.js';
+import { dayOfWeekInTz, minutoDeJornada } from '../utils/tz.js';
 
 interface CanchaPrecio {
   precioHora: unknown; precioHoraPico: unknown;
   precio90?: unknown; precio90Pico?: unknown;
   precio120?: unknown; precio120Pico?: unknown;
 }
-interface PicoCfg { picoDesde: string; picoHasta: string; picoFindeDesde: string; picoFindeHasta: string }
+interface JornadaCfg {
+  horaApertura: string; horaAperturaFinde: string;
+  picoDesde: string; picoHasta: string;
+  picoFindeDesde: string; picoFindeHasta: string;
+}
 
 /** Duraciones de reserva permitidas, en minutos. Única fuente de verdad: la grilla de
  * disponibilidad y el schema zod de creación derivan de esta constante para no desincronizarse. */
@@ -73,7 +77,7 @@ export function precioDeRango(
   fecha: string,
   horaInicio: string,
   duracionMin: number,
-  cfg: PicoCfg,
+  cfg: JornadaCfg,
 ): number {
   const { base, pico } = tarifasDe(cancha, duracionMin);
   // Se divide por 60 una sola vez, al final, sobre la suma de minuto-pesos: dividir cada
@@ -85,17 +89,20 @@ export function precioDeRango(
 
   const wd = dayOfWeekInTz(fecha, getEnv().TZ_NEGOCIO); // 0=domingo..6=sábado
   const esFinde = wd === 0 || wd === 6;
+  const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
   const desdeStr = esFinde ? cfg.picoFindeDesde : cfg.picoDesde;
   const hastaStr = esFinde ? cfg.picoFindeHasta : cfg.picoHasta;
   if (!desdeStr || !hastaStr) return Math.round((duracionMin * base) / 60);
 
-  // cierreMin() mapea "00:00" a 1440. Sin esto, la comparación de strings del código viejo
-  // daba "18:00" >= "00:00" === true y anulaba el pico de toda franja que cerrara a medianoche.
-  const desde = hhmmAMin(desdeStr);
-  const hasta = cierreMin(hastaStr);
+  // Todo en minutos de jornada: una hora anterior a la apertura pertenece al día siguiente.
+  // Sin esto, un pico de 20:00 a 01:00 se leía como [1200, 60) —invertido— y la función caía al
+  // precio base anulando el pico todo el día; y el turno de las 00:00 se leía como el minuto 0,
+  // así que no caía dentro de ninguna franja y el turno más caro salía al precio más barato.
+  const desde = minutoDeJornada(desdeStr, apertura);
+  const hasta = minutoDeJornada(hastaStr, apertura);
   if (desde >= hasta) return Math.round((duracionMin * base) / 60);
 
-  const ini = hhmmAMin(horaInicio);
+  const ini = minutoDeJornada(horaInicio, apertura);
   const fin = ini + duracionMin;
   const minutosPico = Math.max(0, Math.min(fin, hasta) - Math.max(ini, desde));
   const minutosBase = duracionMin - minutosPico;
