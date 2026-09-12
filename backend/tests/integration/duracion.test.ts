@@ -69,8 +69,10 @@ describe('reprogramar preserva la duración', () => {
     const creada = await reservar(c.id, '17:00', 120);
     expect(creada.status).toBe(201);
 
+    // Dentro del horario de atención por defecto (apertura 16:00, cierre 23:00): 18:00-20:00
+    // no cruza la apertura, a diferencia de '09:00', que queda antes de que el complejo abra.
     const res = await supertest(app).patch(`/reservas/${creada.body.id}/reprogramar`)
-      .set('x-api-key', 'svc').send({ fecha, horaInicio: '09:00' });
+      .set('x-api-key', 'svc').send({ fecha, horaInicio: '18:00' });
     expect(res.status).toBe(200);
 
     const r = await getPrisma().reserva.findUnique({ where: { id: creada.body.id } });
@@ -81,9 +83,9 @@ describe('reprogramar preserva la duración', () => {
     const c = await crearCancha();
     const creada = await reservar(c.id, '17:00', 120);
     await supertest(app).patch(`/reservas/${creada.body.id}/reprogramar`)
-      .set('x-api-key', 'svc').send({ fecha, horaInicio: '09:00' });
-    // 09:00-11:00 ocupado: una reserva a las 10:30 pisa la última media hora.
-    expect((await reservar(c.id, '10:30', 60)).status).toBe(409);
+      .set('x-api-key', 'svc').send({ fecha, horaInicio: '18:00' });
+    // 18:00-20:00 ocupado: una reserva a las 19:30 pisa la última media hora.
+    expect((await reservar(c.id, '19:30', 60)).status).toBe(409);
   });
 
   it('mover de cancha también preserva la duración', async () => {
