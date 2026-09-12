@@ -34,11 +34,19 @@ describe('configSchema', () => {
   it('acepta config válida', () => {
     expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', diasAnticipacionMax:'7', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'pago.x', titular:'Juan', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(true);
   });
-  // Ya no alcanza con que el cierre "aparezca antes" que la apertura en el reloj: un cierre de
-  // madrugada (p.ej. apertura 23:00, cierre 09:00) es una jornada válida que cruza la medianoche.
-  // Lo único que sigue siendo inválido es una jornada de duración cero (apertura === cierre).
+  // Un cierre de madrugada (p.ej. apertura 23:00, cierre 01:00) SÍ es una jornada válida que
+  // cruza la medianoche — pero sólo si el cierre cae temprano en la madrugada (antes de las
+  // 06:00, ver cierreDeJornada/LIMITE_MADRUGADA_MIN en hora.ts). Un cierre "antes" que la
+  // apertura en el reloj pero que no cae en esa ventana temprana (p.ej. apertura 23:00, cierre
+  // 09:00 — una jornada de 10 horas) sigue siendo un dato invertido, no una jornada larga.
+  it('rechaza apertura >= cierre', () => {
+    expect(configSchema.safeParse({ horaApertura:'23:00', horaCierre:'09:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'', titular:'', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(false);
+  });
   it('rechaza apertura === cierre (duración cero)', () => {
     expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'09:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'', titular:'', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(false);
+  });
+  it('rechaza apertura >= cierre en el finde', () => {
+    expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'23:00', horaCierreFinde:'09:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'', titular:'', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(false);
   });
 });
 
@@ -68,8 +76,9 @@ describe('configSchema sin diasAnticipacionMax (deploy escalonado)', () => {
   });
   it('sigue validando el resto de los campos aunque falte diasAnticipacionMax', () => {
     const { diasAnticipacionMax, ...sinCampo } = cfgCompleta;
-    // adminWhatsapp inválido (menos de 8 caracteres), no un horario: un cierre "antes" que la
-    // apertura ya no es en sí mismo inválido (ver arriba, cruza la medianoche).
+    // adminWhatsapp inválido (menos de 8 caracteres), no un horario: este caso prueba que el
+    // resto de las validaciones sigue corriendo aunque falte diasAnticipacionMax, sin tocar
+    // apertura/cierre (cfgCompleta ya trae un horario válido que no cruza medianoche).
     const r = configSchema.safeParse({ ...sinCampo, adminWhatsapp: '123' });
     expect(r.success).toBe(false);
   });
