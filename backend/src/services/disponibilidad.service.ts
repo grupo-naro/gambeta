@@ -2,15 +2,12 @@ import { getEnv } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 import { canchaService } from './cancha.service.js';
 import { configService } from './config.service.js';
-import { combineDateTimeUtc, dayWindowUtc, cierreMin, dayOfWeekInTz } from '../utils/tz.js';
+import { jornadaWindowUtc, minutoDeJornada, hhmmDeMin, instanteDeJornada, hhmmAMin, dayOfWeekInTz } from '../utils/tz.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { canchaRepo } from '../repositories/cancha.repo.js';
 import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.service.js';
 
 // El paso de la grilla ya no es global: sale de reglasDeAgenda() según el deporte de la cancha.
-const pad = (n: number) => String(n).padStart(2, '0');
-const toHHMM = (mins: number) => `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
-const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 
 function horarioDe(fecha: string, tz: string, cfg: { horaApertura: string; horaCierre: string; horaAperturaFinde: string; horaCierreFinde: string }) {
   const dow = dayOfWeekInTz(fecha, tz); // 0=domingo .. 6=sábado
@@ -28,7 +25,10 @@ export const disponibilidadService = {
     const cancha = await canchaService.get(canchaId);
     const tz = getEnv().TZ_NEGOCIO;
     const cfg = await configService.get();
-    const { start, end } = dayWindowUtc(fecha, tz);
+    const { apertura, cierre } = horarioDe(fecha, tz, cfg);
+    // Ventana de la JORNADA, no del día calendario: con la ventana de 24 horas, una reserva a las
+    // 00:00 cae afuera y la grilla la mostraría libre estando ocupada.
+    const { start, end } = jornadaWindowUtc(fecha, tz, apertura, cierre);
 
     const sectores = await prisma.canchaSector.findMany({ where: { canchaId }, select: { sectorId: true } });
     const sectorIds = sectores.map((s) => s.sectorId);
@@ -40,15 +40,14 @@ export const disponibilidadService = {
     const plantillas = await ocupacionService.rangosPlantilla(canchaId, fecha);
 
     const slots: Slot[] = [];
-    const { apertura, cierre } = horarioDe(fecha, tz, cfg);
-    const cierreM = cierreMin(cierre);
-    // combineDateTimeUtc instancia un Intl.DateTimeFormat por llamada (~90µs); con 8 canchas
+    const cierreM = minutoDeJornada(cierre, apertura);
+    // instanteDeJornada instancia un Intl.DateTimeFormat por llamada (~90µs); con 8 canchas
     // y slots de 30' en un día completo son miles de llamadas por request de grilla. Memoizado
     // por minuto: dentro de un mismo `listar` el resultado para un mismo minuto es siempre igual.
     const cacheUtc = new Map<number, Date>();
     const utcDe = (m: number) => {
       let d = cacheUtc.get(m);
-      if (!d) { d = combineDateTimeUtc(fecha, toHHMM(m), tz); cacheUtc.set(m, d); }
+      if (!d) { d = instanteDeJornada(fecha, m, tz); cacheUtc.set(m, d); }
       return d;
     };
     // `libre` responde si el rango [ini, fin) en minutos está libre de reservas y de plantillas.
@@ -64,23 +63,23 @@ export const disponibilidadService = {
     // pádel cada media hora y con turnos de hasta 2 horas.
     const { pasoMin, duracionesMin } = reglasDeAgenda(cancha.tipo);
 
-    for (let t = fromHHMM(apertura); t + pasoMin <= cierreM; t += pasoMin) {
+    for (let t = hhmmAMin(apertura); t + pasoMin <= cierreM; t += pasoMin) {
       const duraciones: DuracionSlot[] = [];
       for (const min of duracionesMin) {
         if (t + min > cierreM) continue; // no puede pasar del cierre
         if (!libre(t, t + min)) continue; // no puede pisar nada
         duraciones.push({
           min,
-          horaFin: toHHMM(t + min),
-          precio: precioDeRango(cancha, fecha, toHHMM(t), min, cfg),
+          horaFin: hhmmDeMin(t + min),
+          precio: precioDeRango(cancha, fecha, hhmmDeMin(t), min, cfg),
         });
       }
       if (duraciones.length === 0) continue; // un slot sin duraciones viables no se publica
-      const horaInicio = toHHMM(t);
+      const horaInicio = hhmmDeMin(t);
       // horaFin es el campo legado que consumen el bot y el panel: SIEMPRE una hora fija (60'),
       // sin relación con el paso de la grilla. NO reemplazar por `pasoMin`: en pádel pasaría a
       // publicar "18:00–18:30" en vez de "18:00–19:00".
-      const horaFin = toHHMM(t + DURACION_DEFAULT_MIN);
+      const horaFin = hhmmDeMin(t + DURACION_DEFAULT_MIN);
       slots.push({
         horaInicio,
         horaFin,
