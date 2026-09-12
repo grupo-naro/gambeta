@@ -52,4 +52,28 @@ describe('liberar un fijo ya materializado cancela la reserva y libera el slot',
     expect(r?.estado).toBe('CANCELADA');
     expect(tiene20(await disp('2026-06-24'))).toBe(true);
   });
+
+  // Hallazgo 1 de la revisión final del plan de jornada del complejo: con cierre de madrugada,
+  // el fijo de las 00:00 materializa en una reserva cuyo instante cae en la madrugada del día
+  // calendario siguiente. cancelarReservaMaterializada usaba una ventana de día calendario fijo
+  // y la dejaba huérfana (agregar la excepción no cancelaba la reserva real).
+  it('agregarExcepcion cancela la reserva materializada de un fijo de las 00:00 (madrugada del día siguiente)', async () => {
+    await getPrisma().configuracion.upsert({
+      where: { id: 'default' },
+      create: { id: 'default', horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00', diasAnticipacionMax: 40 },
+      update: { horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00', diasAnticipacionMax: 40 },
+    });
+    // 2026-06-26 es viernes (diaSemana 5)
+    const f = await getPrisma().turnoFijo.create({ data: { canchaId, clienteNombre: 'Naro', whatsapp: '5491136620274', diaSemana: 5, horaInicio: '00:00', horaFin: '01:00', activo: true } });
+
+    const mat = await supertest(app).post(`/turnos-fijos/${f.id}/materializar`).set('x-api-key', 'svc').send({ fecha: '2026-06-26' });
+    expect(mat.status).toBe(201);
+    const resId = mat.body.id;
+
+    const lib = await supertest(app).post(`/turnos-fijos/${f.id}/excepciones`).set('authorization', `Bearer ${token}`).send({ fecha: '2026-06-26' });
+    expect(lib.status).toBeLessThan(400);
+
+    const r = await getPrisma().reserva.findUnique({ where: { id: resId } });
+    expect(r?.estado).toBe('CANCELADA');
+  });
 });
