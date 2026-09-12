@@ -99,4 +99,26 @@ describe('GET /disponibilidad/por-tamano', () => {
     expect(rSab.body.slots.some((s: any) => s.horaInicio === '09:00')).toBe(false);
     expect(rSab.body.slots[rSab.body.slots.length - 1].horaInicio).toBe('23:00');
   });
+
+  // Hallazgo 5 de la revisión final del plan de jornada del complejo: listarPorTamano ordenaba
+  // los slots con localeCompare (alfabético), el mismo defecto que la Tarea 14 ya había
+  // arreglado en grilla() en este mismo archivo. Este endpoint lo consume el bot de WhatsApp:
+  // ordenado alfabéticamente le ofrecería "00:00" como primera opción del día.
+  it('con jornada que cruza medianoche, los slots quedan en orden de jornada (no alfabético)', async () => {
+    await configService.update({ horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00' });
+    const res = await supertest(app).get('/disponibilidad/por-tamano?jugadores=5&fecha=2099-06-12').set('x-api-key', 'svc');
+    expect(res.status).toBe(200);
+    const horas = res.body.slots.map((s: any) => s.horaInicio);
+    // Granularidad de 30 minutos (mismo criterio que el resto del archivo: las canchas de este
+    // test son tipo "f5", que no matchea el prefijo "futbol" de reglasDeAgenda y cae en el paso
+    // de pádel). El corte del último slot lo pone la duración mínima (60'), no el paso.
+    const esperadas = [
+      '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+      '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+      '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30',
+      '22:00', '22:30', '23:00', '23:30', '00:00',
+    ];
+    expect(horas).toEqual(esperadas);
+    expect(horas[horas.length - 1]).toBe('00:00');
+  });
 });

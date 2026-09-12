@@ -103,7 +103,12 @@ export const disponibilidadService = {
         byHora.set(s.horaInicio, e);
       }
     }
-    const slots = [...byHora.values()].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+    // Orden de JORNADA, no alfabético: "00:00" (el cierre de madrugada) va al final, no al
+    // principio — este endpoint lo consume el bot de WhatsApp, que le ofrecería "00:00" como
+    // primera opción del día si se ordenara como string. Mismo criterio que ya usa grilla().
+    const cfg = await configService.get();
+    const { apertura } = horarioDe(fecha, getEnv().TZ_NEGOCIO, cfg);
+    const slots = [...byHora.values()].sort((a, b) => minutoDeJornada(a.horaInicio, apertura) - minutoDeJornada(b.horaInicio, apertura));
     return { jugadores, fecha, slots };
   },
 
