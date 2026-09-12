@@ -1,6 +1,6 @@
 import { configRepo } from '../repositories/config.repo.js';
 import { BusinessRule } from '../utils/errors.js';
-import { hhmmAMin, minutoDeJornada } from '../utils/tz.js';
+import { hhmmAMin, minutoDeJornada, cierreDeJornada } from '../utils/tz.js';
 
 export const configService = {
   async get() {
@@ -13,16 +13,16 @@ export const configService = {
     const current = await configRepo.getOrCreate();
     const ap = (patch.horaApertura ?? current.horaApertura) as string;
     const ci = (patch.horaCierre ?? current.horaCierre) as string;
-    if (hhmmAMin(ap) >= minutoDeJornada(ci, ap)) throw BusinessRule('La apertura (semana) debe ser anterior al cierre');
+    if (hhmmAMin(ap) >= cierreDeJornada(ci, ap)) throw BusinessRule('La apertura (semana) debe ser anterior al cierre');
     const apF = (patch.horaAperturaFinde ?? current.horaAperturaFinde) as string;
     const ciF = (patch.horaCierreFinde ?? current.horaCierreFinde) as string;
-    if (hhmmAMin(apF) >= minutoDeJornada(ciF, apF)) throw BusinessRule('La apertura (finde) debe ser anterior al cierre');
+    if (hhmmAMin(apF) >= cierreDeJornada(ciF, apF)) throw BusinessRule('La apertura (finde) debe ser anterior al cierre');
     const pd = (patch.picoDesde ?? current.picoDesde) as string;
     const ph = (patch.picoHasta ?? current.picoHasta) as string;
-    if (pd && ph && minutoDeJornada(pd, ap) >= minutoDeJornada(ph, ap)) throw BusinessRule('La franja pico (semana) es inválida');
+    if (pd && ph && minutoDeJornada(pd, ap) >= cierreDeJornada(ph, ap)) throw BusinessRule('La franja pico (semana) es inválida');
     const pfd = (patch.picoFindeDesde ?? current.picoFindeDesde) as string;
     const pfh = (patch.picoFindeHasta ?? current.picoFindeHasta) as string;
-    if (pfd && pfh && minutoDeJornada(pfd, apF) >= minutoDeJornada(pfh, apF)) throw BusinessRule('La franja pico (finde) es inválida');
+    if (pfd && pfh && minutoDeJornada(pfd, apF) >= cierreDeJornada(pfh, apF)) throw BusinessRule('La franja pico (finde) es inválida');
     const { buffetPinHash, ...rest } = await configRepo.update(patch);
     return rest;
   },
