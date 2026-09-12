@@ -167,3 +167,55 @@ describe('configSchema con franjas pico', () => {
     expect(r.success).toBe(false);
   });
 });
+
+/**
+ * "00:00" es el FIN del día (1440), no el arranque, cuando aparece como hora de cierre o de fin.
+ * Estos validadores comparaban texto ("20:00" < "00:00" es falso) y rechazaban justo las
+ * configuraciones que el backend sí sabe calcular: el pico que corre hasta el cierre, y el fijo
+ * o bloqueo que termina a medianoche.
+ */
+describe('horarios que terminan a medianoche', () => {
+  const config = (over: Record<string, string>) => configSchema.safeParse({
+    horaApertura: '07:00', horaCierre: '00:00', horaAperturaFinde: '07:00', horaCierreFinde: '00:00',
+    adminWhatsapp: '1136620274', diasAnticipacionMax: '7', senaModo: 'FIJO',
+    senaPorcentaje: '50', senaMontoFijo: '5000',
+    cbu: '', alias: '', titular: '', alias2: '', cbu2: '', titular2: '',
+    picoDesde: '', picoHasta: '', picoFindeDesde: '', picoFindeHasta: '',
+    ...over,
+  });
+
+  it('acepta cerrar a medianoche', () => {
+    expect(config({}).success).toBe(true);
+  });
+
+  it('acepta la franja pico que termina a medianoche', () => {
+    expect(config({ picoDesde: '20:00', picoHasta: '00:00' }).success).toBe(true);
+    expect(config({ picoFindeDesde: '20:00', picoFindeHasta: '00:00' }).success).toBe(true);
+  });
+
+  it('sigue rechazando una franja pico invertida', () => {
+    expect(config({ picoDesde: '22:00', picoHasta: '18:00' }).success).toBe(false);
+  });
+
+  it('acepta un turno fijo y un bloqueo que terminan a medianoche', () => {
+    expect(turnoFijoSchema.safeParse({
+      canchaId: 'c1', clienteNombre: 'Juan', whatsapp: '1136620274',
+      diaSemana: 5, horaInicio: '23:00', horaFin: '00:00',
+    }).success).toBe(true);
+    expect(bloqueoSchema.safeParse({
+      canchaId: 'c1', motivo: 'MANTENIMIENTO', recurrente: true,
+      diaSemana: 5, horaInicio: '23:00', horaFin: '00:00',
+    }).success).toBe(true);
+  });
+
+  it('sigue rechazando un fijo y un bloqueo con el rango invertido', () => {
+    expect(turnoFijoSchema.safeParse({
+      canchaId: 'c1', clienteNombre: 'Juan', whatsapp: '1136620274',
+      diaSemana: 5, horaInicio: '22:00', horaFin: '18:00',
+    }).success).toBe(false);
+    expect(bloqueoSchema.safeParse({
+      canchaId: 'c1', motivo: 'MANTENIMIENTO', recurrente: true,
+      diaSemana: 5, horaInicio: '22:00', horaFin: '18:00',
+    }).success).toBe(false);
+  });
+});

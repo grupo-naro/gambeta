@@ -30,8 +30,13 @@ export const updateConfigSchema = z.object({
   })
     .refine((b) => !(b.horaApertura && b.horaCierre) || hhmmAMin(b.horaApertura) < cierreMin(b.horaCierre), { message: 'La apertura (semana) debe ser anterior al cierre', path: ['horaCierre'] })
     .refine((b) => !(b.horaAperturaFinde && b.horaCierreFinde) || hhmmAMin(b.horaAperturaFinde) < cierreMin(b.horaCierreFinde), { message: 'La apertura (finde) debe ser anterior al cierre', path: ['horaCierreFinde'] })
-    .refine((b) => !(b.picoDesde && b.picoHasta) || b.picoDesde < b.picoHasta, { message: 'La franja pico (semana) es inválida', path: ['picoHasta'] })
-    .refine((b) => !(b.picoFindeDesde && b.picoFindeHasta) || b.picoFindeDesde < b.picoFindeHasta, { message: 'La franja pico (finde) es inválida', path: ['picoFindeHasta'] }),
+    // Se compara con los MISMOS helpers que usa `precioDeRango`, no como texto. El desde se lee
+    // con `hhmmAMin` (00:00 => minuto 0, arranque del día) y el hasta con `cierreMin`
+    // (00:00 => minuto 1440, fin del día). Comparar strings hacía que "20:00" < "00:00" diera
+    // falso y rechazaba una franja pico que termina a medianoche — justo la que el complejo
+    // necesita cuando el pico corre hasta el cierre — aunque el cálculo de precios sí la soporta.
+    .refine((b) => !(b.picoDesde && b.picoHasta) || hhmmAMin(b.picoDesde) < cierreMin(b.picoHasta), { message: 'La franja pico (semana) es inválida', path: ['picoHasta'] })
+    .refine((b) => !(b.picoFindeDesde && b.picoFindeHasta) || hhmmAMin(b.picoFindeDesde) < cierreMin(b.picoFindeHasta), { message: 'La franja pico (finde) es inválida', path: ['picoFindeHasta'] }),
   query: empty,
   params: empty,
 });
