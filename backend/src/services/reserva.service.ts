@@ -12,7 +12,7 @@ import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.se
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { clasificarOrigen } from './visita.service.js';
-import { combineDateTimeUtc, dayWindowUtc, hhmmAMin, cierreMin, dayOfWeekInTz, hoyEnTz, sumarDias } from '../utils/tz.js';
+import { combineDateTimeUtc, dayWindowUtc, dayOfWeekInTz, hoyEnTz, sumarDias, minutoDeJornada, instanteDeJornada } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
@@ -80,10 +80,24 @@ export const reservaService = {
     const cancha = await canchaService.get(input.canchaId);
     const tz = getEnv().TZ_NEGOCIO;
     const duracionMin = input.duracionMin ?? DURACION_DEFAULT_MIN;
-    const fechaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
+    const cfg = await configService.get();
+
+    // La reserva tiene que terminar antes o justo en el cierre. Antes no hacía falta:
+    // todos los turnos medían lo mismo y la grilla ya no ofrecía horarios inválidos.
+    const dow = dayOfWeekInTz(input.fecha, tz);
+    const esFinde = dow === 0 || dow === 6;
+    const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
+    const cierre = minutoDeJornada(esFinde ? cfg.horaCierreFinde : cfg.horaCierre, apertura);
+
+    // En minutos de jornada: una hora anterior a la apertura pertenece al día siguiente, así que
+    // "00:00" son 1440 y el turno termina a los 1500, dentro de un cierre a la 01:00.
+    const iniMin = minutoDeJornada(input.horaInicio, apertura);
+    const finMin = iniMin + duracionMin;
+    if (finMin > cierre) throw BusinessRule('La reserva termina después del horario de cierre');
+
+    const fechaInicio = instanteDeJornada(input.fecha, iniMin, tz);
     const fechaFin = new Date(fechaInicio.getTime() + duracionMin * 60 * 1000);
     if (fechaInicio.getTime() <= Date.now()) throw BusinessRule('No se puede reservar en el pasado');
-    const cfg = await configService.get();
 
     // El público reserva dentro de una ventana móvil; el staff no tiene techo, porque tiene que
     // poder tomar por teléfono una reserva para dentro de un mes. Va pegado al chequeo del pasado
@@ -100,9 +114,6 @@ export const reservaService = {
       }
     }
 
-    const iniMin = hhmmAMin(input.horaInicio);
-    const finMin = iniMin + duracionMin;
-
     // El deporte manda: el fútbol se agenda por hora en punto y no admite 1½ ni 2 horas.
     // El schema zod valida la forma (60/90/120) pero no conoce la cancha, así que la regla
     // por deporte vive acá. Sin este chequeo se puede saltear la grilla y crear por API una
@@ -114,13 +125,6 @@ export const reservaService = {
     if (iniMin % reglas.pasoMin !== 0) {
       throw BusinessRule(reglas.pasoMin === 60 ? 'Esta cancha se reserva en horas en punto' : 'El turno debe arrancar en punto o y media');
     }
-
-    // La reserva tiene que terminar antes o justo en el cierre. Antes no hacía falta:
-    // todos los turnos medían lo mismo y la grilla ya no ofrecía horarios inválidos.
-    const dow = dayOfWeekInTz(input.fecha, tz);
-    const esFinde = dow === 0 || dow === 6;
-    const cierre = cierreMin(esFinde ? cfg.horaCierreFinde : cfg.horaCierre);
-    if (finMin > cierre) throw BusinessRule('La reserva termina después del horario de cierre');
 
     const motivo = await ocupacionService.conflictoReserva(input.canchaId, input.fecha, iniMin, finMin);
     if (motivo === 'fijo') throw Conflict('Ese horario está tomado por un turno fijo');
@@ -349,13 +353,27 @@ export const reservaService = {
       throw BusinessRule(`Solo se puede reprogramar hasta ${horas}h antes del turno`);
     }
     const tz = getEnv().TZ_NEGOCIO;
-    const nuevaInicio = combineDateTimeUtc(input.fecha, input.horaInicio, tz);
+    const cfg = await configService.get();
     const duracionMs = r.fechaFin.getTime() - r.fechaInicio.getTime();
+
+    // Mismo chequeo que `crear`: la reserva reprogramada tiene que terminar antes o justo en el
+    // cierre. Sin esto, reprogramar una reserva larga a un horario tardío la desborda al día
+    // siguiente sin que nada lo impida.
+    const dowNuevo = dayOfWeekInTz(input.fecha, tz);
+    const esFindeNuevo = dowNuevo === 0 || dowNuevo === 6;
+    const aperturaNueva = esFindeNuevo ? cfg.horaAperturaFinde : cfg.horaApertura;
+    const cierre = minutoDeJornada(esFindeNuevo ? cfg.horaCierreFinde : cfg.horaCierre, aperturaNueva);
+
+    // En minutos de jornada: mismo tratamiento que en `crear` para que "00:00" caiga en el día
+    // correcto y el cierre a la 01:00 lo siga admitiendo.
+    const iniMin = minutoDeJornada(input.horaInicio, aperturaNueva);
+    if (iniMin + duracionMs / 60000 > cierre) throw BusinessRule('La reserva termina después del horario de cierre');
+
+    const nuevaInicio = instanteDeJornada(input.fecha, iniMin, tz);
     const nuevaFin = new Date(nuevaInicio.getTime() + duracionMs);
     if (nuevaInicio.getTime() <= Date.now()) {
       throw BusinessRule('No se puede reprogramar a un horario en el pasado');
     }
-    const cfg = await configService.get();
 
     // Mismo hueco que en `crear`: sin este chequeo, reprogramar es una puerta trasera a la
     // ventana de anticipación pública (crear una reserva cercana y después reprogramarla lejos).
@@ -373,14 +391,6 @@ export const reservaService = {
     const cambiaCancha = !!input.canchaId && input.canchaId !== r.canchaId;
     const canchaDestino = input.canchaId ?? r.canchaId;
     if (cambiaCancha) await canchaService.get(canchaDestino); // 404 si no existe
-    const iniMin = hhmmAMin(input.horaInicio);
-
-    // Mismo chequeo que `crear`: la reserva reprogramada tiene que terminar antes o justo en el
-    // cierre. Sin esto, reprogramar una reserva larga a un horario tardío la desborda al día
-    // siguiente sin que nada lo impida.
-    const dowNuevo = dayOfWeekInTz(input.fecha, tz);
-    const cierre = cierreMin(dowNuevo === 0 || dowNuevo === 6 ? cfg.horaCierreFinde : cfg.horaCierre);
-    if (iniMin + duracionMs / 60000 > cierre) throw BusinessRule('La reserva termina después del horario de cierre');
 
     const motivo = await ocupacionService.conflictoReserva(canchaDestino, input.fecha, iniMin, iniMin + duracionMs / 60000);
     if (motivo === 'fijo') throw Conflict('Ese horario está tomado por un turno fijo');
