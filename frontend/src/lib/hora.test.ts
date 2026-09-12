@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { maskHora, normalizeHora } from './hora';
+import { maskHora, normalizeHora, resolverAperturaCierreUnificados } from './hora';
 
 describe('maskHora', () => {
   it('inserta el ":" solo al tipear 4 dígitos', () => {
@@ -50,5 +50,34 @@ describe('normalizeHora', () => {
     for (const v of ['24', '25', '9:60', '9:70', '', '   ', 'abc', '21:', ':30', '-1', '1:2:3', '21.30']) {
       expect(normalizeHora(v)).toBeNull();
     }
+  });
+});
+
+// Hallazgo 3 de la revisión final del plan de jornada del complejo: calendario/page.tsx y
+// dashboard/page.tsx resolvían cierreU comparando cierreMin crudo, que elige mal el cierre "más
+// tardío" cuando semana y fin de semana cruzan la medianoche de forma distinta. sheetsData.ts
+// (backend) ya usa minutoDeJornada para esto; esta función replica ese mismo criterio.
+describe('resolverAperturaCierreUnificados', () => {
+  it('con cierre semana 01:00 y finde 00:00, el cierre unificado es 01:00 (el más tardío en jornada)', () => {
+    const { aperturaU, cierreU } = resolverAperturaCierreUnificados({
+      horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '00:00',
+    });
+    expect(aperturaU).toBe('07:00');
+    expect(cierreU).toBe('01:00');
+  });
+
+  it('al revés (semana 00:00, finde 01:00) también elige el más tardío', () => {
+    const { cierreU } = resolverAperturaCierreUnificados({
+      horaApertura: '07:00', horaCierre: '00:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00',
+    });
+    expect(cierreU).toBe('01:00');
+  });
+
+  it('regresión: sin cruce de medianoche, elige el cierre con el minuto más alto', () => {
+    const { aperturaU, cierreU } = resolverAperturaCierreUnificados({
+      horaApertura: '16:00', horaCierre: '23:00', horaAperturaFinde: '09:00', horaCierreFinde: '22:00',
+    });
+    expect(aperturaU).toBe('09:00');
+    expect(cierreU).toBe('23:00');
   });
 });

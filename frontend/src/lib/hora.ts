@@ -92,6 +92,21 @@ export function hhmmDeMin(m: number): string {
 }
 
 /**
+ * Resuelve la apertura y el cierre "unificados" de semana + fin de semana: el par más amplio,
+ * para que la grilla de horas del calendario/dashboard no pierda franjas de ninguno de los dos.
+ * `cierreU` se compara en minutos DE JORNADA (respecto de `aperturaU`), no con el minuto crudo
+ * del reloj: con cierre semana "01:00" y finde "00:00" (o viceversa), comparar los relojes crudos
+ * elige mal cuál es el cierre más tardío. Mismo criterio que usa sheetsData.ts en el backend.
+ */
+export function resolverAperturaCierreUnificados(cfg: {
+  horaApertura: string; horaCierre: string; horaAperturaFinde: string; horaCierreFinde: string;
+}): { aperturaU: string; cierreU: string } {
+  const aperturaU = hhmmAMin(cfg.horaApertura) <= hhmmAMin(cfg.horaAperturaFinde) ? cfg.horaApertura : cfg.horaAperturaFinde;
+  const cierreU = minutoDeJornada(cfg.horaCierre, aperturaU) >= minutoDeJornada(cfg.horaCierreFinde, aperturaU) ? cfg.horaCierre : cfg.horaCierreFinde;
+  return { aperturaU, cierreU };
+}
+
+/**
  * Suma (o resta, con `dias` negativo) días a un rótulo "YYYY-MM-DD". La aritmética se hace en
  * `Date.UTC` sobre el rótulo, no restando milisegundos a un instante local, para no caer en un
  * salto de huso horario. Espejo de `sumarDias` del backend.
