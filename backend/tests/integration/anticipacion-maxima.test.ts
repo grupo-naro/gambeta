@@ -89,4 +89,27 @@ describe('anticipación máxima', () => {
     const res = await supertest(app).post('/reservas').set('x-api-key', 'svc').send({ ...body(ultimo), horaInicio: '22:00' });
     expect(res.status).toBe(201);
   });
+
+  // Hallazgo 8 de la revisión final del plan de jornada del complejo: con cierre de madrugada,
+  // limiteAnticipacion resolvía `fin` con dayWindowUtc(ymd).end (medianoche del día calendario
+  // SIGUIENTE a ymd). El turno de las 00:00 de la JORNADA de ymd se guarda con ese mismo
+  // instante exacto, y `fechaInicio >= fin` lo rechazaba aunque la grilla pública sí lo publica
+  // (grilla() sólo filtra por inicioUtc > now).
+  it('con cierre de madrugada, el turno de las 00:00 del último día de la ventana sigue siendo reservable', async () => {
+    await supertest(app).patch('/config').set('authorization', `Bearer ${token()}`).send({
+      horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00', diasAnticipacionMax: 7,
+    });
+    const ultimo = sumarDias(hoyEnTz(TZ), 7);
+    const res = await supertest(app).post('/reservas').set('x-api-key', 'svc').send({ ...body(ultimo), horaInicio: '00:00' });
+    expect(res.status).toBe(201);
+  });
+
+  it('con cierre de madrugada, un turno del día siguiente a la ventana sigue rechazándose', async () => {
+    await supertest(app).patch('/config').set('authorization', `Bearer ${token()}`).send({
+      horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00', diasAnticipacionMax: 7,
+    });
+    const pasado = sumarDias(hoyEnTz(TZ), 8);
+    const res = await supertest(app).post('/reservas').set('x-api-key', 'svc').send({ ...body(pasado), horaInicio: '10:00' });
+    expect(res.status).toBe(422);
+  });
 });

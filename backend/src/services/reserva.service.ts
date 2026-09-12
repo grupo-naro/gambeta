@@ -12,7 +12,7 @@ import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.se
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { clasificarOrigen } from './visita.service.js';
-import { dayWindowUtc, jornadaWindowUtc, dayOfWeekInTz, hoyEnTz, sumarDias, minutoDeJornada, instanteDeJornada } from '../utils/tz.js';
+import { jornadaWindowUtc, dayOfWeekInTz, hoyEnTz, sumarDias, minutoDeJornada, instanteDeJornada } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
@@ -51,13 +51,25 @@ function mensajeSenaAprobada(r: { cancha: { nombre: string }; fechaInicio: Date 
 }
 
 /**
- * Fin de la ventana de anticipación pública: el instante exacto (medianoche del día siguiente,
- * en la zona del negocio) en el que deja de poder reservarse. Se usa tanto en `crear` como en
- * `reprogramar` para no duplicar la aritmética de calendario ni el mensaje de error.
+ * Fin de la ventana de anticipación pública: el instante exacto en el que deja de poder
+ * reservarse. Se usa tanto en `crear` como en `reprogramar` (y en `turnoFijo.service.materializar`)
+ * para no duplicar la aritmética de calendario ni el mensaje de error.
+ *
+ * Es el fin de la JORNADA de `ymd`, no la medianoche de su día calendario: con cierre de
+ * madrugada, el turno de las 00:00 de esa jornada se guarda con el instante real del día
+ * calendario siguiente, y `dayWindowUtc(ymd).end` caía justo ahí — lo rechazaba con
+ * "solo se puede reservar hasta" aunque la grilla pública sí lo publica.
  */
-export function limiteAnticipacion(cfg: { diasAnticipacionMax: number }, tz: string): { fin: Date; ymd: string } {
+export function limiteAnticipacion(
+  cfg: { diasAnticipacionMax: number; horaApertura: string; horaCierre: string; horaAperturaFinde: string; horaCierreFinde: string },
+  tz: string,
+): { fin: Date; ymd: string } {
   const ymd = sumarDias(hoyEnTz(tz), cfg.diasAnticipacionMax);
-  return { fin: dayWindowUtc(ymd, tz).end, ymd };
+  const dow = dayOfWeekInTz(ymd, tz);
+  const esFinde = dow === 0 || dow === 6;
+  const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
+  const cierre = esFinde ? cfg.horaCierreFinde : cfg.horaCierre;
+  return { fin: jornadaWindowUtc(ymd, tz, apertura, cierre).end, ymd };
 }
 
 export interface CreateReservaInput {
