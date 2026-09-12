@@ -220,8 +220,25 @@ export const reservaService = {
     if (filtros.whatsapp) where.cliente = { whatsapp: filtros.whatsapp };
     const tz = getEnv().TZ_NEGOCIO;
     if (filtros.desde && filtros.hasta) {
-      const start = dayWindowUtc(filtros.desde, tz).start;
-      const end = dayWindowUtc(filtros.hasta, tz).end; // inicio del día siguiente a 'hasta'
+      // Igual criterio que la rama de `fecha`: el rango cubre la JORNADA de `desde` a la de
+      // `hasta`, no el día calendario. Sin esto, el turno de las 00:00 que pertenece a la
+      // jornada de `hasta` (guardado con el instante real del día siguiente) quedaba justo
+      // en el borde del filtro `lt: end` y se excluía de la semana a la que pertenece.
+      const cfg = await configService.get();
+      const dowDesde = dayOfWeekInTz(filtros.desde, tz);
+      const esFindeDesde = dowDesde === 0 || dowDesde === 6;
+      const start = jornadaWindowUtc(
+        filtros.desde, tz,
+        esFindeDesde ? cfg.horaAperturaFinde : cfg.horaApertura,
+        esFindeDesde ? cfg.horaCierreFinde : cfg.horaCierre,
+      ).start;
+      const dowHasta = dayOfWeekInTz(filtros.hasta, tz);
+      const esFindeHasta = dowHasta === 0 || dowHasta === 6;
+      const end = jornadaWindowUtc(
+        filtros.hasta, tz,
+        esFindeHasta ? cfg.horaAperturaFinde : cfg.horaApertura,
+        esFindeHasta ? cfg.horaCierreFinde : cfg.horaCierre,
+      ).end;
       where.fechaInicio = { gte: start, lt: end };
     } else if (filtros.fecha) {
       // La agenda de un día es la de su JORNADA: el turno de las 00:00 pertenece al día anterior.
