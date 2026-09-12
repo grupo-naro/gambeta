@@ -2,7 +2,7 @@ import { getEnv } from '../../config/env.js';
 import { prisma } from '../../db/prisma.js';
 import { canchaRepo } from '../../repositories/cancha.repo.js';
 import { configService } from '../config.service.js';
-import { dayWindowUtc, cierreMin, hhmmAMin } from '../../utils/tz.js';
+import { dayWindowUtc, cierreMin, hhmmAMin, minutoDeJornada, hhmmDeMin } from '../../utils/tz.js';
 import type { ReservaCelda } from './grilla.js';
 import { expandirSemana, type FijoInput, type BloqueoInput } from './expandir.js';
 
@@ -36,8 +36,8 @@ export function diasSemanaActual(): { dia: string; fecha: string }[] {
 
 export function horasDeConfig(horaApertura: string, horaCierre: string): string[] {
   const out: string[] = [];
-  const finH = cierreMin(horaCierre) / 60;
-  for (let h = Number(horaApertura.slice(0, 2)); h < finH; h++) out.push(String(h).padStart(2, '0') + ':00');
+  const fin = minutoDeJornada(horaCierre, horaApertura);
+  for (let m = hhmmAMin(horaApertura); m + 60 <= fin; m += 60) out.push(hhmmDeMin(m));
   return out;
 }
 
@@ -45,7 +45,7 @@ export async function dataSemana() {
   const dias = diasSemanaActual();
   const cfg = await configService.get();
   const aperturaU = hhmmAMin(cfg.horaApertura) <= hhmmAMin(cfg.horaAperturaFinde) ? cfg.horaApertura : cfg.horaAperturaFinde;
-  const cierreU = cierreMin(cfg.horaCierre) >= cierreMin(cfg.horaCierreFinde) ? cfg.horaCierre : cfg.horaCierreFinde;
+  const cierreU = minutoDeJornada(cfg.horaCierre, aperturaU) >= minutoDeJornada(cfg.horaCierreFinde, aperturaU) ? cfg.horaCierre : cfg.horaCierreFinde;
   const horas = horasDeConfig(aperturaU, cierreU);
   const canchas = (await canchaRepo.list(true)).map((c) => ({ id: c.id, nombre: c.nombre }));
   const start = dayWindowUtc(dias[0].fecha, TZ()).start;
