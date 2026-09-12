@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { aCanonico } from './whatsapp';
-import { cierreMin, hhmmAMin } from './hora';
+import { cierreMin, hhmmAMin, minutoDeJornada } from './hora';
 
 export const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -73,13 +73,15 @@ export const configSchema = z.object({
   picoHasta: hhmmOrEmpty,
   picoFindeDesde: hhmmOrEmpty,
   picoFindeHasta: hhmmOrEmpty,
-}).refine((b) => hhmmAMin(b.horaApertura) < cierreMin(b.horaCierre), { message: 'La apertura (semana) debe ser anterior al cierre', path: ['horaCierre'] })
-  .refine((b) => hhmmAMin(b.horaAperturaFinde) < cierreMin(b.horaCierreFinde), { message: 'La apertura (finde) debe ser anterior al cierre', path: ['horaCierreFinde'] })
-  // Espejo de la validación del backend: el desde se lee como minuto del día y el hasta con
-  // `cierreMin`, que mapea "00:00" a 1440 (fin del día). Comparando texto, "20:00" < "00:00" era
-  // falso y el panel rechazaba una franja pico que termina a medianoche.
-  .refine((b) => !(b.picoDesde && b.picoHasta) || hhmmAMin(b.picoDesde) < cierreMin(b.picoHasta), { message: 'Franja pico (semana) inválida', path: ['picoHasta'] })
-  .refine((b) => !(b.picoFindeDesde && b.picoFindeHasta) || hhmmAMin(b.picoFindeDesde) < cierreMin(b.picoFindeHasta), { message: 'Franja pico (finde) inválida', path: ['picoFindeHasta'] });
+})
+  // `minutoDeJornada` y no `cierreMin`: con apertura 07:00, un cierre a la 01:00 son 1500
+  // minutos, no 60. Para los cierres de hoy (23:00, 00:00) da exactamente lo mismo. Acá la
+  // apertura siempre está disponible (es un campo requerido de todo el formulario, no un PATCH
+  // parcial), así que no hace falta el resguardo que sí necesita el schema del backend.
+  .refine((b) => hhmmAMin(b.horaApertura) < minutoDeJornada(b.horaCierre, b.horaApertura), { message: 'La apertura (semana) debe ser anterior al cierre', path: ['horaCierre'] })
+  .refine((b) => hhmmAMin(b.horaAperturaFinde) < minutoDeJornada(b.horaCierreFinde, b.horaAperturaFinde), { message: 'La apertura (finde) debe ser anterior al cierre', path: ['horaCierreFinde'] })
+  .refine((b) => !(b.picoDesde && b.picoHasta) || minutoDeJornada(b.picoDesde, b.horaApertura) < minutoDeJornada(b.picoHasta, b.horaApertura), { message: 'Franja pico (semana) inválida', path: ['picoHasta'] })
+  .refine((b) => !(b.picoFindeDesde && b.picoFindeHasta) || minutoDeJornada(b.picoFindeDesde, b.horaAperturaFinde) < minutoDeJornada(b.picoFindeHasta, b.horaAperturaFinde), { message: 'Franja pico (finde) inválida', path: ['picoFindeHasta'] });
 
 export const turnoFijoSchema = z.object({
   canchaId: z.string().min(1, 'Elegí una cancha'),

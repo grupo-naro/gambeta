@@ -61,7 +61,10 @@ export function ConfigForm({ config }: { config: Config }) {
               <div className="space-y-1"><Label htmlFor="cif">Cierre</Label><Input id="cif" type="time" value={f.horaCierreFinde} onChange={(e) => set('horaCierreFinde', e.target.value)} /></div>
             </div>
           </div>
-          <p className="text-xs text-neutral-500">Cerrar a las 00:00 = medianoche (último turno 23:00 a 00:00).</p>
+          <p className="text-xs text-neutral-500">
+            Cerrar a las 00:00 = medianoche (último turno 23:00 a 00:00). Si el complejo sigue abierto
+            después de medianoche, poné la hora de cierre real: 01:00 deja el último turno de 00:00 a 01:00.
+          </p>
         </CardContent>
       </Card>
       <Card>

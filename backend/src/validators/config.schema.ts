@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { hhmmAMin, cierreMin } from '../utils/tz.js';
+import { hhmmAMin, cierreMin, minutoDeJornada } from '../utils/tz.js';
 const empty = z.looseObject({});
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora inválida (HH:MM)');
 const hhmmOrEmpty = z.string().regex(/^(([01]\d|2[0-3]):[0-5]\d)?$/, 'Hora inválida (HH:MM) o vacío');
@@ -28,15 +28,16 @@ export const updateConfigSchema = z.object({
     picoFindeDesde: hhmmOrEmpty.optional(),
     picoFindeHasta: hhmmOrEmpty.optional(),
   })
-    .refine((b) => !(b.horaApertura && b.horaCierre) || hhmmAMin(b.horaApertura) < cierreMin(b.horaCierre), { message: 'La apertura (semana) debe ser anterior al cierre', path: ['horaCierre'] })
-    .refine((b) => !(b.horaAperturaFinde && b.horaCierreFinde) || hhmmAMin(b.horaAperturaFinde) < cierreMin(b.horaCierreFinde), { message: 'La apertura (finde) debe ser anterior al cierre', path: ['horaCierreFinde'] })
-    // Se compara con los MISMOS helpers que usa `precioDeRango`, no como texto. El desde se lee
-    // con `hhmmAMin` (00:00 => minuto 0, arranque del día) y el hasta con `cierreMin`
-    // (00:00 => minuto 1440, fin del día). Comparar strings hacía que "20:00" < "00:00" diera
-    // falso y rechazaba una franja pico que termina a medianoche — justo la que el complejo
-    // necesita cuando el pico corre hasta el cierre — aunque el cálculo de precios sí la soporta.
-    .refine((b) => !(b.picoDesde && b.picoHasta) || hhmmAMin(b.picoDesde) < cierreMin(b.picoHasta), { message: 'La franja pico (semana) es inválida', path: ['picoHasta'] })
-    .refine((b) => !(b.picoFindeDesde && b.picoFindeHasta) || hhmmAMin(b.picoFindeDesde) < cierreMin(b.picoFindeHasta), { message: 'La franja pico (finde) es inválida', path: ['picoFindeHasta'] }),
+    // `minutoDeJornada` y no `cierreMin`: con apertura 07:00, un cierre a la 01:00 son 1500
+    // minutos, no 60. Para los cierres de hoy (23:00, 00:00) da exactamente lo mismo.
+    .refine((b) => !(b.horaApertura && b.horaCierre) || hhmmAMin(b.horaApertura) < minutoDeJornada(b.horaCierre, b.horaApertura), { message: 'La apertura (semana) debe ser anterior al cierre', path: ['horaCierre'] })
+    .refine((b) => !(b.horaAperturaFinde && b.horaCierreFinde) || hhmmAMin(b.horaAperturaFinde) < minutoDeJornada(b.horaCierreFinde, b.horaAperturaFinde), { message: 'La apertura (finde) debe ser anterior al cierre', path: ['horaCierreFinde'] })
+    // Si la apertura no viene en el mismo body, no se puede resolver la jornada de la franja pico
+    // (¿"01:00" es antes o después del cierre?) — se cae al chequeo de siempre (`cierreMin`), que
+    // sigue detectando una franja invertida o de ancho cero aunque no entienda la madrugada. La
+    // validación completa, con la apertura efectiva, la hace `config.service.ts`.
+    .refine((b) => !(b.picoDesde && b.picoHasta) || (b.horaApertura ? minutoDeJornada(b.picoDesde, b.horaApertura) < minutoDeJornada(b.picoHasta, b.horaApertura) : hhmmAMin(b.picoDesde) < cierreMin(b.picoHasta)), { message: 'La franja pico (semana) es inválida', path: ['picoHasta'] })
+    .refine((b) => !(b.picoFindeDesde && b.picoFindeHasta) || (b.horaAperturaFinde ? minutoDeJornada(b.picoFindeDesde, b.horaAperturaFinde) < minutoDeJornada(b.picoFindeHasta, b.horaAperturaFinde) : hhmmAMin(b.picoFindeDesde) < cierreMin(b.picoFindeHasta)), { message: 'La franja pico (finde) es inválida', path: ['picoFindeHasta'] }),
   query: empty,
   params: empty,
 });

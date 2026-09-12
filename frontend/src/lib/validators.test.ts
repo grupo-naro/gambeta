@@ -34,8 +34,11 @@ describe('configSchema', () => {
   it('acepta config válida', () => {
     expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'23:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', diasAnticipacionMax:'7', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'pago.x', titular:'Juan', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(true);
   });
-  it('rechaza apertura >= cierre', () => {
-    expect(configSchema.safeParse({ horaApertura:'23:00', horaCierre:'09:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'', titular:'', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(false);
+  // Ya no alcanza con que el cierre "aparezca antes" que la apertura en el reloj: un cierre de
+  // madrugada (p.ej. apertura 23:00, cierre 09:00) es una jornada válida que cruza la medianoche.
+  // Lo único que sigue siendo inválido es una jornada de duración cero (apertura === cierre).
+  it('rechaza apertura === cierre (duración cero)', () => {
+    expect(configSchema.safeParse({ horaApertura:'09:00', horaCierre:'09:00', horaAperturaFinde:'09:00', horaCierreFinde:'00:00', adminWhatsapp:'5491159582039', senaModo:'PORCENTAJE', senaPorcentaje:'50', senaMontoFijo:'5000', cbu:'', alias:'', titular:'', alias2:'', cbu2:'', titular2:'', picoDesde:'', picoHasta:'', picoFindeDesde:'', picoFindeHasta:'' }).success).toBe(false);
   });
 });
 
@@ -65,7 +68,9 @@ describe('configSchema sin diasAnticipacionMax (deploy escalonado)', () => {
   });
   it('sigue validando el resto de los campos aunque falte diasAnticipacionMax', () => {
     const { diasAnticipacionMax, ...sinCampo } = cfgCompleta;
-    const r = configSchema.safeParse({ ...sinCampo, horaApertura: '23:00', horaCierre: '09:00' });
+    // adminWhatsapp inválido (menos de 8 caracteres), no un horario: un cierre "antes" que la
+    // apertura ya no es en sí mismo inválido (ver arriba, cruza la medianoche).
+    const r = configSchema.safeParse({ ...sinCampo, adminWhatsapp: '123' });
     expect(r.success).toBe(false);
   });
   it('rechaza diasAnticipacionMax fuera de rango cuando sí llega', () => {
@@ -217,5 +222,40 @@ describe('horarios que terminan a medianoche', () => {
       canchaId: 'c1', motivo: 'MANTENIMIENTO', recurrente: true,
       diaSemana: 5, horaInicio: '22:00', horaFin: '18:00',
     }).success).toBe(false);
+  });
+});
+
+/**
+ * El complejo cierra a la 01:00 de la madrugada. `cierreMin` sólo entiende "00:00" como fin de
+ * día, así que una apertura 07:00 / cierre 01:00 se leía como "01:00 de HOY", antes de abrir, y
+ * el panel rechazaba una jornada perfectamente válida. `minutoDeJornada` entiende cualquier hora
+ * anterior a la apertura como perteneciente al día siguiente.
+ */
+describe('cierre posterior a la medianoche', () => {
+  const config = (over: Record<string, string>) => configSchema.safeParse({
+    horaApertura: '07:00', horaCierre: '23:00', horaAperturaFinde: '07:00', horaCierreFinde: '00:00',
+    adminWhatsapp: '1136620274', diasAnticipacionMax: '7', senaModo: 'FIJO',
+    senaPorcentaje: '50', senaMontoFijo: '5000',
+    cbu: '', alias: '', titular: '', alias2: '', cbu2: '', titular2: '',
+    picoDesde: '', picoHasta: '', picoFindeDesde: '', picoFindeHasta: '',
+    ...over,
+  });
+
+  it('acepta abrir 07:00 y cerrar 01:00', () => {
+    expect(config({ horaCierre: '01:00' }).success).toBe(true);
+    expect(config({ horaAperturaFinde: '07:00', horaCierreFinde: '02:00' }).success).toBe(true);
+  });
+
+  it('sigue aceptando los cierres de hoy', () => {
+    expect(config({ horaCierre: '23:00' }).success).toBe(true);
+    expect(config({ horaCierre: '00:00' }).success).toBe(true);
+  });
+
+  it('rechaza una jornada de duración cero', () => {
+    expect(config({ horaCierre: '07:00' }).success).toBe(false);
+  });
+
+  it('acepta el pico corriendo hasta un cierre de madrugada', () => {
+    expect(config({ picoDesde: '20:00', picoHasta: '01:00' }).success).toBe(true);
   });
 });
