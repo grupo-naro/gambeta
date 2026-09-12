@@ -1,6 +1,6 @@
 import { prisma } from '../db/prisma.js';
 import { getEnv } from '../config/env.js';
-import { dayOfWeekInTz, combineDateTimeUtc, hhmmAMin, cierreMin } from '../utils/tz.js';
+import { dayOfWeekInTz, jornadaWindowUtc, hhmmAMin, cierreMin } from '../utils/tz.js';
 import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
 import { reservaService } from './reserva.service.js';
@@ -10,8 +10,16 @@ export const agendaService = {
     const tz = getEnv().TZ_NEGOCIO;
     const dia = dayOfWeekInTz(fecha, tz);
     const fechaDate = new Date(fecha + 'T00:00:00.000Z');
-    const inicioDia = combineDateTimeUtc(fecha, '00:00', tz);
-    const finDia = new Date(inicioDia.getTime() + 86400000);
+    const cfg = await configService.get();
+    // La agenda de un día es la de su JORNADA: el turno de las 00:00 pertenece al día anterior.
+    // `caja`, `alquileres` y `analytics` NO usan esto — responden preguntas contables por día
+    // calendario, y ahí la fecha del instante es la correcta.
+    const esFinde = dia === 0 || dia === 6;
+    const { start: inicioDia, end: finDia } = jornadaWindowUtc(
+      fecha, tz,
+      esFinde ? cfg.horaAperturaFinde : cfg.horaApertura,
+      esFinde ? cfg.horaCierreFinde : cfg.horaCierre,
+    );
 
     const reservasRaw = await reservaService.list({ fecha });
     // Hasta cuándo está pago el abono del fijo que originó cada reserva. Se resuelve acá (y no en
@@ -37,7 +45,6 @@ export const agendaService = {
     });
     const yaMat = new Set(materializados.map((r) => r.turnoFijoId));
 
-    const cfg = await configService.get();
     const fijosRaw = await prisma.turnoFijo.findMany({
       where: { activo: true, diaSemana: dia },
       include: { cancha: true, excepciones: { where: { fecha: fechaDate } } },

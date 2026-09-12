@@ -1,14 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { OcupacionCelda } from '@/lib/types';
+import { horasDelDia } from '@/lib/calendario';
 
 const DIAS = [{ dow: 1, l: 'Lun' }, { dow: 2, l: 'Mar' }, { dow: 3, l: 'Mié' }, { dow: 4, l: 'Jue' }, { dow: 5, l: 'Vie' }, { dow: 6, l: 'Sáb' }, { dow: 0, l: 'Dom' }];
 
 export function OcupacionHeatmap({ data, horaApertura, horaCierre }: { data: OcupacionCelda[]; horaApertura: string; horaCierre: string }) {
-  const ini = Number(horaApertura.slice(0, 2));
-  const finRaw = Number(horaCierre.slice(0, 2));
-  const fin = finRaw === 0 ? 24 : finRaw;
-  const horas: number[] = [];
-  for (let h = ini; h < fin; h++) horas.push(h);
+  // horasDelDia ya resuelve el cruce de medianoche (apertura 07:00/cierre 01:00 -> 07..23,00):
+  // el cálculo a mano de acá (ini/fin por Number(slice(0,2))) daba un rango [7, 1) vacío y el
+  // heatmap se renderizaba en blanco. Ver Hallazgo 4 de la revisión final del plan de jornada.
+  const horas = horasDelDia(horaApertura, horaCierre).map((h) => Number(h.slice(0, 2)));
   const byKey = new Map(data.map((c) => [`${c.dia}|${c.hora}`, c.reservas]));
   const max = data.reduce((m, c) => Math.max(m, c.reservas), 0);
 

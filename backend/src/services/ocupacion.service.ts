@@ -1,14 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { getEnv } from '../config/env.js';
-import { dayOfWeekInTz, cierreMin } from '../utils/tz.js';
-
-const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
-/**
- * Minuto de FIN de un rango. "00:00" vale 1440 (fin del día), no 0: con `fromHHMM` un fijo o
- * bloqueo de 23:00 a medianoche quedaba como el rango [1380, 0), que está vacío y no bloquea
- * nada aunque en el panel se vea creado.
- */
-const finHHMM = (s: string) => cierreMin(s);
+import { dayOfWeekInTz, hhmmAMin, minutoDeJornada, sumarDias } from '../utils/tz.js';
+import { configService } from './config.service.js';
 
 // minutos AR (diaSemana + minuto del día) de un timestamp.
 function partesAr(d: Date, tz: string) {
@@ -18,6 +11,11 @@ function partesAr(d: Date, tz: string) {
   const min = (p.hour === '24' ? 0 : Number(p.hour)) * 60 + Number(p.minute);
   return { dia, min };
 }
+
+// El minuto de jornada de un instante: si cae antes de la apertura, pertenece a la jornada
+// anterior y suma 1440. Es la misma regla que `minutoDeJornada`, aplicada a un timestamp.
+const minJornada = (p: { min: number }, apertura: string) =>
+  p.min < hhmmAMin(apertura) ? p.min + 1440 : p.min;
 
 export interface RangoOcupado { ini: number; fin: number; tipo: 'fijo' | 'bloqueo' }
 
@@ -35,6 +33,9 @@ export const ocupacionService = {
   async rangosPlantilla(canchaId: string, fecha: string): Promise<RangoOcupado[]> {
     const tz = getEnv().TZ_NEGOCIO;
     const dia = dayOfWeekInTz(fecha, tz);
+    const cfg = await configService.get();
+    const esFinde = dia === 0 || dia === 6;
+    const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
     const canchas = await ocupacionService.canchasRelacionadas(canchaId);
     const fechaDate = new Date(fecha + 'T00:00:00.000Z');
     const out: RangoOcupado[] = [];
@@ -43,13 +44,13 @@ export const ocupacionService = {
       where: { canchaId: { in: canchas }, activo: true, diaSemana: dia },
       include: { excepciones: { where: { fecha: fechaDate } } },
     });
-    for (const f of fijos) if (f.excepciones.length === 0) out.push({ ini: fromHHMM(f.horaInicio), fin: finHHMM(f.horaFin), tipo: 'fijo' });
+    for (const f of fijos) if (f.excepciones.length === 0) out.push({ ini: minutoDeJornada(f.horaInicio, apertura), fin: minutoDeJornada(f.horaFin, apertura), tipo: 'fijo' });
 
     const bloqueos = await prisma.bloqueo.findMany({
       where: { canchaId: { in: canchas }, activo: true, OR: [{ recurrente: true, diaSemana: dia }, { recurrente: false, fecha: fechaDate }] },
       include: { excepciones: { where: { fecha: fechaDate } } },
     });
-    for (const b of bloqueos) if (b.excepciones.length === 0) out.push({ ini: fromHHMM(b.horaInicio), fin: finHHMM(b.horaFin), tipo: 'bloqueo' });
+    for (const b of bloqueos) if (b.excepciones.length === 0) out.push({ ini: minutoDeJornada(b.horaInicio, apertura), fin: minutoDeJornada(b.horaFin, apertura), tipo: 'bloqueo' });
     return out;
   },
 
@@ -64,16 +65,19 @@ export const ocupacionService = {
   // match: recurrente => por diaSemana; puntual => por fecha exacta.
   async conflictoAlCrear(canchaId: string, opts: { diaSemana?: number; fecha?: string }, iniMin: number, finMin: number): Promise<boolean> {
     const tz = getEnv().TZ_NEGOCIO;
+    const cfg = await configService.get();
     const canchas = await ocupacionService.canchasRelacionadas(canchaId);
     // 1) contra otros fijos/bloqueos (mismo día o misma fecha)
     if (opts.fecha != null) {
       const rangos = await ocupacionService.rangosPlantilla(canchaId, opts.fecha);
       if (rangos.some((x) => x.ini < finMin && iniMin < x.fin)) return true;
     } else if (opts.diaSemana != null) {
+      const esFinde = opts.diaSemana === 0 || opts.diaSemana === 6;
+      const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
       const fijos = await prisma.turnoFijo.findMany({ where: { canchaId: { in: canchas }, activo: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true } });
       const bloqs = await prisma.bloqueo.findMany({ where: { canchaId: { in: canchas }, activo: true, recurrente: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true } });
       const tpl = [...fijos, ...bloqs];
-      if (tpl.some((x) => fromHHMM(x.horaInicio) < finMin && iniMin < finHHMM(x.horaFin))) return true;
+      if (tpl.some((x) => minutoDeJornada(x.horaInicio, apertura) < finMin && iniMin < minutoDeJornada(x.horaFin, apertura))) return true;
     }
     // 2) contra alquileres futuros activos en los sectores
     const sectores = (await prisma.canchaSector.findMany({ where: { canchaId: { in: canchas } }, select: { sectorId: true } })).map((s) => s.sectorId);
@@ -84,21 +88,32 @@ export const ocupacionService = {
     const fechaTarget = opts.fecha; // YYYY-MM-DD si puntual
     for (const a of alquileres) {
       const pi = partesAr(a.fechaInicio, tz); const pf = partesAr(a.fechaFin, tz);
-      const matchDia = opts.diaSemana != null ? pi.dia === opts.diaSemana : true;
-      // para puntual: comparar la fecha AR del alquiler
-      let matchFecha = true;
-      if (fechaTarget) {
-        const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(a.fechaInicio);
-        matchFecha = f === fechaTarget;
-      }
       // Una reserva que termina exactamente a medianoche cae en el día SIGUIENTE, así que su
       // minuto AR es 0 y la comparación `iniMin < 0` nunca se cumplía: esa reserva quedaba
       // invisible y el admin podía bloquear una cancha ya reservada sin ningún aviso. La
       // exclusion constraint no lo frena, porque fijos y bloqueos no son filas de ReservaSector.
-      // Leerlo relativo al día de inicio lo arregla, y además deja preparado el caso de un turno
-      // que cruce la medianoche.
-      const finAr = pf.dia !== pi.dia ? pf.min + 1440 : pf.min;
-      const overlap = pi.min < finMin && iniMin < finAr;
+      // Leerlo relativo a la apertura de la jornada de `pi` lo arregla: el minuto de un instante
+      // se interpreta con la misma regla que `minutoDeJornada`, no como día calendario.
+      const esFindePi = pi.dia === 0 || pi.dia === 6;
+      const apertura = esFindePi ? cfg.horaAperturaFinde : cfg.horaApertura;
+      // Y por la misma regla, el DÍA/FECHA al que pertenece la reserva no es necesariamente el
+      // día calendario del instante: un fijo "viernes 00:00-01:00" se juega la madrugada del
+      // sábado y pertenece al viernes (diaSemana se refiere a la jornada, no al día calendario).
+      // Una reserva real de sábado 00:30 tiene que "verse" como viernes acá, o el admin podría
+      // crear ese fijo encima de una cancha ya vendida sin que nada lo detecte.
+      const antesDeApertura = pi.min < hhmmAMin(apertura);
+      const diaJornada = antesDeApertura ? (pi.dia + 6) % 7 : pi.dia;
+      const matchDia = opts.diaSemana != null ? diaJornada === opts.diaSemana : true;
+      // para puntual: comparar la fecha de jornada del alquiler, no la fecha calendario
+      let matchFecha = true;
+      if (fechaTarget) {
+        const fCal = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(a.fechaInicio);
+        const fJornada = antesDeApertura ? sumarDias(fCal, -1) : fCal;
+        matchFecha = fJornada === fechaTarget;
+      }
+      const iniAr = minJornada(pi, apertura);
+      const finAr = pf.dia !== pi.dia ? pf.min + 1440 : minJornada(pf, apertura);
+      const overlap = iniAr < finMin && iniMin < finAr;
       if (matchDia && matchFecha && overlap) return true;
     }
     return false;

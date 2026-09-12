@@ -67,7 +67,7 @@ export function CalendarioSemana({
   const matPorDia = new Map<string, Set<string>>();
   for (const r of reservas) {
     if (r.estado === 'CANCELADA') continue;
-    const { fecha, horaNum, minuto } = ubicarEnTz(r.fechaInicio);
+    const { fecha, horaNum, minuto } = ubicarEnTz(r.fechaInicio, horaApertura);
     if (r.turnoFijoId) {
       const ids = matPorDia.get(fecha) ?? new Set<string>();
       ids.add(r.turnoFijoId);
@@ -92,7 +92,7 @@ export function CalendarioSemana({
       });
     });
   }
-  eventos.push(...materializar(dias, fijos, bloqueos, matPorDia));
+  eventos.push(...materializar(dias, fijos, bloqueos, matPorDia, horaApertura));
 
   const porCelda = new Map<string, EventoCal[]>();
   for (const ev of eventos) {
@@ -137,7 +137,7 @@ export function CalendarioSemana({
             </div>
           ))}
           {horas.map((h) => (
-            <FilaHora key={h} h={h} dias={dias} porCelda={porCelda} canchas={canchas} onEvento={onEvento} onMas={onMas} />
+            <FilaHora key={h} h={Number(h.slice(0, 2))} dias={dias} porCelda={porCelda} canchas={canchas} onEvento={onEvento} onMas={onMas} />
           ))}
         </div>
       </div>
@@ -161,12 +161,13 @@ export function CalendarioSemana({
         {/* Filas de horas para el día seleccionado */}
         <div className="rounded-lg border bg-white">
           {horas.map((h) => {
-            const evs = porCelda.get(`${diaSel}|${h}`) ?? [];
+            const hn = Number(h.slice(0, 2));
+            const evs = porCelda.get(`${diaSel}|${hn}`) ?? [];
             return (
               <div key={h} className="flex min-h-12 border-b last:border-b-0">
                 {/* Etiqueta de hora */}
                 <div className="w-14 shrink-0 border-r bg-neutral-50 p-2 text-right text-xs text-neutral-500 pt-3">
-                  {String(h).padStart(2, '0')}:00
+                  {h}
                 </div>
                 {/* Eventos */}
                 <div className="flex flex-1 flex-col gap-1 p-1">

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import type { Reserva, Cancha, Config, TurnoFijo, Bloqueo } from '@/lib/types';
 import { semanaDe, TZ } from '@/lib/calendario';
-import { cierreMin } from '@/lib/hora';
+import { resolverAperturaCierreUnificados } from '@/lib/hora';
 import { CalendarioSemana } from '@/components/calendario/calendario-semana';
 
 function hoyYMD(): string {
@@ -33,8 +33,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const next = addDays(lunes, 7);
   const linkCls = 'rounded-md border px-3 py-1.5 text-sm hover:bg-neutral-50';
 
-  const aperturaU = Number(config.horaApertura.slice(0, 2)) <= Number(config.horaAperturaFinde.slice(0, 2)) ? config.horaApertura : config.horaAperturaFinde;
-  const cierreU = cierreMin(config.horaCierre) >= cierreMin(config.horaCierreFinde) ? config.horaCierre : config.horaCierreFinde;
+  const { aperturaU, cierreU } = resolverAperturaCierreUnificados(config);
 
   return (
     <div className="space-y-5">

@@ -54,3 +54,65 @@ export function normalizeHora(raw: string): string | null {
  *  día), allá es 1440 (fin del día). Espejo de `hhmmAMin`/`cierreMin` del backend. */
 export function hhmmAMin(hhmm: string): number { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; }
 export function cierreMin(hhmm: string): number { const min = hhmmAMin(hhmm); return min === 0 ? 1440 : min; }
+
+/**
+ * Minuto de una hora "HH:MM" dentro de la jornada que arranca en `apertura`. Una hora anterior
+ * a la apertura pertenece al día siguiente y suma 1440: con apertura 07:00, "01:00" son 1500.
+ * Espejo de `minutoDeJornada` del backend.
+ */
+export function minutoDeJornada(hhmm: string, apertura: string): number {
+  const m = hhmmAMin(hhmm);
+  return m < hhmmAMin(apertura) ? m + 1440 : m;
+}
+
+/** Tope de la madrugada hasta el que un CIERRE (de jornada o de franja pico) puede legítimamente
+ *  extenderse al día siguiente: 06:00. Sin este tope, comparar una apertura tardía (ej. 16:00)
+ *  contra un cierre temprano cargado por error (ej. 10:00) se interpretaba como una jornada o una
+ *  franja pico de casi un día entero, en vez de rechazar el dato invertido. Un complejo real
+ *  cierra a la 1, 2 o 3 de la mañana — nunca "al mediodía siguiente". Espejo de
+ *  `LIMITE_MADRUGADA_MIN` del backend. */
+export const LIMITE_MADRUGADA_MIN = 360; // 06:00
+
+/**
+ * Como `minutoDeJornada`, pero sólo cruza al día siguiente si la hora cae en la madrugada
+ * temprana (antes de las 06:00). Se usa para validar que un CIERRE (de jornada o de franja pico)
+ * tenga sentido frente a su apertura — no para ubicar un evento ya conocido dentro de una jornada
+ * ya válida, que es lo que sigue haciendo `minutoDeJornada` sin este tope. Espejo de
+ * `cierreDeJornada` del backend.
+ */
+export function cierreDeJornada(hhmm: string, apertura: string): number {
+  const m = hhmmAMin(hhmm);
+  return (m < hhmmAMin(apertura) && m < LIMITE_MADRUGADA_MIN) ? m + 1440 : m;
+}
+
+/** Etiqueta de un minuto de jornada, como lo diría un reloj: 1440 => "00:00", 1500 => "01:00". */
+export function hhmmDeMin(m: number): string {
+  const d = ((m % 1440) + 1440) % 1440;
+  return `${String(Math.floor(d / 60)).padStart(2, '0')}:${String(d % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Resuelve la apertura y el cierre "unificados" de semana + fin de semana: el par más amplio,
+ * para que la grilla de horas del calendario/dashboard no pierda franjas de ninguno de los dos.
+ * `cierreU` se compara en minutos DE JORNADA (respecto de `aperturaU`), no con el minuto crudo
+ * del reloj: con cierre semana "01:00" y finde "00:00" (o viceversa), comparar los relojes crudos
+ * elige mal cuál es el cierre más tardío. Mismo criterio que usa sheetsData.ts en el backend.
+ */
+export function resolverAperturaCierreUnificados(cfg: {
+  horaApertura: string; horaCierre: string; horaAperturaFinde: string; horaCierreFinde: string;
+}): { aperturaU: string; cierreU: string } {
+  const aperturaU = hhmmAMin(cfg.horaApertura) <= hhmmAMin(cfg.horaAperturaFinde) ? cfg.horaApertura : cfg.horaAperturaFinde;
+  const cierreU = minutoDeJornada(cfg.horaCierre, aperturaU) >= minutoDeJornada(cfg.horaCierreFinde, aperturaU) ? cfg.horaCierre : cfg.horaCierreFinde;
+  return { aperturaU, cierreU };
+}
+
+/**
+ * Suma (o resta, con `dias` negativo) días a un rótulo "YYYY-MM-DD". La aritmética se hace en
+ * `Date.UTC` sobre el rótulo, no restando milisegundos a un instante local, para no caer en un
+ * salto de huso horario. Espejo de `sumarDias` del backend.
+ */
+export function sumarDias(date: string, dias: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + dias));
+  return t.toISOString().slice(0, 10);
+}

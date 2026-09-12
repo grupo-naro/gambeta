@@ -93,3 +93,51 @@ describe('POST /turnos-fijos/:id/materializar', () => {
     expect(Number(r.body.monto)).toBe(24000); // 2 horas a precioHora=12000
   });
 });
+
+// 2026-06-26 es VIERNES (diaSemana 5). Con cierre de madrugada, el fijo de las 00:00
+// pertenece a la JORNADA del viernes pero su instante real cae en la madrugada del sábado
+// calendario. Hallazgo 1 de la revisión final del plan de jornada del complejo.
+describe('materializar turnos fijos con cierre de madrugada', () => {
+  beforeEach(async () => {
+    await getPrisma().configuracion.upsert({
+      where: { id: 'default' },
+      create: { id: 'default', horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00', diasAnticipacionMax: 40 },
+      update: { horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00', diasAnticipacionMax: 40 },
+    });
+  });
+
+  async function fijoViernes(over: Record<string, unknown> = {}) {
+    return getPrisma().turnoFijo.create({ data: { canchaId, clienteNombre: 'Naro', whatsapp: '5491136620274', diaSemana: 5, activo: true, ...over } });
+  }
+
+  it('un fijo 00:00-01:00 materializa el instante de la MADRUGADA del sábado calendario, no el arranque del viernes', async () => {
+    const f = await fijoViernes({ horaInicio: '00:00', horaFin: '01:00' });
+    const r = await materializar(f.id, { fecha: '2026-06-26' });
+    expect(r.status).toBe(201);
+    const fechaInicio = new Date(r.body.fechaInicio);
+    const ymdArg = fechaInicio.toLocaleDateString('en-CA', { timeZone: TZ });
+    const horaArg = fechaInicio.toLocaleTimeString('es-AR', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false });
+    expect(ymdArg).toBe('2026-06-27'); // sábado calendario
+    expect(horaArg).toBe('00:00');
+  });
+
+  it('un fijo 23:00-00:00 no revienta con 500 por rango invertido', async () => {
+    const f = await fijoViernes({ horaInicio: '23:00', horaFin: '00:00' });
+    await expect(materializar(f.id, { fecha: '2026-06-26' })).resolves.toMatchObject({ status: 201 });
+    const r = await materializar(f.id, { fecha: '2026-06-26' });
+    const fechaInicio = new Date(r.body.fechaInicio);
+    const fechaFin = new Date(r.body.fechaFin);
+    expect(fechaFin.getTime()).toBeGreaterThan(fechaInicio.getTime());
+  });
+
+  it('regresión: un fijo normal (19:00-20:00) sigue materializando el mismo instante de siempre', async () => {
+    const f = await fijoViernes({ horaInicio: '19:00', horaFin: '20:00' });
+    const r = await materializar(f.id, { fecha: '2026-06-26' });
+    expect(r.status).toBe(201);
+    const fechaInicio = new Date(r.body.fechaInicio);
+    const ymdArg = fechaInicio.toLocaleDateString('en-CA', { timeZone: TZ });
+    const horaArg = fechaInicio.toLocaleTimeString('es-AR', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false });
+    expect(ymdArg).toBe('2026-06-26');
+    expect(horaArg).toBe('19:00');
+  });
+});

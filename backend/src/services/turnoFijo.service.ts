@@ -1,7 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound, BusinessRule } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
-import { combineDateTimeUtc, dayOfWeekInTz, hhmmAMin, cierreMin } from '../utils/tz.js';
+import { dayOfWeekInTz, minutoDeJornada, instanteDeJornada, jornadaWindowUtc } from '../utils/tz.js';
 import { getEnv } from '../config/env.js';
 import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
@@ -13,7 +13,6 @@ import { suscripcionService } from './suscripcion.service.js';
 import { adminUserRepo } from '../repositories/adminUser.repo.js';
 import { limiteAnticipacion } from './reserva.service.js';
 
-const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 const assertFecha = (fecha: string) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw BusinessRule('Fecha inválida (YYYY-MM-DD)'); };
 // Dígitos significativos de un whatsapp argentino (área + número), ignorando +, espacios
 // y el prefijo 54/549. Permite comparar el número cargado a mano en el panel con el JID del bot.
@@ -24,10 +23,17 @@ const local10 = (s?: string | null) => { const d = (s ?? '').replace(/\D/g, '');
 // sigue ocupado por la reserva. Se cancela sin la ventana de anticipación (es staff/sistema).
 async function cancelarReservaMaterializada(fijoId: string, fecha: string): Promise<number> {
   const tz = getEnv().TZ_NEGOCIO;
-  const inicioDia = combineDateTimeUtc(fecha, '00:00', tz);
-  const finDia = new Date(inicioDia.getTime() + 86400000);
+  const cfg = await configService.get();
+  const dow = dayOfWeekInTz(fecha, tz);
+  const esFinde = dow === 0 || dow === 6;
+  const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
+  const cierre = esFinde ? cfg.horaCierreFinde : cfg.horaCierre;
+  // La reserva materializada vive en la JORNADA de `fecha` (apertura a cierre), que puede
+  // extenderse hasta la madrugada del día calendario siguiente: la ventana de día calendario
+  // fijo [fecha, fecha+1) la dejaría huérfana cuando el fijo es de madrugada (ver Hallazgo 1).
+  const { start, end } = jornadaWindowUtc(fecha, tz, apertura, cierre);
   const mats = await prisma.reserva.findMany({
-    where: { turnoFijoId: fijoId, fechaInicio: { gte: inicioDia, lt: finDia }, estado: { in: ['CONFIRMADA', 'ESPERANDO_SENA'] } },
+    where: { turnoFijoId: fijoId, fechaInicio: { gte: start, lt: end }, estado: { in: ['CONFIRMADA', 'ESPERANDO_SENA'] } },
     select: { id: true },
   });
   for (const m of mats) await reservaRepo.updateEstado(m.id, 'CANCELADA');
@@ -54,7 +60,10 @@ export const turnoFijoService = {
     canchaId: string; clienteNombre: string; whatsapp?: string; diaSemana: number; horaInicio: string; horaFin: string;
     vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
   }, adminId: string | null = null) {
-    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, { diaSemana: input.diaSemana }, fromHHMM(input.horaInicio), cierreMin(input.horaFin));
+    const cfg = await configService.get();
+    const esFinde = input.diaSemana === 0 || input.diaSemana === 6;
+    const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
+    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, { diaSemana: input.diaSemana }, minutoDeJornada(input.horaInicio, apertura), minutoDeJornada(input.horaFin, apertura));
     if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
 
     const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, ...datosFijo } = input;
@@ -174,8 +183,12 @@ export const turnoFijoService = {
     const fechaDate = new Date(fecha + 'T00:00:00.000Z');
     const exc = await prisma.turnoFijoExcepcion.findUnique({ where: { turnoFijoId_fecha: { turnoFijoId: fijoId, fecha: fechaDate } } });
     if (exc) throw BusinessRule('Ese turno fijo está liberado en esa fecha');
-    const fechaInicio = combineDateTimeUtc(fecha, fijo.horaInicio, tz);
     const cfg = await configService.get();
+    const esFinde = fijo.diaSemana === 0 || fijo.diaSemana === 6;
+    const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
+    const iniMin = minutoDeJornada(fijo.horaInicio, apertura);
+    const finMin = minutoDeJornada(fijo.horaFin, apertura);
+    const fechaInicio = instanteDeJornada(fecha, iniMin, tz);
 
     // Mismo hueco que en reserva.service.crear/reprogramar: materializar también escribe
     // fechaInicio directamente, así que es una tercera puerta a la ventana de anticipación
@@ -191,10 +204,8 @@ export const turnoFijoService = {
 
     const existente = await prisma.reserva.findUnique({ where: { turnoFijoId_fechaInicio: { turnoFijoId: fijoId, fechaInicio } } });
     if (existente) return existente;
-    const fechaFin = combineDateTimeUtc(fecha, fijo.horaFin, tz);
-    // cierreMin() mapea "00:00" a 1440: un fijo que cierra a medianoche no debe dar duración
-    // negativa (hoy inalcanzable por validación zod, pero queda como riesgo con datos legacy).
-    const duracion = cierreMin(fijo.horaFin) - hhmmAMin(fijo.horaInicio);
+    const fechaFin = instanteDeJornada(fecha, finMin, tz);
+    const duracion = finMin - iniMin;
     const precio = precioDeRango(fijo.cancha, fecha, fijo.horaInicio, duracion, cfg);
     const whatsapp = fijo.whatsapp;
     // Igual que reserva.service.crear: se busca el cliente y su suscripción vigente ANTES de la

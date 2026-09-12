@@ -4,7 +4,7 @@ import { precioDeRango, reglasDeAgenda } from '../../src/services/precio.service
 beforeAll(() => { process.env.TZ_NEGOCIO ||= 'America/Argentina/Buenos_Aires'; });
 
 // Franja del complejo real: pico de 18:00 a medianoche.
-const cfg = { picoDesde: '18:00', picoHasta: '00:00', picoFindeDesde: '18:00', picoFindeHasta: '00:00' };
+const cfg = { horaApertura: '16:00', horaAperturaFinde: '16:00', picoDesde: '18:00', picoHasta: '00:00', picoFindeDesde: '18:00', picoFindeHasta: '00:00' };
 // Precios reales de la cancha de pádel.
 const padel = { precioHora: 30000, precioHoraPico: 36000 };
 // 2026-06-10 = miércoles (semana); 2026-06-13 = sábado (finde)
@@ -49,19 +49,19 @@ describe('precioDeRango', () => {
   it('franja vacía o invertida → todo a base', () => {
     const vacia = { picoDesde: '', picoHasta: '', picoFindeDesde: '', picoFindeHasta: '' };
     expect(precioDeRango(padel, '2026-06-10', '19:00', 60, vacia)).toBe(30000);
-    const invertida = { picoDesde: '22:00', picoHasta: '20:00', picoFindeDesde: '22:00', picoFindeHasta: '20:00' };
+    const invertida = { horaApertura: '00:00', horaAperturaFinde: '00:00', picoDesde: '22:00', picoHasta: '20:00', picoFindeDesde: '22:00', picoFindeHasta: '20:00' };
     expect(precioDeRango(padel, '2026-06-10', '19:00', 60, invertida)).toBe(30000);
   });
 
   it('el finde usa su propia franja', () => {
-    const mixta = { picoDesde: '19:00', picoHasta: '23:00', picoFindeDesde: '14:00', picoFindeHasta: '23:00' };
+    const mixta = { horaApertura: '00:00', horaAperturaFinde: '00:00', picoDesde: '19:00', picoHasta: '23:00', picoFindeDesde: '14:00', picoFindeHasta: '23:00' };
     expect(precioDeRango(padel, '2026-06-13', '14:00', 60, mixta)).toBe(36000); // sábado, en franja finde
     expect(precioDeRango(padel, '2026-06-10', '14:00', 60, mixta)).toBe(30000); // miércoles, fuera de franja semana
   });
 });
 
 describe('precio propio por duración', () => {
-  const cfg = { picoDesde: '18:00', picoHasta: '00:00', picoFindeDesde: '18:00', picoFindeHasta: '00:00' };
+  const cfg = { horaApertura: '16:00', horaAperturaFinde: '16:00', picoDesde: '18:00', picoHasta: '00:00', picoFindeDesde: '18:00', picoFindeHasta: '00:00' };
   // 2026-06-10 es miércoles (semana).
   const conPropio = {
     precioHora: 27000, precioHoraPico: 33000,

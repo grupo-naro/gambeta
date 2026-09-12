@@ -71,6 +71,20 @@ describe('GET /disponibilidad/grilla', () => {
     expect(res.body.horas).not.toContain('00:00'); // 00:00 de hoy ya pasó → no figura
   });
 
+  it('con jornada que cruza medianoche, las horas quedan en orden de jornada (no alfabetico)', async () => {
+    // Apertura 07:00, cierre 01:00: el turno de las 00:00 pertenece al final de la jornada,
+    // no al principio. Ordenar las strings "HH:MM" alfabeticamente pondria "00:00" primero.
+    await configService.update({ horaApertura: '07:00', horaCierre: '01:00', horaAperturaFinde: '07:00', horaCierreFinde: '01:00' });
+    const res = await mostrador(supertest(app).get('/disponibilidad/grilla?deporte=futbol&fecha=2099-06-12'));
+    expect(res.status).toBe(200);
+    const esperadas = [
+      '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
+      '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00',
+    ];
+    expect(res.body.horas).toEqual(esperadas);
+    expect(res.body.horas[res.body.horas.length - 1]).toBe('00:00');
+  });
+
   it('precios: refleja el precio efectivo (base fuera del pico, pico dentro)', async () => {
     // f1 = Futbol 1 (base 1000). Le damos precio pico y una ventana de pico.
     await getPrisma().cancha.update({ where: { id: f1 }, data: { precioHora: 1000, precioHoraPico: 3000 } });

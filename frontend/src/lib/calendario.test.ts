@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda, hhmmDeMinutos, horasQueToca } from './calendario';
+import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda, hhmmDeMinutos, horasQueToca, horasDelDia } from './calendario';
 import type { TurnoFijo, Bloqueo } from './types';
 
 const dow = (ymd: string) => new Date(ymd + 'T12:00:00Z').getUTCDay(); // 1 = lunes
@@ -55,11 +55,40 @@ describe('nombreCancha', () => {
 });
 
 describe('ubicarEnTz', () => {
-  it('ubica una fecha UTC en el día y hora de Argentina (UTC-3)', () => {
-    // 2026-06-16T22:00:00Z = 19:00 ART del 16
-    const r = ubicarEnTz('2026-06-16T22:00:00.000Z');
+  it('ubica una fecha UTC en el día y hora de Argentina (UTC-3), sin corrimiento de jornada', () => {
+    // 2026-06-16T22:00:00Z = 19:00 ART del 16, muy por encima de la apertura: mismo día calendario.
+    const r = ubicarEnTz('2026-06-16T22:00:00.000Z', '07:00');
     expect(r.fecha).toBe('2026-06-16');
     expect(r.horaNum).toBe(19);
+  });
+
+  it('regresión: un horario normal (17:00 ART) no se corre de día', () => {
+    // 2026-06-16T20:00:00Z = 17:00 ART del 16.
+    const r = ubicarEnTz('2026-06-16T20:00:00.000Z', '07:00');
+    expect(r.fecha).toBe('2026-06-16');
+    expect(r.horaNum).toBe(17);
+  });
+
+  it('una reserva de las 00:00 (guardada con el instante del día siguiente) vuelve a la jornada del día anterior', () => {
+    // 2026-09-14T03:00:00Z = 2026-09-14 00:00 ART. Con apertura 07:00, esa medianoche
+    // pertenece a la jornada del 13, no al día calendario 14 en el que cae el instante.
+    const r = ubicarEnTz('2026-09-14T03:00:00.000Z', '07:00');
+    expect(r.fecha).toBe('2026-09-13');
+    expect(r.horaNum).toBe(0);
+  });
+
+  it('borde: la hora exacta de apertura no se corre de día', () => {
+    // 2026-09-14T04:00:00Z = 01:00 ART del 14. Apertura 01:00 => no hay corrimiento.
+    const r = ubicarEnTz('2026-09-14T04:00:00.000Z', '01:00');
+    expect(r.fecha).toBe('2026-09-14');
+    expect(r.horaNum).toBe(1);
+  });
+
+  it('borde: un minuto antes de la apertura sí se corre al día anterior', () => {
+    // 2026-09-14T09:59:00Z = 06:59 ART del 14. Apertura 07:00 => pertenece a la jornada del 13.
+    const r = ubicarEnTz('2026-09-14T09:59:00.000Z', '07:00');
+    expect(r.fecha).toBe('2026-09-13');
+    expect(r.horaNum).toBe(6);
   });
 });
 
@@ -151,13 +180,13 @@ describe('dividirCelda', () => {
 describe('ubicarEnTz con minutos', () => {
   it('devuelve el minuto real, no solo la hora', () => {
     // 2026-06-10T21:30:00Z = 18:30 en Argentina (UTC-3)
-    const r = ubicarEnTz('2026-06-10T21:30:00.000Z');
+    const r = ubicarEnTz('2026-06-10T21:30:00.000Z', '07:00');
     expect(r.fecha).toBe('2026-06-10');
     expect(r.horaNum).toBe(18);
     expect(r.minuto).toBe(30);
   });
   it('una hora en punto tiene minuto 0', () => {
-    expect(ubicarEnTz('2026-06-10T21:00:00.000Z').minuto).toBe(0);
+    expect(ubicarEnTz('2026-06-10T21:00:00.000Z', '07:00').minuto).toBe(0);
   });
 });
 
@@ -206,5 +235,83 @@ describe('horasQueToca', () => {
   });
   it('18:30-19:00 -> [18]', () => {
     expect(horasQueToca(18 * 60 + 30, 19 * 60)).toEqual([18]);
+  });
+});
+
+describe('horasDelDia con jornada que cruza medianoche', () => {
+  it('con cierre 01:00 llega hasta las 00:00', () => {
+    const horas = horasDelDia('07:00', '01:00');
+    expect(horas[horas.length - 1]).toBe('00:00');
+    expect(horas).not.toContain('01:00');
+  });
+
+  it('regresión: con cierre 23:00 no cambia', () => {
+    expect(horasDelDia('16:00', '23:00')).toEqual(['16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00']);
+  });
+});
+
+// Hallazgo 4 de la revisión final del plan de jornada del complejo: el heatmap de ocupación
+// del dashboard (ocupacion-heatmap.tsx) reimplementaba a mano el cálculo de horas con
+// `Number(horaCierre.slice(0,2))`, que con apertura 07:00/cierre 01:00 da un rango [7, 1) vacío
+// (0 iteraciones) — el heatmap se renderizaba en blanco. horasDelDia ya resuelve esto
+// correctamente; el componente ahora la usa en vez de reimplementar el cálculo.
+describe('horasDelDia (consumida por el heatmap de ocupación)', () => {
+  it('con apertura 07:00/cierre 01:00 da 18 horas, de 07:00 a 00:00, sin quedar vacío', () => {
+    const horas = horasDelDia('07:00', '01:00');
+    expect(horas).toEqual([
+      '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00',
+      '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00',
+    ]);
+    expect(horas).toHaveLength(18);
+  });
+
+  it('regresión: con apertura 09:00/cierre 23:00 sigue dando 14 horas (09..22)', () => {
+    const horas = horasDelDia('09:00', '23:00');
+    expect(horas).toHaveLength(14);
+    expect(horas[0]).toBe('09:00');
+    expect(horas[horas.length - 1]).toBe('22:00');
+  });
+});
+
+// Hallazgo 2 de la revisión final del plan de jornada del complejo: horasQueToca razonaba en
+// minutos de día calendario y perdía lo que cruza la medianoche (celda "24" inexistente, o
+// rango [ini,fin) vacío cuando fin, calculado con aMin crudo, quedaba antes que ini).
+describe('horasQueToca cruzando medianoche', () => {
+  it('23:30-01:00 (90 min) -> [23, 0], no [23, 24]', () => {
+    // Como lo arma calendario-semana.tsx para una reserva: iniMin de tiempo-de-día + duración.
+    expect(horasQueToca(23 * 60 + 30, 23 * 60 + 30 + 90)).toEqual([23, 0]);
+  });
+
+  it('regresión: un rango que no cruza medianoche sigue igual (18:00-19:00 -> [18])', () => {
+    expect(horasQueToca(18 * 60, 19 * 60)).toEqual([18]);
+  });
+});
+
+describe('materializar cruzando medianoche (apertura pasada explícitamente)', () => {
+  const cancha = { id: 'c1', nombre: '1' };
+  const APERTURA = '07:00';
+
+  it('un fijo 23:00-00:00 se dibuja en la celda [23], no desaparece', () => {
+    const fijo: TurnoFijo = {
+      id: 'f1', canchaId: 'c1', cancha, clienteNombre: 'Ana', whatsapp: null, precio: 1000, activo: true,
+      diaSemana: 3, horaInicio: '23:00', horaFin: '00:00', excepciones: [],
+    };
+    const evs = materializar(['2026-06-10'], [fijo], [], undefined, APERTURA);
+    expect(evs.map((e) => e.horaNum)).toEqual([23]);
+  });
+
+  it('un bloqueo 22:00-00:00 se dibuja en las celdas [22, 23], no desaparece', () => {
+    const b: Bloqueo = { id: 'b1', canchaId: 'c1', motivo: 'MANTENIMIENTO', recurrente: false, diaSemana: null, fecha: '2026-06-10', horaInicio: '22:00', horaFin: '00:00', nota: null, cancha };
+    const evs = materializar(['2026-06-10'], [], [b], undefined, APERTURA);
+    expect(evs.map((e) => e.horaNum)).toEqual([22, 23]);
+  });
+
+  it('regresión: un fijo normal (18:00-19:00) sigue igual con apertura explícita', () => {
+    const fijo: TurnoFijo = {
+      id: 'f1', canchaId: 'c1', cancha, clienteNombre: 'Ana', whatsapp: null, precio: 1000, activo: true,
+      diaSemana: 3, horaInicio: '18:00', horaFin: '19:00', excepciones: [],
+    };
+    const evs = materializar(['2026-06-10'], [fijo], [], undefined, APERTURA);
+    expect(evs.map((e) => e.horaNum)).toEqual([18]);
   });
 });

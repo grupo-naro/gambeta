@@ -1,4 +1,5 @@
 import type { TurnoFijo, Bloqueo, MotivoBloqueo, EstadoReserva } from './types';
+import { hhmmAMin, minutoDeJornada, hhmmDeMin, sumarDias } from './hora';
 
 export const TZ = 'America/Argentina/Buenos_Aires';
 
@@ -45,7 +46,7 @@ export function semanaDe(ancla: string): { lunes: string; domingo: string; dias:
   return { lunes: dias[0], domingo: dias[6], dias };
 }
 
-export function ubicarEnTz(iso: string): { fecha: string; horaNum: number; minuto: number } {
+export function ubicarEnTz(iso: string, apertura: string): { fecha: string; horaNum: number; minuto: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
@@ -53,7 +54,16 @@ export function ubicarEnTz(iso: string): { fecha: string; horaNum: number; minut
   const get = (t: string) => parts.find((p) => p.type === t)!.value;
   let horaNum = Number(get('hour'));
   if (horaNum === 24) horaNum = 0;
-  return { fecha: `${get('year')}-${get('month')}-${get('day')}`, horaNum, minuto: Number(get('minute')) };
+  const minuto = Number(get('minute'));
+  let fecha = `${get('year')}-${get('month')}-${get('day')}`;
+  // Si la hora calendario es anterior a la apertura, el instante pertenece a la JORNADA del día
+  // anterior, no al día calendario en el que cae — mismo criterio que minutoDeJornada del lado
+  // del backend. Sin esto, una reserva de las 00:00 (guardada con el instante del día siguiente)
+  // aparecía en la columna del día equivocado del calendario semanal.
+  if (horaNum * 60 + minuto < hhmmAMin(apertura)) {
+    fecha = sumarDias(fecha, -1);
+  }
+  return { fecha, horaNum, minuto };
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -62,13 +72,12 @@ export function hhmmDeMinutos(min: number): string {
   return `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
 }
 
-// Lista de horas (números) de apertura..(cierre-1), una por turno de 1h.
-export function horasDelDia(horaApertura: string, horaCierre: string): number[] {
-  const ap = Number(horaApertura.slice(0, 2));
-  const ciRaw = Number(horaCierre.slice(0, 2));
-  const ci = ciRaw === 0 ? 24 : ciRaw; // "00:00" = medianoche
-  const out: number[] = [];
-  for (let h = ap; h < ci; h++) out.push(h);
+// Lista de horas ("HH:00") de la jornada, de la apertura a una hora antes del cierre. Si el
+// cierre cruza la medianoche (p.ej. apertura 07:00, cierre 01:00), la lista llega hasta "00:00".
+export function horasDelDia(apertura: string, cierre: string): string[] {
+  const out: string[] = [];
+  const fin = minutoDeJornada(cierre, apertura);
+  for (let m = hhmmAMin(apertura); m + 60 <= fin; m += 60) out.push(hhmmDeMin(m));
   return out;
 }
 
@@ -104,11 +113,16 @@ export function etiquetaMotivo(m: MotivoBloqueo): string {
 function weekdayDe(dia: string): number {
   return new Date(dia + 'T12:00:00Z').getUTCDay(); // 0 = domingo
 }
-const aMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
-/** Las horas enteras que toca el rango [ini, fin) en minutos. 18:30-20:00 -> [18, 19]. */
+/**
+ * Las horas enteras (fila de la grilla, 0-23) que toca el rango [ini, fin) en minutos DE
+ * JORNADA. 18:30-20:00 -> [18, 19]. Un rango que cruza la medianoche sigue de largo en `fin`
+ * (p.ej. 1500 para "01:00" del día siguiente) en vez de envolver: acá es donde se envuelve al
+ * mapear cada hora a la fila del calendario con `hhmmDeMin`, así 23:30-01:00 (90 min) da
+ * [23, 0] y no [23, 24] (una fila "24" que no existe, donde la reserva se volvía invisible).
+ */
 export const horasQueToca = (ini: number, fin: number) => {
   const out: number[] = [];
-  for (let h = Math.floor(ini / 60); h < Math.ceil(fin / 60); h++) out.push(h);
+  for (let m = Math.floor(ini / 60) * 60; m < fin; m += 60) out.push(Number(hhmmDeMin(m).slice(0, 2)));
   return out;
 };
 
@@ -117,7 +131,7 @@ export const horasQueToca = (ini: number, fin: number) => {
  * materializada. Esos no se dibujan como fijo — se muestran como la reserva concreta,
  * igual que hace el backend en /agenda (si no, aparecen duplicados).
  */
-export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqueo[], matPorDia?: Map<string, Set<string>>): EventoCal[] {
+export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqueo[], matPorDia?: Map<string, Set<string>>, apertura = '00:00'): EventoCal[] {
   const out: EventoCal[] = [];
   for (const dia of dias) {
     const wd = weekdayDe(dia);
@@ -125,10 +139,12 @@ export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqu
       if (!f.activo || f.diaSemana !== wd) continue;
       if (f.excepciones?.some((e) => e.fecha.slice(0, 10) === dia)) continue;
       if (matPorDia?.get(dia)?.has(f.id)) continue;
-      const ini = aMin(f.horaInicio); const fin = aMin(f.horaFin);
+      // minutoDeJornada (no aMin crudo): un fijo que cierra a medianoche (horaFin "00:00")
+      // pertenece al minuto 1440 de la jornada, no al 0 — si no, fin < ini y el fijo desaparece.
+      const ini = minutoDeJornada(f.horaInicio, apertura); const fin = minutoDeJornada(f.horaFin, apertura);
       const horas = horasQueToca(ini, fin);
       horas.forEach((h, i) => {
-        out.push({ key: `f${f.id}@${dia}-${h}`, tipo: 'fijo', fecha: dia, horaNum: h, horaTexto: hhmmDeMinutos(ini), finTexto: hhmmDeMinutos(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: f.canchaId, titulo: f.cancha?.nombre ?? '', subtitulo: f.clienteNombre, refId: f.id });
+        out.push({ key: `f${f.id}@${dia}-${h}`, tipo: 'fijo', fecha: dia, horaNum: h, horaTexto: hhmmDeMin(ini), finTexto: hhmmDeMin(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: f.canchaId, titulo: f.cancha?.nombre ?? '', subtitulo: f.clienteNombre, refId: f.id });
       });
     }
     for (const b of bloqueos) {
@@ -136,10 +152,10 @@ export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqu
       if (!aplica) continue;
       if (b.excepciones?.some((e) => e.fecha.slice(0, 10) === dia)) continue;
       const sub = b.nota ? `${etiquetaMotivo(b.motivo)} · ${b.nota}` : etiquetaMotivo(b.motivo);
-      const ini = aMin(b.horaInicio); const fin = aMin(b.horaFin);
+      const ini = minutoDeJornada(b.horaInicio, apertura); const fin = minutoDeJornada(b.horaFin, apertura);
       const horas = horasQueToca(ini, fin);
       horas.forEach((h, i) => {
-        out.push({ key: `b${b.id}@${dia}-${h}`, tipo: 'bloqueo', fecha: dia, horaNum: h, horaTexto: hhmmDeMinutos(ini), finTexto: hhmmDeMinutos(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: b.canchaId, titulo: b.cancha?.nombre ?? '', subtitulo: sub, motivo: b.motivo, refId: b.id });
+        out.push({ key: `b${b.id}@${dia}-${h}`, tipo: 'bloqueo', fecha: dia, horaNum: h, horaTexto: hhmmDeMin(ini), finTexto: hhmmDeMin(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: b.canchaId, titulo: b.cancha?.nombre ?? '', subtitulo: sub, motivo: b.motivo, refId: b.id });
       });
     }
   }

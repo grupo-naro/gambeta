@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/require-admin';
 import { apiFetch } from '@/lib/api';
 import type { Reserva, Cancha, Config, IngresoDia, OcupacionCelda, HorarioPico, Origenes } from '@/lib/types';
 import { hoyAR, addDias } from '@/lib/fecha';
-import { cierreMin } from '@/lib/hora';
+import { resolverAperturaCierreUnificados } from '@/lib/hora';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { HorariosChart } from '@/components/dashboard/horarios-chart';
 import { IngresosChart } from '@/components/dashboard/ingresos-chart';
@@ -41,8 +41,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const horariosData = horarios.map((h) => ({ hora: `${h.hora}:00`, reservas: Number(h.reservas) })).sort((a, b) => parseInt(a.hora) - parseInt(b.hora));
   const ingresosData = [...ingresosDia].sort((a, b) => a.fecha.localeCompare(b.fecha)).map((d) => ({ fecha: d.fecha, total: Number(d.total) }));
 
-  const aperturaU = Number(config.horaApertura.slice(0, 2)) <= Number(config.horaAperturaFinde.slice(0, 2)) ? config.horaApertura : config.horaAperturaFinde;
-  const cierreU = cierreMin(config.horaCierre) >= cierreMin(config.horaCierreFinde) ? config.horaCierre : config.horaCierreFinde;
+  const { aperturaU, cierreU } = resolverAperturaCierreUnificados(config);
 
   return (
     <div className="space-y-6">
