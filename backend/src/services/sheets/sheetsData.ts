@@ -2,7 +2,7 @@ import { getEnv } from '../../config/env.js';
 import { prisma } from '../../db/prisma.js';
 import { canchaRepo } from '../../repositories/cancha.repo.js';
 import { configService } from '../config.service.js';
-import { dayWindowUtc, cierreMin, hhmmAMin, minutoDeJornada, hhmmDeMin } from '../../utils/tz.js';
+import { dayWindowUtc, jornadaWindowUtc, hhmmAMin, minutoDeJornada, hhmmDeMin, dayOfWeekInTz, sumarDias } from '../../utils/tz.js';
 import type { ReservaCelda } from './grilla.js';
 import { expandirSemana, type FijoInput, type BloqueoInput } from './expandir.js';
 
@@ -19,11 +19,21 @@ export function ymdEnTz(d: Date): string {
   return ymd(d);
 }
 
-function partesEnTz(iso: Date): { fecha: string; hora: string } {
+function partesEnTz(iso: Date, apertura: string): { fecha: string; hora: string } {
   const p = new Intl.DateTimeFormat('en-CA', { timeZone: TZ(), year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(iso);
   const g = (t: string) => p.find((x) => x.type === t)!.value;
   let h = g('hour'); if (h === '24') h = '00';
-  return { fecha: `${g('year')}-${g('month')}-${g('day')}`, hora: `${h}:${g('minute')}` };
+  const hora = `${h}:${g('minute')}`;
+  let fecha = `${g('year')}-${g('month')}-${g('day')}`;
+  // Si la hora calendario es anterior a la apertura, el instante pertenece a la JORNADA del día
+  // anterior, no al día calendario en el que cae — mismo criterio que ubicarEnTz del frontend
+  // (Tarea 12) y reserva.service.list (Tarea 11). Sin esto, una reserva de las 00:00 (guardada
+  // con el instante del día siguiente) aparecía "adelantada" un día respecto del turno fijo
+  // equivalente, que expandirSemana ubica por diaSemana (=jornada).
+  if (hhmmAMin(hora) < hhmmAMin(apertura)) {
+    fecha = sumarDias(fecha, -1);
+  }
+  return { fecha, hora };
 }
 
 export function diasSemanaActual(): { dia: string; fecha: string }[] {
@@ -49,14 +59,26 @@ export async function dataSemana() {
   const horas = horasDeConfig(aperturaU, cierreU);
   const canchas = (await canchaRepo.list(true)).map((c) => ({ id: c.id, nombre: c.nombre }));
   const start = dayWindowUtc(dias[0].fecha, TZ()).start;
-  const end = dayWindowUtc(dias[6].fecha, TZ()).end;
+  // El último día de la semana puede tener una jornada que cruza la medianoche: su turno de las
+  // 00:00 se guarda con el instante real del día calendario SIGUIENTE, justo en el borde de
+  // dayWindowUtc(dias[6]).end (la medianoche de ese día siguiente). Con `lt: end` sobre esa
+  // ventana de día calendario, ese turno quedaba afuera de la semana a la que pertenece. Mismo
+  // criterio que reserva.service.list (Tarea 11): la ventana real es la de la JORNADA de
+  // dias[6], no la de su día calendario.
+  const dowUltimo = dayOfWeekInTz(dias[6].fecha, TZ());
+  const esFindeUltimo = dowUltimo === 0 || dowUltimo === 6;
+  const end = jornadaWindowUtc(
+    dias[6].fecha, TZ(),
+    esFindeUltimo ? cfg.horaAperturaFinde : cfg.horaApertura,
+    esFindeUltimo ? cfg.horaCierreFinde : cfg.horaCierre,
+  ).end;
 
   const reservasDb = await prisma.reserva.findMany({
     where: { fechaInicio: { gte: start, lt: end }, estado: { in: ['CONFIRMADA', 'ESPERANDO_SENA', 'COMPLETADA'] } },
     include: { cliente: { select: { nombre: true } }, cobros: { select: { monto: true } } },
   });
   const reservas: ReservaCelda[] = reservasDb.map((r) => {
-    const { fecha, hora } = partesEnTz(r.fechaInicio);
+    const { fecha, hora } = partesEnTz(r.fechaInicio, aperturaU);
     return {
       canchaId: r.canchaId, fecha, hora, cliente: r.cliente?.nombre ?? '-',
       monto: Number(r.monto), pagado: r.cobros.reduce((s, c) => s + Number(c.monto), 0),
