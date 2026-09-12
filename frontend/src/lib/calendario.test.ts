@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda, hhmmDeMinutos, horasQueToca } from './calendario';
+import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda, hhmmDeMinutos, horasQueToca, horasDelDia } from './calendario';
 import type { TurnoFijo, Bloqueo } from './types';
 
 const dow = (ymd: string) => new Date(ymd + 'T12:00:00Z').getUTCDay(); // 1 = lunes
@@ -206,5 +206,17 @@ describe('horasQueToca', () => {
   });
   it('18:30-19:00 -> [18]', () => {
     expect(horasQueToca(18 * 60 + 30, 19 * 60)).toEqual([18]);
+  });
+});
+
+describe('horasDelDia con jornada que cruza medianoche', () => {
+  it('con cierre 01:00 llega hasta las 00:00', () => {
+    const horas = horasDelDia('07:00', '01:00');
+    expect(horas[horas.length - 1]).toBe('00:00');
+    expect(horas).not.toContain('01:00');
+  });
+
+  it('regresión: con cierre 23:00 no cambia', () => {
+    expect(horasDelDia('16:00', '23:00')).toEqual(['16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00']);
   });
 });

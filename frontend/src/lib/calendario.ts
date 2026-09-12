@@ -1,4 +1,5 @@
 import type { TurnoFijo, Bloqueo, MotivoBloqueo, EstadoReserva } from './types';
+import { hhmmAMin, minutoDeJornada, hhmmDeMin } from './hora';
 
 export const TZ = 'America/Argentina/Buenos_Aires';
 
@@ -62,13 +63,12 @@ export function hhmmDeMinutos(min: number): string {
   return `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
 }
 
-// Lista de horas (números) de apertura..(cierre-1), una por turno de 1h.
-export function horasDelDia(horaApertura: string, horaCierre: string): number[] {
-  const ap = Number(horaApertura.slice(0, 2));
-  const ciRaw = Number(horaCierre.slice(0, 2));
-  const ci = ciRaw === 0 ? 24 : ciRaw; // "00:00" = medianoche
-  const out: number[] = [];
-  for (let h = ap; h < ci; h++) out.push(h);
+// Lista de horas ("HH:00") de la jornada, de la apertura a una hora antes del cierre. Si el
+// cierre cruza la medianoche (p.ej. apertura 07:00, cierre 01:00), la lista llega hasta "00:00".
+export function horasDelDia(apertura: string, cierre: string): string[] {
+  const out: string[] = [];
+  const fin = minutoDeJornada(cierre, apertura);
+  for (let m = hhmmAMin(apertura); m + 60 <= fin; m += 60) out.push(hhmmDeMin(m));
   return out;
 }
 

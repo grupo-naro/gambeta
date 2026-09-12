@@ -54,3 +54,19 @@ export function normalizeHora(raw: string): string | null {
  *  día), allá es 1440 (fin del día). Espejo de `hhmmAMin`/`cierreMin` del backend. */
 export function hhmmAMin(hhmm: string): number { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; }
 export function cierreMin(hhmm: string): number { const min = hhmmAMin(hhmm); return min === 0 ? 1440 : min; }
+
+/**
+ * Minuto de una hora "HH:MM" dentro de la jornada que arranca en `apertura`. Una hora anterior
+ * a la apertura pertenece al día siguiente y suma 1440: con apertura 07:00, "01:00" son 1500.
+ * Espejo de `minutoDeJornada` del backend.
+ */
+export function minutoDeJornada(hhmm: string, apertura: string): number {
+  const m = hhmmAMin(hhmm);
+  return m < hhmmAMin(apertura) ? m + 1440 : m;
+}
+
+/** Etiqueta de un minuto de jornada, como lo diría un reloj: 1440 => "00:00", 1500 => "01:00". */
+export function hhmmDeMin(m: number): string {
+  const d = ((m % 1440) + 1440) % 1440;
+  return `${String(Math.floor(d / 60)).padStart(2, '0')}:${String(d % 60).padStart(2, '0')}`;
+}
