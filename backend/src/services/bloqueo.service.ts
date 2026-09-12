@@ -2,16 +2,20 @@ import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
-import { cierreMin } from '../utils/tz.js';
-
-const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+import { dayOfWeekInTz, minutoDeJornada } from '../utils/tz.js';
+import { getEnv } from '../config/env.js';
+import { configService } from './config.service.js';
 
 export const bloqueoService = {
   list: (canchaId?: string) =>
     prisma.bloqueo.findMany({ where: canchaId ? { canchaId } : {}, include: { cancha: { select: { nombre: true } }, excepciones: true }, orderBy: { creadoEn: 'desc' } }),
   async crear(input: { canchaId: string; motivo: 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO'; recurrente: boolean; diaSemana?: number; fecha?: string; horaInicio: string; horaFin: string; nota?: string }) {
     const opts = input.recurrente ? { diaSemana: input.diaSemana } : { fecha: input.fecha };
-    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, opts, fromHHMM(input.horaInicio), cierreMin(input.horaFin));
+    const dia = input.recurrente ? input.diaSemana! : dayOfWeekInTz(input.fecha!, getEnv().TZ_NEGOCIO);
+    const cfg = await configService.get();
+    const esFinde = dia === 0 || dia === 6;
+    const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
+    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, opts, minutoDeJornada(input.horaInicio, apertura), minutoDeJornada(input.horaFin, apertura));
     if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
     const creado = await prisma.bloqueo.create({
       data: {

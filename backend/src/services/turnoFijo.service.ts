@@ -1,7 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound, BusinessRule } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
-import { combineDateTimeUtc, dayOfWeekInTz, hhmmAMin, cierreMin } from '../utils/tz.js';
+import { combineDateTimeUtc, dayOfWeekInTz, hhmmAMin, cierreMin, minutoDeJornada } from '../utils/tz.js';
 import { getEnv } from '../config/env.js';
 import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
@@ -13,7 +13,6 @@ import { suscripcionService } from './suscripcion.service.js';
 import { adminUserRepo } from '../repositories/adminUser.repo.js';
 import { limiteAnticipacion } from './reserva.service.js';
 
-const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 const assertFecha = (fecha: string) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) throw BusinessRule('Fecha inválida (YYYY-MM-DD)'); };
 // Dígitos significativos de un whatsapp argentino (área + número), ignorando +, espacios
 // y el prefijo 54/549. Permite comparar el número cargado a mano en el panel con el JID del bot.
@@ -54,7 +53,10 @@ export const turnoFijoService = {
     canchaId: string; clienteNombre: string; whatsapp?: string; diaSemana: number; horaInicio: string; horaFin: string;
     vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
   }, adminId: string | null = null) {
-    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, { diaSemana: input.diaSemana }, fromHHMM(input.horaInicio), cierreMin(input.horaFin));
+    const cfg = await configService.get();
+    const esFinde = input.diaSemana === 0 || input.diaSemana === 6;
+    const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
+    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, { diaSemana: input.diaSemana }, minutoDeJornada(input.horaInicio, apertura), minutoDeJornada(input.horaFin, apertura));
     if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
 
     const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, ...datosFijo } = input;
