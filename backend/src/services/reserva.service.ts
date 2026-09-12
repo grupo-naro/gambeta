@@ -12,7 +12,7 @@ import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.se
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { clasificarOrigen } from './visita.service.js';
-import { combineDateTimeUtc, dayWindowUtc, dayOfWeekInTz, hoyEnTz, sumarDias, minutoDeJornada, instanteDeJornada } from '../utils/tz.js';
+import { dayWindowUtc, jornadaWindowUtc, dayOfWeekInTz, hoyEnTz, sumarDias, minutoDeJornada, instanteDeJornada } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
@@ -224,8 +224,18 @@ export const reservaService = {
       const end = dayWindowUtc(filtros.hasta, tz).end; // inicio del día siguiente a 'hasta'
       where.fechaInicio = { gte: start, lt: end };
     } else if (filtros.fecha) {
-      const start = combineDateTimeUtc(filtros.fecha, '00:00', tz);
-      where.fechaInicio = { gte: start, lt: new Date(start.getTime() + 86400000) };
+      // La agenda de un día es la de su JORNADA: el turno de las 00:00 pertenece al día anterior.
+      // `caja`, `alquileres` y `analytics` NO usan esto — responden preguntas contables por día
+      // calendario, y ahí la fecha del instante es la correcta.
+      const cfg = await configService.get();
+      const dow = dayOfWeekInTz(filtros.fecha, tz);
+      const esFinde = dow === 0 || dow === 6;
+      const { start, end } = jornadaWindowUtc(
+        filtros.fecha, tz,
+        esFinde ? cfg.horaAperturaFinde : cfg.horaApertura,
+        esFinde ? cfg.horaCierreFinde : cfg.horaCierre,
+      );
+      where.fechaInicio = { gte: start, lt: end };
     }
     const reservas = await reservaRepo.list(where);
     const ids = reservas.map((r) => r.id);
@@ -419,7 +429,17 @@ export const reservaService = {
 
   async buscar(input: { nombre: string; fecha: string; cancha?: string; hora?: string }) {
     const tz = getEnv().TZ_NEGOCIO;
-    const { start, end } = dayWindowUtc(input.fecha, tz);
+    // La agenda de un día es la de su JORNADA: el turno de las 00:00 pertenece al día anterior.
+    // `caja`, `alquileres` y `analytics` NO usan esto — responden preguntas contables por día
+    // calendario, y ahí la fecha del instante es la correcta.
+    const cfg = await configService.get();
+    const dow = dayOfWeekInTz(input.fecha, tz);
+    const esFinde = dow === 0 || dow === 6;
+    const { start, end } = jornadaWindowUtc(
+      input.fecha, tz,
+      esFinde ? cfg.horaAperturaFinde : cfg.horaApertura,
+      esFinde ? cfg.horaCierreFinde : cfg.horaCierre,
+    );
     const norm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
     const nq = norm(input.nombre);
     const cq = input.cancha ? norm(input.cancha) : null;
