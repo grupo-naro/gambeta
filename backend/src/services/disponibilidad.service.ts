@@ -131,7 +131,8 @@ export const disponibilidadService = {
       perCancha.push({ id: c.id, nombre: c.nombre, precioHora: Number(c.precioHora), precioHoraPico: Number(c.precioHoraPico), free, porHora });
       for (const h of free) horasSet.add(h);
     }
-    const horas = [...horasSet].sort();
+    const { apertura } = horarioDe(fecha, getEnv().TZ_NEGOCIO, cfg);
+    const horas = [...horasSet].sort((a, b) => minutoDeJornada(a, apertura) - minutoDeJornada(b, apertura));
     const libres: Record<string, Record<string, boolean>> = {};
     const precios: Record<string, Record<string, number>> = {};
     const duraciones: Record<string, Record<string, DuracionSlot[]>> = {};
