@@ -2,6 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
+import { cierreMin } from '../utils/tz.js';
 
 const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 
@@ -10,7 +11,7 @@ export const bloqueoService = {
     prisma.bloqueo.findMany({ where: canchaId ? { canchaId } : {}, include: { cancha: { select: { nombre: true } }, excepciones: true }, orderBy: { creadoEn: 'desc' } }),
   async crear(input: { canchaId: string; motivo: 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO'; recurrente: boolean; diaSemana?: number; fecha?: string; horaInicio: string; horaFin: string; nota?: string }) {
     const opts = input.recurrente ? { diaSemana: input.diaSemana } : { fecha: input.fecha };
-    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, opts, fromHHMM(input.horaInicio), fromHHMM(input.horaFin));
+    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, opts, fromHHMM(input.horaInicio), cierreMin(input.horaFin));
     if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
     const creado = await prisma.bloqueo.create({
       data: {

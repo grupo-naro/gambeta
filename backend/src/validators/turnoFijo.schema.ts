@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { whatsappCanonico } from './whatsapp.field.js';
+import { hhmmAMin, cierreMin } from '../utils/tz.js';
 const empty = z.looseObject({});
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora inválida (HH:MM)');
 // El regex solo valida el formato: "2026-02-31" lo pasa y Date la corre al 3 de marzo. Se
@@ -25,7 +26,10 @@ export const crearTurnoFijoSchema = z.object({
     montoAbono: z.coerce.number().positive().max(99999999.99).optional(),
     medioAbono: z.enum(['EFECTIVO', 'TRANSFERENCIA']).optional(),
   })
-    .refine((b) => b.horaInicio < b.horaFin, { message: 'La hora de inicio debe ser anterior al fin', path: ['horaFin'] })
+    // `cierreMin` y no comparación de texto: "00:00" es el FIN del día (1440). `agenda.service`
+    // y `turnoFijo.service` ya calculan la duración con `cierreMin(horaFin)` justamente para el
+    // fijo que cierra a medianoche; comparar strings acá lo hacía imposible de crear.
+    .refine((b) => hhmmAMin(b.horaInicio) < cierreMin(b.horaFin), { message: 'La hora de inicio debe ser anterior al fin', path: ['horaFin'] })
     .refine((b) => {
       // Los cuatro van juntos: sin período no hay qué cobrar, y sin medio no se sabe cómo registrarlo.
       const puestos = [b.vigenciaDesde, b.vigenciaHasta, b.montoAbono, b.medioAbono].filter((v) => v != null).length;

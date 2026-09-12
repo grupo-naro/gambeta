@@ -50,4 +50,7 @@ export function normalizeHora(raw: string): string | null {
 }
 
 /** Minutos de una hora HH:MM; "00:00" como cierre = fin del día (1440). */
-export function cierreMin(hhmm: string): number { const [h, m] = hhmm.split(':').map(Number); const min = h * 60 + m; return min === 0 ? 1440 : min; }
+/** Minuto del día de un "HH:MM". Par de `cierreMin`: acá "00:00" es el minuto 0 (arranque del
+ *  día), allá es 1440 (fin del día). Espejo de `hhmmAMin`/`cierreMin` del backend. */
+export function hhmmAMin(hhmm: string): number { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; }
+export function cierreMin(hhmm: string): number { const min = hhmmAMin(hhmm); return min === 0 ? 1440 : min; }

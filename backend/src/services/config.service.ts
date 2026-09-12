@@ -19,10 +19,13 @@ export const configService = {
     if (hhmmAMin(apF) >= cierreMin(ciF)) throw BusinessRule('La apertura (finde) debe ser anterior al cierre');
     const pd = (patch.picoDesde ?? current.picoDesde) as string;
     const ph = (patch.picoHasta ?? current.picoHasta) as string;
-    if (pd && ph && pd >= ph) throw BusinessRule('La franja pico (semana) es inválida');
+    // Mismos helpers que `precioDeRango`, no comparación de texto: `cierreMin` mapea "00:00" a
+    // 1440, así que una franja pico que termina a medianoche es válida. Comparando strings,
+    // "20:00" >= "00:00" daba true y la rechazaba.
+    if (pd && ph && hhmmAMin(pd) >= cierreMin(ph)) throw BusinessRule('La franja pico (semana) es inválida');
     const pfd = (patch.picoFindeDesde ?? current.picoFindeDesde) as string;
     const pfh = (patch.picoFindeHasta ?? current.picoFindeHasta) as string;
-    if (pfd && pfh && pfd >= pfh) throw BusinessRule('La franja pico (finde) es inválida');
+    if (pfd && pfh && hhmmAMin(pfd) >= cierreMin(pfh)) throw BusinessRule('La franja pico (finde) es inválida');
     const { buffetPinHash, ...rest } = await configRepo.update(patch);
     return rest;
   },

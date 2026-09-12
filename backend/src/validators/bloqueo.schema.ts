@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { hhmmAMin, cierreMin } from '../utils/tz.js';
 const empty = z.looseObject({});
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora inválida (HH:MM)');
 
@@ -13,7 +14,9 @@ export const crearBloqueoSchema = z.object({
     horaFin: hhmm,
     nota: z.string().optional(),
   })
-    .refine((b) => b.horaInicio < b.horaFin, { message: 'La hora de inicio debe ser anterior al fin', path: ['horaFin'] })
+    // `cierreMin` y no comparación de texto: "00:00" es el FIN del día (1440), así que un bloqueo
+    // de 23:00 a medianoche es válido. Comparando strings, "23:00" < "00:00" daba falso.
+    .refine((b) => hhmmAMin(b.horaInicio) < cierreMin(b.horaFin), { message: 'La hora de inicio debe ser anterior al fin', path: ['horaFin'] })
     .refine((b) => (b.recurrente ? b.diaSemana != null : b.fecha != null), { message: 'Recurrente necesita diaSemana; puntual necesita fecha', path: ['recurrente'] }),
   query: empty, params: empty,
 });
