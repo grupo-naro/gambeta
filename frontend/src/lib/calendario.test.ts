@@ -250,6 +250,29 @@ describe('horasDelDia con jornada que cruza medianoche', () => {
   });
 });
 
+// Hallazgo 4 de la revisión final del plan de jornada del complejo: el heatmap de ocupación
+// del dashboard (ocupacion-heatmap.tsx) reimplementaba a mano el cálculo de horas con
+// `Number(horaCierre.slice(0,2))`, que con apertura 07:00/cierre 01:00 da un rango [7, 1) vacío
+// (0 iteraciones) — el heatmap se renderizaba en blanco. horasDelDia ya resuelve esto
+// correctamente; el componente ahora la usa en vez de reimplementar el cálculo.
+describe('horasDelDia (consumida por el heatmap de ocupación)', () => {
+  it('con apertura 07:00/cierre 01:00 da 18 horas, de 07:00 a 00:00, sin quedar vacío', () => {
+    const horas = horasDelDia('07:00', '01:00');
+    expect(horas).toEqual([
+      '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00',
+      '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00',
+    ]);
+    expect(horas).toHaveLength(18);
+  });
+
+  it('regresión: con apertura 09:00/cierre 23:00 sigue dando 14 horas (09..22)', () => {
+    const horas = horasDelDia('09:00', '23:00');
+    expect(horas).toHaveLength(14);
+    expect(horas[0]).toBe('09:00');
+    expect(horas[horas.length - 1]).toBe('22:00');
+  });
+});
+
 // Hallazgo 2 de la revisión final del plan de jornada del complejo: horasQueToca razonaba en
 // minutos de día calendario y perdía lo que cruza la medianoche (celda "24" inexistente, o
 // rango [ini,fin) vacío cuando fin, calculado con aMin crudo, quedaba antes que ini).
