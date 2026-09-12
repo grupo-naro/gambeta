@@ -1,8 +1,14 @@
 import { prisma } from '../db/prisma.js';
 import { getEnv } from '../config/env.js';
-import { dayOfWeekInTz } from '../utils/tz.js';
+import { dayOfWeekInTz, cierreMin } from '../utils/tz.js';
 
 const fromHHMM = (s: string) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+/**
+ * Minuto de FIN de un rango. "00:00" vale 1440 (fin del día), no 0: con `fromHHMM` un fijo o
+ * bloqueo de 23:00 a medianoche quedaba como el rango [1380, 0), que está vacío y no bloquea
+ * nada aunque en el panel se vea creado.
+ */
+const finHHMM = (s: string) => cierreMin(s);
 
 // minutos AR (diaSemana + minuto del día) de un timestamp.
 function partesAr(d: Date, tz: string) {
@@ -37,13 +43,13 @@ export const ocupacionService = {
       where: { canchaId: { in: canchas }, activo: true, diaSemana: dia },
       include: { excepciones: { where: { fecha: fechaDate } } },
     });
-    for (const f of fijos) if (f.excepciones.length === 0) out.push({ ini: fromHHMM(f.horaInicio), fin: fromHHMM(f.horaFin), tipo: 'fijo' });
+    for (const f of fijos) if (f.excepciones.length === 0) out.push({ ini: fromHHMM(f.horaInicio), fin: finHHMM(f.horaFin), tipo: 'fijo' });
 
     const bloqueos = await prisma.bloqueo.findMany({
       where: { canchaId: { in: canchas }, activo: true, OR: [{ recurrente: true, diaSemana: dia }, { recurrente: false, fecha: fechaDate }] },
       include: { excepciones: { where: { fecha: fechaDate } } },
     });
-    for (const b of bloqueos) if (b.excepciones.length === 0) out.push({ ini: fromHHMM(b.horaInicio), fin: fromHHMM(b.horaFin), tipo: 'bloqueo' });
+    for (const b of bloqueos) if (b.excepciones.length === 0) out.push({ ini: fromHHMM(b.horaInicio), fin: finHHMM(b.horaFin), tipo: 'bloqueo' });
     return out;
   },
 
@@ -67,7 +73,7 @@ export const ocupacionService = {
       const fijos = await prisma.turnoFijo.findMany({ where: { canchaId: { in: canchas }, activo: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true } });
       const bloqs = await prisma.bloqueo.findMany({ where: { canchaId: { in: canchas }, activo: true, recurrente: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true } });
       const tpl = [...fijos, ...bloqs];
-      if (tpl.some((x) => fromHHMM(x.horaInicio) < finMin && iniMin < fromHHMM(x.horaFin))) return true;
+      if (tpl.some((x) => fromHHMM(x.horaInicio) < finMin && iniMin < finHHMM(x.horaFin))) return true;
     }
     // 2) contra alquileres futuros activos en los sectores
     const sectores = (await prisma.canchaSector.findMany({ where: { canchaId: { in: canchas } }, select: { sectorId: true } })).map((s) => s.sectorId);
@@ -85,7 +91,14 @@ export const ocupacionService = {
         const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(a.fechaInicio);
         matchFecha = f === fechaTarget;
       }
-      const overlap = pi.min < finMin && iniMin < pf.min;
+      // Una reserva que termina exactamente a medianoche cae en el día SIGUIENTE, así que su
+      // minuto AR es 0 y la comparación `iniMin < 0` nunca se cumplía: esa reserva quedaba
+      // invisible y el admin podía bloquear una cancha ya reservada sin ningún aviso. La
+      // exclusion constraint no lo frena, porque fijos y bloqueos no son filas de ReservaSector.
+      // Leerlo relativo al día de inicio lo arregla, y además deja preparado el caso de un turno
+      // que cruce la medianoche.
+      const finAr = pf.dia !== pi.dia ? pf.min + 1440 : pf.min;
+      const overlap = pi.min < finMin && iniMin < finAr;
       if (matchDia && matchFecha && overlap) return true;
     }
     return false;

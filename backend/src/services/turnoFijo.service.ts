@@ -54,7 +54,7 @@ export const turnoFijoService = {
     canchaId: string; clienteNombre: string; whatsapp?: string; diaSemana: number; horaInicio: string; horaFin: string;
     vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
   }, adminId: string | null = null) {
-    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, { diaSemana: input.diaSemana }, fromHHMM(input.horaInicio), fromHHMM(input.horaFin));
+    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, { diaSemana: input.diaSemana }, fromHHMM(input.horaInicio), cierreMin(input.horaFin));
     if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
 
     const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, ...datosFijo } = input;
