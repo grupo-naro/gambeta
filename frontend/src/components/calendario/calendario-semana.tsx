@@ -92,7 +92,7 @@ export function CalendarioSemana({
       });
     });
   }
-  eventos.push(...materializar(dias, fijos, bloqueos, matPorDia));
+  eventos.push(...materializar(dias, fijos, bloqueos, matPorDia, horaApertura));
 
   const porCelda = new Map<string, EventoCal[]>();
   for (const ev of eventos) {

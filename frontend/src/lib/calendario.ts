@@ -113,11 +113,16 @@ export function etiquetaMotivo(m: MotivoBloqueo): string {
 function weekdayDe(dia: string): number {
   return new Date(dia + 'T12:00:00Z').getUTCDay(); // 0 = domingo
 }
-const aMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
-/** Las horas enteras que toca el rango [ini, fin) en minutos. 18:30-20:00 -> [18, 19]. */
+/**
+ * Las horas enteras (fila de la grilla, 0-23) que toca el rango [ini, fin) en minutos DE
+ * JORNADA. 18:30-20:00 -> [18, 19]. Un rango que cruza la medianoche sigue de largo en `fin`
+ * (p.ej. 1500 para "01:00" del día siguiente) en vez de envolver: acá es donde se envuelve al
+ * mapear cada hora a la fila del calendario con `hhmmDeMin`, así 23:30-01:00 (90 min) da
+ * [23, 0] y no [23, 24] (una fila "24" que no existe, donde la reserva se volvía invisible).
+ */
 export const horasQueToca = (ini: number, fin: number) => {
   const out: number[] = [];
-  for (let h = Math.floor(ini / 60); h < Math.ceil(fin / 60); h++) out.push(h);
+  for (let m = Math.floor(ini / 60) * 60; m < fin; m += 60) out.push(Number(hhmmDeMin(m).slice(0, 2)));
   return out;
 };
 
@@ -126,7 +131,7 @@ export const horasQueToca = (ini: number, fin: number) => {
  * materializada. Esos no se dibujan como fijo — se muestran como la reserva concreta,
  * igual que hace el backend en /agenda (si no, aparecen duplicados).
  */
-export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqueo[], matPorDia?: Map<string, Set<string>>): EventoCal[] {
+export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqueo[], matPorDia?: Map<string, Set<string>>, apertura = '00:00'): EventoCal[] {
   const out: EventoCal[] = [];
   for (const dia of dias) {
     const wd = weekdayDe(dia);
@@ -134,10 +139,12 @@ export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqu
       if (!f.activo || f.diaSemana !== wd) continue;
       if (f.excepciones?.some((e) => e.fecha.slice(0, 10) === dia)) continue;
       if (matPorDia?.get(dia)?.has(f.id)) continue;
-      const ini = aMin(f.horaInicio); const fin = aMin(f.horaFin);
+      // minutoDeJornada (no aMin crudo): un fijo que cierra a medianoche (horaFin "00:00")
+      // pertenece al minuto 1440 de la jornada, no al 0 — si no, fin < ini y el fijo desaparece.
+      const ini = minutoDeJornada(f.horaInicio, apertura); const fin = minutoDeJornada(f.horaFin, apertura);
       const horas = horasQueToca(ini, fin);
       horas.forEach((h, i) => {
-        out.push({ key: `f${f.id}@${dia}-${h}`, tipo: 'fijo', fecha: dia, horaNum: h, horaTexto: hhmmDeMinutos(ini), finTexto: hhmmDeMinutos(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: f.canchaId, titulo: f.cancha?.nombre ?? '', subtitulo: f.clienteNombre, refId: f.id });
+        out.push({ key: `f${f.id}@${dia}-${h}`, tipo: 'fijo', fecha: dia, horaNum: h, horaTexto: hhmmDeMin(ini), finTexto: hhmmDeMin(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: f.canchaId, titulo: f.cancha?.nombre ?? '', subtitulo: f.clienteNombre, refId: f.id });
       });
     }
     for (const b of bloqueos) {
@@ -145,10 +152,10 @@ export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqu
       if (!aplica) continue;
       if (b.excepciones?.some((e) => e.fecha.slice(0, 10) === dia)) continue;
       const sub = b.nota ? `${etiquetaMotivo(b.motivo)} · ${b.nota}` : etiquetaMotivo(b.motivo);
-      const ini = aMin(b.horaInicio); const fin = aMin(b.horaFin);
+      const ini = minutoDeJornada(b.horaInicio, apertura); const fin = minutoDeJornada(b.horaFin, apertura);
       const horas = horasQueToca(ini, fin);
       horas.forEach((h, i) => {
-        out.push({ key: `b${b.id}@${dia}-${h}`, tipo: 'bloqueo', fecha: dia, horaNum: h, horaTexto: hhmmDeMinutos(ini), finTexto: hhmmDeMinutos(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: b.canchaId, titulo: b.cancha?.nombre ?? '', subtitulo: sub, motivo: b.motivo, refId: b.id });
+        out.push({ key: `b${b.id}@${dia}-${h}`, tipo: 'bloqueo', fecha: dia, horaNum: h, horaTexto: hhmmDeMin(ini), finTexto: hhmmDeMin(fin), duracionMin: fin - ini, esContinuacion: i > 0, canchaId: b.canchaId, titulo: b.cancha?.nombre ?? '', subtitulo: sub, motivo: b.motivo, refId: b.id });
       });
     }
   }

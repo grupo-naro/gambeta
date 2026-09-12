@@ -249,3 +249,46 @@ describe('horasDelDia con jornada que cruza medianoche', () => {
     expect(horasDelDia('16:00', '23:00')).toEqual(['16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00']);
   });
 });
+
+// Hallazgo 2 de la revisión final del plan de jornada del complejo: horasQueToca razonaba en
+// minutos de día calendario y perdía lo que cruza la medianoche (celda "24" inexistente, o
+// rango [ini,fin) vacío cuando fin, calculado con aMin crudo, quedaba antes que ini).
+describe('horasQueToca cruzando medianoche', () => {
+  it('23:30-01:00 (90 min) -> [23, 0], no [23, 24]', () => {
+    // Como lo arma calendario-semana.tsx para una reserva: iniMin de tiempo-de-día + duración.
+    expect(horasQueToca(23 * 60 + 30, 23 * 60 + 30 + 90)).toEqual([23, 0]);
+  });
+
+  it('regresión: un rango que no cruza medianoche sigue igual (18:00-19:00 -> [18])', () => {
+    expect(horasQueToca(18 * 60, 19 * 60)).toEqual([18]);
+  });
+});
+
+describe('materializar cruzando medianoche (apertura pasada explícitamente)', () => {
+  const cancha = { id: 'c1', nombre: '1' };
+  const APERTURA = '07:00';
+
+  it('un fijo 23:00-00:00 se dibuja en la celda [23], no desaparece', () => {
+    const fijo: TurnoFijo = {
+      id: 'f1', canchaId: 'c1', cancha, clienteNombre: 'Ana', whatsapp: null, precio: 1000, activo: true,
+      diaSemana: 3, horaInicio: '23:00', horaFin: '00:00', excepciones: [],
+    };
+    const evs = materializar(['2026-06-10'], [fijo], [], undefined, APERTURA);
+    expect(evs.map((e) => e.horaNum)).toEqual([23]);
+  });
+
+  it('un bloqueo 22:00-00:00 se dibuja en las celdas [22, 23], no desaparece', () => {
+    const b: Bloqueo = { id: 'b1', canchaId: 'c1', motivo: 'MANTENIMIENTO', recurrente: false, diaSemana: null, fecha: '2026-06-10', horaInicio: '22:00', horaFin: '00:00', nota: null, cancha };
+    const evs = materializar(['2026-06-10'], [], [b], undefined, APERTURA);
+    expect(evs.map((e) => e.horaNum)).toEqual([22, 23]);
+  });
+
+  it('regresión: un fijo normal (18:00-19:00) sigue igual con apertura explícita', () => {
+    const fijo: TurnoFijo = {
+      id: 'f1', canchaId: 'c1', cancha, clienteNombre: 'Ana', whatsapp: null, precio: 1000, activo: true,
+      diaSemana: 3, horaInicio: '18:00', horaFin: '19:00', excepciones: [],
+    };
+    const evs = materializar(['2026-06-10'], [fijo], [], undefined, APERTURA);
+    expect(evs.map((e) => e.horaNum)).toEqual([18]);
+  });
+});
