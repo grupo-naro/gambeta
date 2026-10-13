@@ -59,6 +59,9 @@ services:
       BACKEND_PUBLIC_URL: "${BACKEND_PUBLIC_URL}"
       PANEL_PUBLIC_URL: "${PANEL_PUBLIC_URL}"
       TZ_NEGOCIO: "America/Argentina/Buenos_Aires"
+      # Apertura al público: la web solo deja reservar turnos desde esta fecha (el staff no tiene
+      # tope). Pasada la fecha ya no restringe nada; se puede dejar o quitar.
+      RESERVAS_DESDE: "${RESERVAS_DESDE:-2026-11-01}"
       ADMIN_SEED_EMAIL: "${ADMIN_SEED_EMAIL}"
       ADMIN_SEED_PASSWORD: "${ADMIN_SEED_PASSWORD}"
       PORT: "3000"
