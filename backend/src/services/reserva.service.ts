@@ -18,6 +18,7 @@ import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
 import { ymdEnTz } from './sheets/sheetsData.js';
 import { evolutionService } from './evolution.service.js';
+import { notificacionService, mensajeSenaAprobada } from './notificacion.service.js';
 import { logger } from '../utils/logger.js';
 
 const TRANSITIONS: Record<EstadoReserva, EstadoReserva[]> = {
@@ -33,23 +34,6 @@ export function assertTransition(from: EstadoReserva, to: EstadoReserva): void {
   }
 }
 
-function mensajeSenaAprobada(r: { cancha: { nombre: string }; fechaInicio: Date }, tz: string): string {
-  const hora = r.fechaInicio.toLocaleTimeString('es-AR', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
-  const ymd = r.fechaInicio.toLocaleDateString('en-CA', { timeZone: tz });
-  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: tz });
-  const manana = new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: tz });
-  let dia: string;
-  if (ymd === hoy) dia = 'hoy';
-  else if (ymd === manana) dia = 'mañana';
-  else {
-    const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-    const [y, m, d] = ymd.split('-').map(Number);
-    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-    dia = `el ${dias[dow]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
-  }
-  return `¡Listo! Confirmamos tu seña ✅. Tu turno de ${r.cancha.nombre} ${dia} a las ${hora} quedó reservado. ¡Te esperamos!`;
-}
-
 /**
  * Fin de la ventana de anticipación pública: el instante exacto en el que deja de poder
  * reservarse. Se usa tanto en `crear` como en `reprogramar` (y en `turnoFijo.service.materializar`)
@@ -63,13 +47,29 @@ function mensajeSenaAprobada(r: { cancha: { nombre: string }; fechaInicio: Date 
 export function limiteAnticipacion(
   cfg: { diasAnticipacionMax: number; horaApertura: string; horaCierre: string; horaAperturaFinde: string; horaCierreFinde: string },
   tz: string,
+  desde = '',
 ): { fin: Date; ymd: string } {
-  const ymd = sumarDias(hoyEnTz(tz), cfg.diasAnticipacionMax);
+  // Antes de la apertura la ventana cuenta desde el día de apertura: con 7 días de anticipación
+  // y apertura el 1/11, el 15/10 el tope sería el 22/10 y ningún turno sería alcanzable.
+  const hoy = hoyEnTz(tz);
+  const ymd = sumarDias(desde > hoy ? desde : hoy, cfg.diasAnticipacionMax);
   const dow = dayOfWeekInTz(ymd, tz);
   const esFinde = dow === 0 || dow === 6;
   const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
   const cierre = esFinde ? cfg.horaCierreFinde : cfg.horaCierre;
   return { fin: jornadaWindowUtc(ymd, tz, apertura, cierre).end, ymd };
+}
+
+/**
+ * El público no puede reservar turnos anteriores a la apertura (`RESERVAS_DESDE`). Es una
+ * comparación de FECHAS de calendario ("YYYY-MM-DD" ordena como texto), igual que la ventana
+ * de anticipación. El staff queda afuera: tiene que poder cargar a mano turnos de prueba o
+ * reservas anticipadas.
+ */
+export function assertReservasAbiertas(fecha: string, desde: string): void {
+  if (!desde || fecha >= desde) return;
+  const [, mes, dia] = desde.split('-');
+  throw BusinessRule(`Las reservas online abren el ${dia}/${mes}`);
 }
 
 export interface CreateReservaInput {
@@ -119,7 +119,9 @@ export const reservaService = {
     // El límite es una FECHA de calendario, no un instante: con `Date.now() + N días` el último
     // día quedaría partido al medio y los turnos de la noche se rechazarían sin motivo visible.
     if (!opts.porStaff) {
-      const { fin, ymd } = limiteAnticipacion(cfg, tz);
+      const desde = getEnv().RESERVAS_DESDE;
+      assertReservasAbiertas(input.fecha, desde);
+      const { fin, ymd } = limiteAnticipacion(cfg, tz, desde);
       if (fechaInicio >= fin) {
         const [, mes, dia] = ymd.split('-');
         throw BusinessRule(`Por ahora solo se puede reservar hasta el ${dia}/${mes}`);
@@ -213,9 +215,23 @@ export const reservaService = {
     });
 
     sheetsSync.marcarSucio(input.fecha);
+
+    const aviso = {
+      nombreCliente: input.nombreCliente,
+      whatsapp: input.whatsapp,
+      canchaNombre: cancha.nombre,
+      fechaInicio,
+      montoSena: Number(montoSena ?? 0),
+    };
     if (estado === 'ESPERANDO_SENA') {
+      // Solo la transferencia deja un comprobante por revisar. Con Mercado Pago confirma el webhook.
+      if (input.metodoSena === 'TRANSFERENCIA') {
+        notificacionService.avisarComprobantePendiente(aviso, cfg.adminWhatsapp, tz);
+      }
       return { ...reserva, datosPago: await senaService.datosPago() };
     }
+    // Confirmada de entrada (socio, staff, cliente confiable): no habrá aviso de seña aprobada.
+    if (reserva.estado === 'CONFIRMADA') notificacionService.avisarReservaConfirmada(aviso, tz);
     return reserva;
   },
 

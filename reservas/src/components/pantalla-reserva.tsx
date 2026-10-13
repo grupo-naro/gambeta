@@ -25,9 +25,14 @@ const DEPORTES: { key: Deporte; label: string; icon: string }[] = [
 
 export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
   const [deporte, setDeporte] = useState<Deporte>('futbol');
-  const [fecha, setFecha] = useState(hoyISO());
   const hoy = hoyISO();
-  const maxFecha = sumarDiasISO(hoy, metodos.diasAnticipacionMax);
+  // Antes de la apertura el primer día elegible es el de apertura, no hoy. Tiene que ser también
+  // la fecha INICIAL: `Calendario` toma el mes que muestra de su primer `value`.
+  const minFecha = metodos.reservasDesde > hoy ? metodos.reservasDesde : hoy;
+  // La ventana de anticipación cuenta desde el primer día elegible (igual que el backend): antes
+  // de la apertura son los primeros N días de apertura, no los N días desde hoy.
+  const maxFecha = sumarDiasISO(minFecha, metodos.diasAnticipacionMax);
+  const [fecha, setFecha] = useState(minFecha);
   const [canchaSelId, setCanchaSelId] = useState('');
   const [grilla, setGrilla] = useState<Grilla | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -54,8 +59,8 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
   // Se corrige antes de pedir la grilla: si no, el cliente elige un turno que el backend va a
   // rechazar recién al confirmar.
   useEffect(() => {
-    if (fecha < hoy || fecha > maxFecha) setFecha(hoy);
-  }, [fecha, hoy, maxFecha]);
+    if (fecha < minFecha || fecha > maxFecha) setFecha(minFecha);
+  }, [fecha, minFecha, maxFecha]);
 
   useEffect(() => {
     let vivo = true;
@@ -161,7 +166,7 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
             Seleccioná y completá el formulario.
           </div>
           {deporteBotones}
-          <Calendario value={fecha} onChange={setFecha} min={hoy} max={maxFecha} />
+          <Calendario value={fecha} onChange={setFecha} min={minFecha} max={maxFecha} />
         </aside>
         <section className="flex min-w-0 flex-col">
           <h2 className="mb-3 text-lg font-bold uppercase text-lime-400">{tituloGrilla}</h2>
@@ -204,7 +209,7 @@ export function PantallaReserva({ metodos }: { metodos: MetodosPago }) {
       {/* ===== Mobile: select de cancha + lista ===== */}
       <div className="flex flex-1 flex-col gap-4 p-4 md:hidden">
         {deporteBotones}
-        <SelectorFechaMobile value={fecha} onChange={setFecha} min={hoy} max={maxFecha} />
+        <SelectorFechaMobile value={fecha} onChange={setFecha} min={minFecha} max={maxFecha} />
         <h2 className="text-base font-bold uppercase text-lime-400">{tituloGrilla}</h2>
         {cargando ? <p className="p-6 text-center text-neutral-500">Cargando…</p>
           : errorGrilla ? <p className="p-6 text-center text-red-400">{errorGrilla}</p>

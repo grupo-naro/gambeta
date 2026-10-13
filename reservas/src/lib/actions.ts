@@ -30,12 +30,14 @@ export async function getMetodosPago(): Promise<MetodosPago> {
     mercadoPago: false, transferencia: false,
     cbu: '', alias: '', titular: '', adminWhatsapp: '', senaTimeoutMinutos: SENA_TIMEOUT_MINUTOS_DEFAULT,
     diasAnticipacionMax: DIAS_ANTICIPACION_DEFAULT,
+    reservasDesde: '',
   };
   try {
     const d = await apiReservas<{
       cobrosOnline?: boolean; transferenciaDisponible?: boolean;
       cbu?: string; alias?: string; titular?: string;
       adminWhatsapp?: string; senaTimeoutMinutos?: number; diasAnticipacionMax?: number;
+      reservasDesde?: string;
     }>('/config/sena');
     return {
       mercadoPago: d.cobrosOnline === true,
@@ -49,6 +51,9 @@ export async function getMetodosPago(): Promise<MetodosPago> {
       // cargado a mano en la DB) no es nullish y pasaría derecho, dejando el selector con un solo
       // chip o sin ninguna fecha elegible. Por eso el chequeo es explícito por positividad.
       diasAnticipacionMax: d.diasAnticipacionMax != null && d.diasAnticipacionMax > 0 ? d.diasAnticipacionMax : DIAS_ANTICIPACION_DEFAULT,
+      // Backend viejo (sin el campo) o valor raro: sin restricción, y el backend sigue siendo
+      // quien rechaza lo que no corresponde.
+      reservasDesde: /^\d{4}-\d{2}-\d{2}$/.test(d.reservasDesde ?? '') ? d.reservasDesde! : '',
     };
   } catch (e) {
     console.error('[config] no se pudieron consultar los métodos de pago', { error: e instanceof Error ? e.message : e });

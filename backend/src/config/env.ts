@@ -17,6 +17,11 @@ const schema = z.object({
   MP_WEBHOOK_SECRET: z.string().default(''),
   RESERVAS_PUBLIC_URL: z.string().default(''),
   BACKEND_PUBLIC_URL: z.string().default(''),
+  // Fecha (YYYY-MM-DD) desde la cual el público puede reservar turnos. Vacío = sin restricción.
+  // Es un dato de lanzamiento, no un ajuste del negocio: por eso vive en el env y no en
+  // `Configuracion`. Se valida el formato para que un typo falle al arrancar y no deje la
+  // apertura mal puesta en silencio.
+  RESERVAS_DESDE: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).default(''),
   TZ_NEGOCIO: z.string().default('America/Argentina/Buenos_Aires'),
   CANCELACION_ANTICIPACION_MINUTOS: z.coerce.number().int().nonnegative().default(10),
   REPROGRAMACION_ANTICIPACION_HORAS: z.coerce.number().int().nonnegative().default(2),

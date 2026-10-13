@@ -59,6 +59,8 @@ describe('senaService.datosPago', () => {
       adminWhatsapp: '',
       transferenciaDisponible: true,
       senaTimeoutMinutos: 30,
+      // Sin RESERVAS_DESDE en el env no hay restricción de apertura.
+      reservasDesde: '',
     });
   });
 });

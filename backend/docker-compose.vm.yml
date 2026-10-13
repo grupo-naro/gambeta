@@ -16,6 +16,9 @@ services:
       CANCELACION_ANTICIPACION_MINUTOS: "10"
       REPROGRAMACION_ANTICIPACION_HORAS: "2"
       SENA_TIMEOUT_MINUTOS: "30"
+      # Apertura al público: la web solo deja reservar turnos desde esta fecha (el staff no tiene
+      # tope). Pasada la fecha ya no restringe nada; se puede dejar o quitar.
+      RESERVAS_DESDE: "${RESERVAS_DESDE:-2026-11-01}"
       # Datos de seña: el bot los envía al cliente (alias/cbu/titular + monto) en ESPERANDO_SENA.
       # Si no se declaran acá, NO entran al contenedor aunque estén en el .env → salen vacíos.
       SENA_MODO: "${SENA_MODO:-porcentaje}"

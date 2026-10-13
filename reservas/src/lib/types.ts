@@ -36,6 +36,8 @@ export interface MetodosPago {
   senaTimeoutMinutos: number;
   /** Cuántos días adelante se puede reservar, contando hoy como día 0. */
   diasAnticipacionMax: number;
+  /** Primer día reservable ("YYYY-MM-DD"). Vacío si no hay restricción de apertura. */
+  reservasDesde: string;
 }
 
 export type Resultado<T> = { ok: true; data: T } | { ok: false; error: string };

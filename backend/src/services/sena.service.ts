@@ -18,6 +18,8 @@ export interface DatosPago {
   senaTimeoutMinutos: number;
   /** Cuántos días adelante puede reservar el público. El sitio recorta el calendario con esto. */
   diasAnticipacionMax: number;
+  /** Primer día reservable por el público ("YYYY-MM-DD"), o vacío si ya no hay restricción. */
+  reservasDesde: string;
 }
 
 export const senaService = {
@@ -50,6 +52,7 @@ export const senaService = {
       transferenciaDisponible: c.cbu.trim() !== '' || c.alias.trim() !== '',
       senaTimeoutMinutos: getEnv().SENA_TIMEOUT_MINUTOS,
       diasAnticipacionMax: c.diasAnticipacionMax,
+      reservasDesde: getEnv().RESERVAS_DESDE,
     };
   },
 };
