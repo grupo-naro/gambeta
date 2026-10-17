@@ -27,7 +27,13 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
     start(async () => { const r = await fn(); if (r.ok) { toast.success(okMsg); if (close) setSeleccion(null); } else { toast.error(r.error ?? 'Error'); } });
   }
   function programaLabel(b: Bloqueo) {
-    if (b.recurrente) return `Recurrente: ${DIAS[b.diaSemana ?? 0] ?? b.diaSemana}`;
+    if (b.recurrente) {
+      const dmy = (ymd: string) => ymd.split('-').reverse().join('/');
+      const periodo = b.vigenciaDesde && b.vigenciaHasta ? ` · del ${dmy(b.vigenciaDesde)} al ${dmy(b.vigenciaHasta)}`
+        : b.vigenciaHasta ? ` · hasta el ${dmy(b.vigenciaHasta)}`
+        : b.vigenciaDesde ? ` · desde el ${dmy(b.vigenciaDesde)}` : '';
+      return `Recurrente: ${DIAS[b.diaSemana ?? 0] ?? b.diaSemana}${periodo}`;
+    }
     return `Puntual: ${b.fecha?.slice(0, 10) ?? '—'}`;
   }
   async function eliminar(b: Bloqueo) {

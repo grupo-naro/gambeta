@@ -102,6 +102,8 @@ export async function dataSemana() {
     fecha: b.fecha ? b.fecha.toISOString().slice(0, 10) : null,
     horaInicio: b.horaInicio, horaFin: b.horaFin, nota: b.nota,
     excepciones: b.excepciones.map((e) => e.fecha.toISOString().slice(0, 10)),
+    vigenciaDesde: b.vigenciaDesde ? b.vigenciaDesde.toISOString().slice(0, 10) : null,
+    vigenciaHasta: b.vigenciaHasta ? b.vigenciaHasta.toISOString().slice(0, 10) : null,
   }));
 
   const celdas = expandirSemana({ reservas, fijos, bloqueos }, dias, horas, TZ());

@@ -16,7 +16,9 @@ async function run(fn: () => Promise<unknown>): Promise<Result> {
   catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }
 
-type BloqueoInput = { canchaId: string; motivo: string; recurrente: boolean; diaSemana?: number; fecha?: string; horaInicio: string; horaFin: string; nota?: string };
+type BloqueoInput = { canchaId: string; motivo: string; recurrente: boolean; diaSemana?: number; fecha?: string; horaInicio: string; horaFin: string; nota?: string;
+  // Período de un bloqueo recurrente ('YYYY-MM-DD', inclusivo). Cada extremo es opcional.
+  vigenciaDesde?: string; vigenciaHasta?: string };
 
 export async function crearBloqueo(i: BloqueoInput): Promise<Result> {
   return run(() => apiFetch('/bloqueos', { method: 'POST', body: JSON.stringify(i) }));

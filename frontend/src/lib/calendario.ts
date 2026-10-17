@@ -154,6 +154,8 @@ export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqu
       const aplica = b.recurrente ? b.diaSemana === wd : (b.fecha ?? '').slice(0, 10) === dia;
       if (!aplica) continue;
       if (b.excepciones?.some((e) => e.fecha.slice(0, 10) === dia)) continue;
+      // Un bloqueo recurrente con período solo bloquea dentro de él (inclusivo). Mismo criterio que el backend.
+      if (b.recurrente && ((b.vigenciaDesde && dia < b.vigenciaDesde) || (b.vigenciaHasta && dia > b.vigenciaHasta))) continue;
       const sub = b.nota ? `${etiquetaMotivo(b.motivo)} · ${b.nota}` : etiquetaMotivo(b.motivo);
       const ini = minutoDeJornada(b.horaInicio, apertura); const fin = minutoDeJornada(b.horaFin, apertura);
       const horas = horasQueToca(ini, fin);

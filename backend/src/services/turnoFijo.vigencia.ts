@@ -20,6 +20,9 @@ export function fijoVigenteEn(f: Periodo, fecha: string): boolean {
   return true;
 }
 
+/** Mismo criterio para el período de un bloqueo recurrente (`vigenciaDesde` / `vigenciaHasta`). */
+export const vigenteEn = fijoVigenteEn;
+
 /** ¿Dos períodos comparten al menos un día? `null` = abierto en ese extremo. */
 export function periodosSeSolapan(
   a: { desde: string | null; hasta: string | null },

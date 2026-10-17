@@ -11,6 +11,8 @@ export interface BloqueoInput {
   canchaId: string; motivo: 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO';
   recurrente: boolean; diaSemana: number | null; fecha: string | null;
   horaInicio: string; horaFin: string; nota: string | null; excepciones: string[];
+  /** Período de un bloqueo recurrente ('YYYY-MM-DD', inclusivo). Fuera de él no bloquea. */
+  vigenciaDesde?: string | null; vigenciaHasta?: string | null;
 }
 export interface ExpandInput { reservas: ReservaCelda[]; fijos: FijoInput[]; bloqueos: BloqueoInput[] }
 
@@ -55,6 +57,7 @@ export function expandirSemana(input: ExpandInput, dias: { dia: string; fecha: s
     for (const b of input.bloqueos) {
       const aplica = b.recurrente ? b.diaSemana === dow : b.fecha === fecha;
       if (!aplica || b.excepciones.includes(fecha)) continue;
+      if (b.recurrente && ((b.vigenciaDesde && fecha < b.vigenciaDesde) || (b.vigenciaHasta && fecha > b.vigenciaHasta))) continue;
       expandir(b.canchaId, fecha, b.horaInicio, b.horaFin, (hora) => ({
         canchaId: b.canchaId, fecha, hora, cliente: etiquetaMotivo(b.motivo, b.nota),
         monto: 0, pagado: 0, tipo: tipoDeMotivo(b.motivo),

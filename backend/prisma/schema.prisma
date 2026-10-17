@@ -173,6 +173,9 @@ model Bloqueo {
   horaInicio  String
   horaFin     String
   nota        String?
+  /// Período de un bloqueo RECURRENTE (inclusivo, null = sin límite). Fuera de él no bloquea.
+  vigenciaDesde DateTime?        @db.Date
+  vigenciaHasta DateTime?        @db.Date
   activo      Boolean            @default(true)
   creadoEn    DateTime           @default(now())
 

@@ -36,6 +36,16 @@ describe('expandirSemana', () => {
     expect(out.length).toBe(0);
   });
 
+  it('un bloqueo recurrente con período solo aplica dentro de él (hasta inclusive)', () => {
+    // dias: lunes 2026-06-29 y martes 2026-06-30. Bloqueo de lunes.
+    const vencido = expandirSemana({ reservas: [], fijos: [], bloqueos: [bloqueo({ vigenciaHasta: '2026-06-28' })] }, dias, horas, TZ);
+    expect(vencido.length).toBe(0);
+    const ultimoDia = expandirSemana({ reservas: [], fijos: [], bloqueos: [bloqueo({ vigenciaHasta: '2026-06-29' })] }, dias, horas, TZ);
+    expect(ultimoDia.length).toBe(2);
+    const futuro = expandirSemana({ reservas: [], fijos: [], bloqueos: [bloqueo({ vigenciaDesde: '2026-06-30' })] }, dias, horas, TZ);
+    expect(futuro.length).toBe(0);
+  });
+
   it('bloqueo recurrente (TORNEO) por diaSemana → tipo torneo; puntual sólo en su fecha', () => {
     const rec = expandirSemana({ reservas: [], fijos: [], bloqueos: [bloqueo({})] }, dias, horas, TZ);
     expect(rec.filter((c) => c.fecha === '2026-06-29').map((c) => c.hora).sort()).toEqual(['20:00', '21:00']);

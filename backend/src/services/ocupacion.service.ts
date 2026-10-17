@@ -2,7 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { getEnv } from '../config/env.js';
 import { dayOfWeekInTz, hhmmAMin, hoyEnTz, minutoDeJornada, sumarDias } from '../utils/tz.js';
 import { configService } from './config.service.js';
-import { fijoVigenteEn, periodosSeSolapan } from './turnoFijo.vigencia.js';
+import { fijoVigenteEn, vigenteEn, periodosSeSolapan } from './turnoFijo.vigencia.js';
 
 // minutos AR (diaSemana + minuto del día) de un timestamp.
 function partesAr(d: Date, tz: string) {
@@ -52,7 +52,8 @@ export const ocupacionService = {
       where: { canchaId: { in: canchas }, activo: true, OR: [{ recurrente: true, diaSemana: dia }, { recurrente: false, fecha: fechaDate }] },
       include: { excepciones: { where: { fecha: fechaDate } } },
     });
-    for (const b of bloqueos) if (b.excepciones.length === 0) out.push({ ini: minutoDeJornada(b.horaInicio, apertura), fin: minutoDeJornada(b.horaFin, apertura), tipo: 'bloqueo' });
+    // Un bloqueo RECURRENTE con período solo bloquea dentro de él (los puntuales ya tienen su fecha).
+    for (const b of bloqueos) if (b.excepciones.length === 0 && (!b.recurrente || vigenteEn(b, fecha))) out.push({ ini: minutoDeJornada(b.horaInicio, apertura), fin: minutoDeJornada(b.horaFin, apertura), tipo: 'bloqueo' });
     return out;
   },
 
@@ -87,7 +88,11 @@ export const ocupacionService = {
         { desde: f.vigenciaDesde ? f.vigenciaDesde.toISOString().slice(0, 10) : null, hasta: f.vigenciaHasta ? f.vigenciaHasta.toISOString().slice(0, 10) : null },
         nuevo,
       ));
-      const bloqs = await prisma.bloqueo.findMany({ where: { canchaId: { in: canchas }, activo: true, recurrente: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true } });
+      const bloqsTodos = await prisma.bloqueo.findMany({ where: { canchaId: { in: canchas }, activo: true, recurrente: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true, vigenciaDesde: true, vigenciaHasta: true } });
+      const bloqs = bloqsTodos.filter((b) => periodosSeSolapan(
+        { desde: b.vigenciaDesde ? b.vigenciaDesde.toISOString().slice(0, 10) : null, hasta: b.vigenciaHasta ? b.vigenciaHasta.toISOString().slice(0, 10) : null },
+        nuevo,
+      ));
       const tpl = [...fijos, ...bloqs];
       if (tpl.some((x) => minutoDeJornada(x.horaInicio, apertura) < finMin && iniMin < minutoDeJornada(x.horaFin, apertura))) return true;
     }
@@ -119,11 +124,13 @@ export const ocupacionService = {
       const matchDia = opts.diaSemana != null ? diaJornada === opts.diaSemana : true;
       // para puntual: comparar la fecha de jornada del alquiler, no la fecha calendario
       let matchFecha = true;
-      if (fechaTarget) {
-        const fCal = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(a.fechaInicio);
-        const fJornada = antesDeApertura ? sumarDias(fCal, -1) : fCal;
-        matchFecha = fJornada === fechaTarget;
-      }
+      const fCal = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(a.fechaInicio);
+      const fJornada = antesDeApertura ? sumarDias(fCal, -1) : fCal;
+      if (fechaTarget) matchFecha = fJornada === fechaTarget;
+      // Un recurrente con período solo choca con las reservas que caen DENTRO de ese período: un
+      // torneo "todos los jueves hasta el 12/12" no choca con una reserva del jueves 24/12.
+      const v = opts.vigencia;
+      if (v && ((v.desde && fJornada < v.desde) || (v.hasta && fJornada > v.hasta))) matchFecha = false;
       const iniAr = minJornada(pi, apertura);
       const finAr = pf.dia !== pi.dia ? pf.min + 1440 : minJornada(pf, apertura);
       const overlap = iniAr < finMin && iniMin < finAr;

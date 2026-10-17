@@ -158,6 +158,14 @@ describe('materializar', () => {
     expect(ev).toHaveLength(2);
   });
 
+  it('un bloqueo recurrente con período solo se dibuja dentro de él (hasta inclusive)', () => {
+    const wed = diaCon(3);
+    const b = { id: 'b9', canchaId: 'c1', motivo: 'TORNEO' as const, recurrente: true, diaSemana: 3, fecha: null, horaInicio: '20:00', horaFin: '21:00', nota: null, cancha: { nombre: 'C1' }, vigenciaHasta: wed };
+    expect(materializar(dias, [], [b]).filter((e) => e.fecha === wed)).toHaveLength(1);
+    expect(materializar(semanaDe('2026-06-15').dias, [], [b])).toHaveLength(0);
+    expect(materializar(dias, [], [{ ...b, vigenciaDesde: '2026-06-17', vigenciaHasta: null }])).toHaveLength(0);
+  });
+
   it('un bloqueo puntual aparece sólo en su fecha', () => {
     const mar = diaCon(2);
     const b: Bloqueo = { id: 'b1', canchaId: 'c1', motivo: 'TORNEO', recurrente: false, diaSemana: null, fecha: mar, horaInicio: '19:00', horaFin: '21:00', nota: null, cancha: { nombre: 'C1' } };

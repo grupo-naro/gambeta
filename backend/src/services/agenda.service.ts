@@ -74,7 +74,8 @@ export const agendaService = {
       where: { activo: true, OR: [{ recurrente: true, diaSemana: dia }, { recurrente: false, fecha: fechaDate }] },
       include: { cancha: true, excepciones: { where: { fecha: fechaDate } } },
     });
-    const bloqueos = bloqueosRaw.filter((b) => b.excepciones.length === 0).map((b) => ({
+    // Un bloqueo recurrente con período solo figura dentro de él (hasta inclusive).
+    const bloqueos = bloqueosRaw.filter((b) => b.excepciones.length === 0 && (!b.recurrente || fijoVigenteEn(b, fecha))).map((b) => ({
       id: b.id, canchaId: b.canchaId, motivo: b.motivo, recurrente: b.recurrente,
       diaSemana: b.diaSemana, fecha: b.fecha, horaInicio: b.horaInicio, horaFin: b.horaFin,
       nota: b.nota, cancha: { nombre: b.cancha.nombre },

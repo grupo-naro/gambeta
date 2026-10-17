@@ -73,6 +73,9 @@ export interface Bloqueo {
   id: string; canchaId: string; motivo: MotivoBloqueo; recurrente: boolean;
   diaSemana: number | null; fecha: string | null; horaInicio: string; horaFin: string; nota: string | null;
   cancha?: { nombre: string }; excepciones?: { id: string; fecha: string }[];
+  /** Período de un bloqueo recurrente ('YYYY-MM-DD', inclusivo; null = sin límite). */
+  vigenciaDesde?: string | null;
+  vigenciaHasta?: string | null;
 }
 
 export interface FijoAgenda {

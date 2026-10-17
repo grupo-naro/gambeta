@@ -7,10 +7,20 @@ import { getEnv } from '../config/env.js';
 import { configService } from './config.service.js';
 
 export const bloqueoService = {
-  list: (canchaId?: string) =>
-    prisma.bloqueo.findMany({ where: canchaId ? { canchaId } : {}, include: { cancha: { select: { nombre: true } }, excepciones: true }, orderBy: { creadoEn: 'desc' } }),
-  async crear(input: { canchaId: string; motivo: 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO'; recurrente: boolean; diaSemana?: number; fecha?: string; horaInicio: string; horaFin: string; nota?: string }) {
-    const opts = input.recurrente ? { diaSemana: input.diaSemana } : { fecha: input.fecha };
+  // El panel compara el período como string YYYY-MM-DD contra el día que dibuja; un ISO completo
+  // ("2026-12-12T00:00:00.000Z") rompería esa comparación en el "desde".
+  list: async (canchaId?: string) => {
+    const rows = await prisma.bloqueo.findMany({ where: canchaId ? { canchaId } : {}, include: { cancha: { select: { nombre: true } }, excepciones: true }, orderBy: { creadoEn: 'desc' } });
+    return rows.map((b) => ({
+      ...b,
+      vigenciaDesde: b.vigenciaDesde ? b.vigenciaDesde.toISOString().slice(0, 10) : null,
+      vigenciaHasta: b.vigenciaHasta ? b.vigenciaHasta.toISOString().slice(0, 10) : null,
+    }));
+  },
+  async crear(input: { canchaId: string; motivo: 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO'; recurrente: boolean; diaSemana?: number; fecha?: string; horaInicio: string; horaFin: string; nota?: string; vigenciaDesde?: string; vigenciaHasta?: string }) {
+    const opts = input.recurrente
+      ? { diaSemana: input.diaSemana, vigencia: { desde: input.vigenciaDesde, hasta: input.vigenciaHasta } }
+      : { fecha: input.fecha };
     const dia = input.recurrente ? input.diaSemana! : dayOfWeekInTz(input.fecha!, getEnv().TZ_NEGOCIO);
     const cfg = await configService.get();
     const esFinde = dia === 0 || dia === 6;
@@ -23,6 +33,9 @@ export const bloqueoService = {
         diaSemana: input.recurrente ? input.diaSemana! : null,
         fecha: input.recurrente ? null : new Date(input.fecha! + 'T00:00:00.000Z'),
         horaInicio: input.horaInicio, horaFin: input.horaFin, nota: input.nota ?? null,
+        // El período solo existe en recurrentes (el validador ya rechaza mandarlo en un puntual).
+        vigenciaDesde: input.recurrente && input.vigenciaDesde ? new Date(input.vigenciaDesde + 'T00:00:00.000Z') : null,
+        vigenciaHasta: input.recurrente && input.vigenciaHasta ? new Date(input.vigenciaHasta + 'T00:00:00.000Z') : null,
       },
     });
     sheetsSync.marcarSemanaSucia();

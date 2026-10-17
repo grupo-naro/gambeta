@@ -33,6 +33,9 @@ export function BloqueoDialog({
   const [tipo, setTipo] = useState<'puntual' | 'recurrente'>('puntual');
   const [fecha, setFecha] = useState('');
   const [diaSemana, setDiaSemana] = useState('1');
+  // Período del bloqueo recurrente ("todos los jueves desde X hasta Y"). Vacío = sin límite.
+  const [vigenciaDesde, setVigenciaDesde] = useState('');
+  const [vigenciaHasta, setVigenciaHasta] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFin, setHoraFin] = useState('');
   const [nota, setNota] = useState('');
@@ -45,6 +48,8 @@ export function BloqueoDialog({
       setTipo('puntual');
       setFecha('');
       setDiaSemana('1');
+      setVigenciaDesde('');
+      setVigenciaHasta('');
       setHoraInicio('');
       setHoraFin('');
       setNota('');
@@ -66,6 +71,9 @@ export function BloqueoDialog({
       horaInicio: hi,
       horaFin: hf,
       nota: nota || undefined,
+      // Solo los recurrentes tienen período: el backend rechaza mandarlo en un puntual.
+      vigenciaDesde: recurrente && vigenciaDesde ? vigenciaDesde : undefined,
+      vigenciaHasta: recurrente && vigenciaHasta ? vigenciaHasta : undefined,
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     start(async () => {
@@ -105,12 +113,27 @@ export function BloqueoDialog({
               <Input id="bl-fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
             </div>
           ) : (
-            <div className="space-y-1">
-              <Label htmlFor="bl-dia">Día</Label>
-              <select id="bl-dia" value={diaSemana} onChange={(e) => setDiaSemana(e.target.value)} className="w-full rounded-md border px-2 py-1.5">
-                {DIAS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
-              </select>
-            </div>
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="bl-dia">Día</Label>
+                <select id="bl-dia" value={diaSemana} onChange={(e) => setDiaSemana(e.target.value)} className="w-full rounded-md border px-2 py-1.5">
+                  {DIAS.map((d, i) => <option key={i} value={String(i)}>{d}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="bl-desde">Desde (opcional)</Label>
+                  <Input id="bl-desde" type="date" value={vigenciaDesde} onChange={(e) => setVigenciaDesde(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bl-hasta">Hasta (opcional)</Label>
+                  <Input id="bl-hasta" type="date" value={vigenciaHasta} onChange={(e) => setVigenciaHasta(e.target.value)} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                El bloqueo se repite ese día cada semana dentro del período (ambos días inclusive). Sin &quot;Hasta&quot; no termina nunca.
+              </p>
+            </>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
