@@ -37,12 +37,13 @@ type CambiosFijo = Partial<{
   vigenciaDesde: string; vigenciaHasta: string; montoAbono: number;
 }>;
 
-// Devuelve cuántos turnos futuros ya generados se cancelaron por haber cambiado el horario.
-export async function editarTurnoFijo(id: string, cambios: CambiosFijo): Promise<{ ok: true; turnosCancelados: number } | { ok: false; error: string }> {
+// Devuelve cuántos turnos futuros ya generados se cancelaron por haber cambiado el horario, y cuánto
+// quedó cobrado de más si el nuevo monto del abono es menor a lo ya cobrado.
+export async function editarTurnoFijo(id: string, cambios: CambiosFijo): Promise<{ ok: true; turnosCancelados: number; cobradoDeMas: number } | { ok: false; error: string }> {
   try {
-    const r = await apiFetch<{ turnosCancelados?: number }>(`/turnos-fijos/${id}`, { method: 'PATCH', body: JSON.stringify(cambios) });
+    const r = await apiFetch<{ turnosCancelados?: number; cobradoDeMas?: number }>(`/turnos-fijos/${id}`, { method: 'PATCH', body: JSON.stringify(cambios) });
     revalidatePath('/turnos-fijos'); revalidatePath('/calendario'); revalidatePath('/hoy'); revalidatePath('/reservas');
-    return { ok: true, turnosCancelados: r.turnosCancelados ?? 0 };
+    return { ok: true, turnosCancelados: r.turnosCancelados ?? 0, cobradoDeMas: r.cobradoDeMas ?? 0 };
   } catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }
 

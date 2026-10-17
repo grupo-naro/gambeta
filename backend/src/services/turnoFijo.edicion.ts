@@ -22,14 +22,16 @@ export interface FijoEditable {
 
 export type CambiosFijo = Partial<Omit<FijoEditable, 'whatsapp'>> & { whatsapp?: string };
 
-const plata = (n: number) => '$' + n.toLocaleString('es-AR');
-
 /**
  * Devuelve el fijo con los cambios aplicados o lanza BusinessRule si el resultado no es válido.
  * Se valida el fijo RESULTANTE, no solo lo que llegó: cambiar solo la hora de fin tiene que
  * compararse con la hora de inicio que ya estaba.
+ *
+ * El monto del abono SÍ puede quedar por debajo de lo ya cobrado: cargarlo mal es un error
+ * frecuente del recepcionista y tiene que poder corregirse. No se rechaza; el saldo queda en 0 y
+ * el excedente se corrige anulando el cobro de más (ver `cobradoDeMas` en el servicio).
  */
-export function aplicarEdicion(actual: FijoEditable, cambios: CambiosFijo, yaPagado: number): FijoEditable {
+export function aplicarEdicion(actual: FijoEditable, cambios: CambiosFijo): FijoEditable {
   const tocaAbono = cambios.vigenciaDesde !== undefined || cambios.vigenciaHasta !== undefined || cambios.montoAbono !== undefined;
   if (tocaAbono && actual.montoAbono == null) {
     throw BusinessRule('Este turno fijo no tiene abono: no se puede editar su período ni su monto');
@@ -42,9 +44,6 @@ export function aplicarEdicion(actual: FijoEditable, cambios: CambiosFijo, yaPag
   }
   if (r.vigenciaDesde && r.vigenciaHasta && r.vigenciaDesde > r.vigenciaHasta) {
     throw BusinessRule('El período del abono está invertido');
-  }
-  if (r.montoAbono != null && r.montoAbono < yaPagado) {
-    throw BusinessRule(`El abono no puede ser menor a lo ya cobrado (${plata(yaPagado)})`);
   }
   return r;
 }

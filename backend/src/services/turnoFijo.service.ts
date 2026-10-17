@@ -172,7 +172,7 @@ export const turnoFijoService = {
       montoAbono: f.montoAbono == null ? null : Number(f.montoAbono),
     };
     const yaPagado = f.montoAbono == null ? 0 : await cobroRepo.sumByTurnoFijo(id);
-    const nuevo = aplicarEdicion(actual, cambios, yaPagado);
+    const nuevo = aplicarEdicion(actual, cambios);
 
     if (nuevo.canchaId !== actual.canchaId && !(await prisma.cancha.findUnique({ where: { id: nuevo.canchaId }, select: { id: true } }))) {
       throw NotFound('Cancha', nuevo.canchaId);
@@ -228,7 +228,14 @@ export const turnoFijoService = {
       });
     }
     sheetsSync.marcarSemanaSucia();
-    return { ...actualizado, montoAbono: actualizado.montoAbono == null ? null : Number(actualizado.montoAbono), turnosCancelados: obsoletas.length };
+    return {
+      ...actualizado,
+      montoAbono: actualizado.montoAbono == null ? null : Number(actualizado.montoAbono),
+      turnosCancelados: obsoletas.length,
+      // Si el nuevo monto quedó por debajo de lo cobrado, cuánto se cobró de más. El panel avisa para
+      // que se revise o anule el cobro que sobra; la edición en sí no lo impide.
+      cobradoDeMas: nuevo.montoAbono == null ? 0 : Math.max(0, yaPagado - nuevo.montoAbono),
+    };
   },
   async eliminar(id: string) {
     const f = await prisma.turnoFijo.findUnique({ where: { id } });

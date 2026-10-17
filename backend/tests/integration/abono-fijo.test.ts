@@ -428,12 +428,25 @@ describe('editar un turno fijo', () => {
     expect(cobros.body).toMatchObject({ monto: 120000, pagado: 40000, saldo: 80000 });
   });
 
-  it('el monto del abono no puede quedar por debajo de lo ya cobrado (422)', async () => {
+  it('el monto del abono puede bajar por debajo de lo ya cobrado (error del recepcionista): saldo 0 y aviso', async () => {
     const c = await crearCancha();
     const fijo = await alta(c.id, { ...ABONO, montoPagado: 60000 });
     const res = await editar(fijo.body.id, { montoAbono: 50000 });
-    expect(res.status).toBe(422);
-    expect(Number((await getPrisma().turnoFijo.findUnique({ where: { id: fijo.body.id } }))!.montoAbono)).toBe(100000);
+    expect(res.status).toBe(200);
+    expect(res.body.cobradoDeMas).toBe(10000);
+    expect(Number((await getPrisma().turnoFijo.findUnique({ where: { id: fijo.body.id } }))!.montoAbono)).toBe(50000);
+    const cobros = await supertest(app).get(`/turnos-fijos/${fijo.body.id}/cobros`).set('authorization', `Bearer ${token}`);
+    expect(cobros.body).toMatchObject({ monto: 50000, pagado: 60000, saldo: 0 });
+    // El cobro NO se tocó: se corrige anulándolo desde "Cobros del abono".
+    expect(await getPrisma().cobro.count({ where: { turnoFijoId: fijo.body.id } })).toBe(1);
+  });
+
+  it('un monto igual o mayor a lo cobrado no informa excedente', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id, { ...ABONO, montoPagado: 60000 });
+    const res = await editar(fijo.body.id, { montoAbono: 60000 });
+    expect(res.status).toBe(200);
+    expect(res.body.cobradoDeMas).toBe(0);
   });
 
   it('un fijo sin abono no admite editar monto (422)', async () => {

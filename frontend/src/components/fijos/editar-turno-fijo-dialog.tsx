@@ -57,6 +57,11 @@ export function EditarTurnoFijoDialog({
         toast.success(r.turnosCancelados > 0
           ? `Turno fijo actualizado. Se cancelaron ${r.turnosCancelados} turno(s) futuro(s) que tenían el horario anterior.`
           : 'Turno fijo actualizado');
+        // El monto nuevo quedó por debajo de lo cobrado: se permite (suele ser un error de carga), pero
+        // el cobro de más sigue en caja hasta que alguien lo anule.
+        if (r.cobradoDeMas > 0) {
+          toast.warning(`Ya se cobró $${r.cobradoDeMas.toLocaleString('es-AR')} de más que el nuevo monto. Revisá "Cobros del abono" y anulá el cobro que sobre.`, { duration: 10000 });
+        }
         onClose();
       } else toast.error(r.error);
     });
@@ -105,7 +110,7 @@ export function EditarTurnoFijoDialog({
           {tieneAbono && (
             <div className="space-y-3 rounded-md border p-3">
               <p className="text-xs text-muted-foreground">
-                Abono. Corregir el monto no modifica lo ya cobrado: los pagos se ven y se registran en &quot;Cobros del abono&quot;.
+                Abono. Corregir el monto no modifica lo ya cobrado: los pagos se ven, se registran y se anulan en &quot;Cobros del abono&quot;. Podés bajarlo aunque ya se haya cobrado más.
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

@@ -129,7 +129,11 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
               {seleccion.montoAbono != null && (
                 <p className="text-sm text-neutral-600">
                   Abono {money(seleccion.montoAbono)} · pagado {money(Number(seleccion.abonoPagado ?? 0))}
-                  {saldoAbono(seleccion) != null ? <> · <span className="font-medium text-amber-700">debe {money(saldoAbono(seleccion)!)}</span></> : ' · al día'}
+                  {saldoAbono(seleccion) != null
+                    ? <> · <span className="font-medium text-amber-700">debe {money(saldoAbono(seleccion)!)}</span></>
+                    : Number(seleccion.abonoPagado ?? 0) > Number(seleccion.montoAbono)
+                      ? <> · <span className="font-medium text-red-600">cobrado de más {money(Number(seleccion.abonoPagado) - Number(seleccion.montoAbono))}</span></>
+                      : ' · al día'}
                 </p>
               )}
             </SheetHeader>

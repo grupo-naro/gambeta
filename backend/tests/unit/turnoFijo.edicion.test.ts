@@ -11,46 +11,42 @@ const sinAbono: FijoEditable = { ...actual, vigenciaDesde: null, vigenciaHasta: 
 
 describe('aplicarEdicion', () => {
   it('sin cambios devuelve lo mismo', () => {
-    expect(aplicarEdicion(actual, {}, 0)).toEqual(actual);
+    expect(aplicarEdicion(actual, {})).toEqual(actual);
   });
 
   it('corrige el horario y deja el resto igual', () => {
-    const r = aplicarEdicion(actual, { horaInicio: '20:30', horaFin: '21:30' }, 0);
+    const r = aplicarEdicion(actual, { horaInicio: '20:30', horaFin: '21:30' });
     expect(r).toMatchObject({ horaInicio: '20:30', horaFin: '21:30', canchaId: 'c1', montoAbono: 100000 });
   });
 
   it('cambiar solo una hora se valida contra la otra que ya estaba', () => {
-    expect(() => aplicarEdicion(actual, { horaInicio: '21:30' }, 0)).toThrow(AppError); // 21:30 >= 21:00
-    expect(() => aplicarEdicion(actual, { horaFin: '19:00' }, 0)).toThrow(AppError);
+    expect(() => aplicarEdicion(actual, { horaInicio: '21:30' })).toThrow(AppError); // 21:30 >= 21:00
+    expect(() => aplicarEdicion(actual, { horaFin: '19:00' })).toThrow(AppError);
   });
 
   it('un fijo que cierra a medianoche (00:00) es válido', () => {
-    expect(() => aplicarEdicion(actual, { horaInicio: '23:00', horaFin: '00:00' }, 0)).not.toThrow();
+    expect(() => aplicarEdicion(actual, { horaInicio: '23:00', horaFin: '00:00' })).not.toThrow();
   });
 
   it('corrige el monto del abono', () => {
-    expect(aplicarEdicion(actual, { montoAbono: 120000 }, 0).montoAbono).toBe(120000);
+    expect(aplicarEdicion(actual, { montoAbono: 120000 }).montoAbono).toBe(120000);
   });
 
-  it('el monto del abono no puede quedar por debajo de lo ya cobrado', () => {
-    expect(() => aplicarEdicion(actual, { montoAbono: 40000 }, 50000)).toThrow(AppError);
-    expect(() => aplicarEdicion(actual, { montoAbono: 40000 }, 50000)).toThrow('50.000');
-  });
-
-  it('el monto del abono puede igualar lo ya cobrado (queda al día)', () => {
-    expect(() => aplicarEdicion(actual, { montoAbono: 50000 }, 50000)).not.toThrow();
+  it('el monto del abono SÍ puede quedar por debajo de lo ya cobrado: a veces el error es del recepcionista', () => {
+    // El saldo queda en 0 y el excedente se corrige anulando el cobro; la edición no lo impide.
+    expect(aplicarEdicion(actual, { montoAbono: 40000 }).montoAbono).toBe(40000);
   });
 
   it('corrige el período, pero no puede quedar invertido', () => {
-    expect(aplicarEdicion(actual, { vigenciaHasta: '2026-12-15' }, 0).vigenciaHasta).toBe('2026-12-15');
-    expect(() => aplicarEdicion(actual, { vigenciaHasta: '2026-10-31' }, 0)).toThrow(AppError); // antes del desde
-    expect(() => aplicarEdicion(actual, { vigenciaDesde: '2026-12-01' }, 0)).toThrow(AppError); // después del hasta
+    expect(aplicarEdicion(actual, { vigenciaHasta: '2026-12-15' }).vigenciaHasta).toBe('2026-12-15');
+    expect(() => aplicarEdicion(actual, { vigenciaHasta: '2026-10-31' })).toThrow(AppError); // antes del desde
+    expect(() => aplicarEdicion(actual, { vigenciaDesde: '2026-12-01' })).toThrow(AppError); // después del hasta
   });
 
   it('un fijo sin abono no admite editar período ni monto', () => {
-    expect(() => aplicarEdicion(sinAbono, { montoAbono: 1000 }, 0)).toThrow(AppError);
-    expect(() => aplicarEdicion(sinAbono, { vigenciaHasta: '2026-12-31' }, 0)).toThrow(AppError);
-    expect(aplicarEdicion(sinAbono, { clienteNombre: 'Beto' }, 0).clienteNombre).toBe('Beto');
+    expect(() => aplicarEdicion(sinAbono, { montoAbono: 1000 })).toThrow(AppError);
+    expect(() => aplicarEdicion(sinAbono, { vigenciaHasta: '2026-12-31' })).toThrow(AppError);
+    expect(aplicarEdicion(sinAbono, { clienteNombre: 'Beto' }).clienteNombre).toBe('Beto');
   });
 });
 
