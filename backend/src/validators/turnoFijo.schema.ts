@@ -45,6 +45,25 @@ export const crearTurnoFijoSchema = z.object({
       { message: 'El pago no puede superar el monto del abono', path: ['montoPagado'] }),
   query: empty, params: empty,
 });
+// Edición parcial: llega solo lo que cambió. El medio de pago NO se edita acá (es el de un cobro
+// ya asentado) y los pagos van por /turnos-fijos/:id/cobros. Las reglas que dependen del fijo
+// actual (horas cruzadas, período, monto vs. lo cobrado) se validan en el servicio con el
+// resultado de aplicar los cambios.
+export const editarTurnoFijoSchema = z.object({
+  body: z.object({
+    canchaId: z.string().min(1).optional(),
+    clienteNombre: z.string().min(1).optional(),
+    whatsapp: whatsappCanonico.optional(),
+    diaSemana: z.coerce.number().int().min(0).max(6).optional(),
+    horaInicio: hhmm.optional(),
+    horaFin: hhmm.optional(),
+    vigenciaDesde: fechaYmd.optional(),
+    vigenciaHasta: fechaYmd.optional(),
+    montoAbono: z.coerce.number().positive().max(99999999.99).optional(),
+  }).refine((b) => Object.keys(b).length > 0, { message: 'No hay nada para editar' }),
+  query: empty,
+  params: z.object({ id: z.string().min(1) }),
+});
 export const excepcionSchema = z.object({
   body: z.object({ fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
   query: empty, params: z.object({ id: z.string().min(1) }),

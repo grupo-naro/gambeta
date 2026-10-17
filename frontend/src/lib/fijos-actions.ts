@@ -31,6 +31,21 @@ export async function crearTurnoFijo(i: FijoInput): Promise<Result> {
   return run(() => apiFetch('/turnos-fijos', { method: 'POST', body: JSON.stringify(i) }));
 }
 
+type CambiosFijo = Partial<{
+  canchaId: string; clienteNombre: string; whatsapp: string; diaSemana: number; horaInicio: string; horaFin: string;
+  // Solo para fijos con abono. El medio de pago no se edita: es el de un cobro ya asentado.
+  vigenciaDesde: string; vigenciaHasta: string; montoAbono: number;
+}>;
+
+// Devuelve cuántos turnos futuros ya generados se cancelaron por haber cambiado el horario.
+export async function editarTurnoFijo(id: string, cambios: CambiosFijo): Promise<{ ok: true; turnosCancelados: number } | { ok: false; error: string }> {
+  try {
+    const r = await apiFetch<{ turnosCancelados?: number }>(`/turnos-fijos/${id}`, { method: 'PATCH', body: JSON.stringify(cambios) });
+    revalidatePath('/turnos-fijos'); revalidatePath('/calendario'); revalidatePath('/hoy'); revalidatePath('/reservas');
+    return { ok: true, turnosCancelados: r.turnosCancelados ?? 0 };
+  } catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
+}
+
 export async function eliminarTurnoFijo(id: string): Promise<Result> {
   return run(() => apiFetch(`/turnos-fijos/${id}`, { method: 'DELETE' }));
 }

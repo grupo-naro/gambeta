@@ -4,6 +4,7 @@ import { ocupacionService } from './ocupacion.service.js';
 import { dayOfWeekInTz, minutoDeJornada, instanteDeJornada, jornadaWindowUtc, hoyEnTz } from '../utils/tz.js';
 import { fijoVigenteEn } from './turnoFijo.vigencia.js';
 import { pagoInicialAbono, assertPagoDentroDelSaldo } from './turnoFijo.abono.js';
+import { aplicarEdicion, cambiaElHorario, cambiaElPeriodo, type CambiosFijo, type FijoEditable } from './turnoFijo.edicion.js';
 import { getEnv } from '../config/env.js';
 import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
@@ -151,6 +152,83 @@ export const turnoFijoService = {
     }
     sheetsSync.marcarSemanaSucia();
     return creado;
+  },
+  /**
+   * Corrige un fijo ya cargado (horario, cancha, día, cliente, y si tiene abono, su período y
+   * monto) sin tener que eliminarlo y rehacerlo. Los pagos NO se tocan: viven en sus cobros.
+   *
+   * Si cambia el horario, los turnos FUTUROS de este fijo que ya estaban materializados quedarían
+   * con el horario viejo: se cancelan (se vuelven a generar con el nuevo cuando se abran), salvo
+   * que alguno ya tenga cobros, en cuyo caso se rechaza para no esconder plata cobrada.
+   */
+  async editar(id: string, cambios: CambiosFijo) {
+    const f = await prisma.turnoFijo.findUnique({ where: { id } });
+    if (!f) throw NotFound('TurnoFijo', id);
+    const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+    const actual: FijoEditable = {
+      canchaId: f.canchaId, clienteNombre: f.clienteNombre, whatsapp: f.whatsapp,
+      diaSemana: f.diaSemana, horaInicio: f.horaInicio, horaFin: f.horaFin,
+      vigenciaDesde: ymd(f.vigenciaDesde), vigenciaHasta: ymd(f.vigenciaHasta),
+      montoAbono: f.montoAbono == null ? null : Number(f.montoAbono),
+    };
+    const yaPagado = f.montoAbono == null ? 0 : await cobroRepo.sumByTurnoFijo(id);
+    const nuevo = aplicarEdicion(actual, cambios, yaPagado);
+
+    if (nuevo.canchaId !== actual.canchaId && !(await prisma.cancha.findUnique({ where: { id: nuevo.canchaId }, select: { id: true } }))) {
+      throw NotFound('Cancha', nuevo.canchaId);
+    }
+
+    const muevePuesto = cambiaElHorario(actual, nuevo);
+    if (muevePuesto || cambiaElPeriodo(actual, nuevo)) {
+      const cfg = await configService.get();
+      const esFinde = nuevo.diaSemana === 0 || nuevo.diaSemana === 6;
+      const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
+      const choca = await ocupacionService.conflictoAlCrear(
+        nuevo.canchaId,
+        { diaSemana: nuevo.diaSemana, vigencia: { desde: nuevo.vigenciaDesde ?? undefined, hasta: nuevo.vigenciaHasta ?? undefined }, excluirFijoId: id },
+        minutoDeJornada(nuevo.horaInicio, apertura), minutoDeJornada(nuevo.horaFin, apertura),
+      );
+      if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
+    }
+
+    // Turnos futuros ya materializados de este fijo: solo importan si se movió el puesto.
+    const obsoletas = muevePuesto
+      ? await prisma.reserva.findMany({
+          where: { turnoFijoId: id, fechaInicio: { gte: new Date() }, estado: { in: ['CONFIRMADA', 'ESPERANDO_SENA'] } },
+          select: { id: true },
+        })
+      : [];
+    if (obsoletas.length > 0) {
+      const conCobros = await prisma.cobro.count({ where: { reservaId: { in: obsoletas.map((r) => r.id) } } });
+      if (conCobros > 0) {
+        throw BusinessRule('Hay turnos futuros de este fijo que ya tienen cobros. Liberá esas fechas antes de cambiar el horario.');
+      }
+    }
+
+    const actualizado = await prisma.$transaction(async (tx) => {
+      const u = await tx.turnoFijo.update({
+        where: { id },
+        data: {
+          canchaId: nuevo.canchaId, clienteNombre: nuevo.clienteNombre, whatsapp: nuevo.whatsapp,
+          diaSemana: nuevo.diaSemana, horaInicio: nuevo.horaInicio, horaFin: nuevo.horaFin,
+          vigenciaDesde: nuevo.vigenciaDesde ? new Date(nuevo.vigenciaDesde + 'T00:00:00.000Z') : null,
+          vigenciaHasta: nuevo.vigenciaHasta ? new Date(nuevo.vigenciaHasta + 'T00:00:00.000Z') : null,
+          montoAbono: nuevo.montoAbono,
+        },
+      });
+      for (const r of obsoletas) await reservaRepo.updateEstado(r.id, 'CANCELADA', tx);
+      return u;
+    });
+
+    if (nuevo.whatsapp && nuevo.whatsapp !== actual.whatsapp) {
+      await prisma.cliente.upsert({
+        where: { whatsapp: nuevo.whatsapp },
+        create: { whatsapp: nuevo.whatsapp, nombre: nuevo.clienteNombre, nombreConfirmado: true },
+        update: {},
+      });
+    }
+    sheetsSync.marcarSemanaSucia();
+    return { ...actualizado, montoAbono: actualizado.montoAbono == null ? null : Number(actualizado.montoAbono), turnosCancelados: obsoletas.length };
   },
   async eliminar(id: string) {
     const f = await prisma.turnoFijo.findUnique({ where: { id } });

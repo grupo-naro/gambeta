@@ -3,7 +3,7 @@ import { authJwt } from '../middlewares/authJwt.js';
 import { authAny } from '../middlewares/authAny.js';
 import { validate } from '../middlewares/validate.js';
 import { turnoFijoService } from '../services/turnoFijo.service.js';
-import { crearTurnoFijoSchema, excepcionSchema, idFijoParamSchema, liberarFijoSchema, materializarFijoSchema, misFijosSchema } from '../validators/turnoFijo.schema.js';
+import { crearTurnoFijoSchema, editarTurnoFijoSchema, excepcionSchema, idFijoParamSchema, liberarFijoSchema, materializarFijoSchema, misFijosSchema } from '../validators/turnoFijo.schema.js';
 import { crearCobroSchema } from '../validators/cobro.schema.js';
 import { auditService } from '../services/audit.service.js';
 import { prisma } from '../db/prisma.js';
@@ -23,6 +23,14 @@ turnoFijoRoutes.post('/', authJwt, validate(crearTurnoFijoSchema), async (req, r
     const f = await turnoFijoService.crear(body, adminId);
     await auditService.log(req, { accion: 'CREAR', entidad: 'TurnoFijo', entidadId: f.id, descripcion: 'Creó turno fijo de ' + body.clienteNombre });
     res.status(201).json(f);
+  } catch (e) { next(e); }
+});
+// Editar un fijo cargado con un error (horario, monto, período...) sin eliminarlo y rehacerlo.
+turnoFijoRoutes.patch('/:id', authJwt, validate(editarTurnoFijoSchema), async (req, res, next) => {
+  try {
+    const r = await turnoFijoService.editar(String(req.params.id), (req as any).valid.body);
+    await auditService.log(req, { accion: 'EDITAR', entidad: 'TurnoFijo', entidadId: r.id, descripcion: 'Editó el turno fijo de ' + r.clienteNombre });
+    res.json(r);
   } catch (e) { next(e); }
 });
 // Cobros del abono del fijo: pagado/saldo y el alta de un pago más (la segunda mitad, una cuota).

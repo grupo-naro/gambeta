@@ -374,3 +374,123 @@ describe('pago parcial del abono', () => {
     expect(r.body).toMatchObject({ pagado: 0, saldo: 100000 });
   });
 });
+
+describe('editar un turno fijo', () => {
+  const ABONO = { vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-08-31', montoAbono: 100000, medioAbono: 'EFECTIVO' };
+  const alta = (canchaId: string, extra: Record<string, unknown> = {}) =>
+    supertest(app).post('/turnos-fijos').set('authorization', `Bearer ${token}`)
+      .send({ canchaId, clienteNombre: 'Ana', whatsapp: '1136620274', diaSemana: 3, horaInicio: '20:00', horaFin: '21:00', ...extra });
+  const editar = (id: string, body: Record<string, unknown>) =>
+    supertest(app).patch(`/turnos-fijos/${id}`).set('authorization', `Bearer ${token}`).send(body);
+
+  // Primer miércoles que cae a más de 10 días de hoy: futuro seguro, sin depender de la fecha actual.
+  async function miercolesFuturo() {
+    const { hoyEnTz, sumarDias, dayOfWeekInTz } = await import('../../src/utils/tz.js');
+    const tz = 'America/Argentina/Buenos_Aires';
+    let f = sumarDias(hoyEnTz(tz), 10);
+    while (dayOfWeekInTz(f, tz) !== 3) f = sumarDias(f, 1);
+    return f;
+  }
+
+  it('corrige el horario sin eliminar y rehacer el fijo', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id);
+    const res = await editar(fijo.body.id, { horaInicio: '20:30', horaFin: '21:30' });
+    expect(res.status).toBe(200);
+    const guardado = await getPrisma().turnoFijo.findUnique({ where: { id: fijo.body.id } });
+    expect(guardado).toMatchObject({ horaInicio: '20:30', horaFin: '21:30' });
+    // Sigue siendo el mismo fijo: mismo id, un solo registro.
+    expect(await getPrisma().turnoFijo.count()).toBe(1);
+  });
+
+  it('mover el horario del fijo no choca consigo mismo', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id);
+    // 20:30-21:30 se solapa con su propio 20:00-21:00 original.
+    expect((await editar(fijo.body.id, { horaInicio: '20:30', horaFin: '21:30' })).status).toBe(200);
+  });
+
+  it('un horario que pisa a OTRO fijo da 409 y no cambia nada', async () => {
+    const c = await crearCancha();
+    const a = await alta(c.id);
+    await alta(c.id, { horaInicio: '22:00', horaFin: '23:00' });
+    const res = await editar(a.body.id, { horaFin: '22:30' });
+    expect(res.status).toBe(409);
+    expect((await getPrisma().turnoFijo.findUnique({ where: { id: a.body.id } }))!.horaFin).toBe('21:00');
+  });
+
+  it('corrige el monto del abono sin tocar lo ya cobrado', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id, { ...ABONO, montoPagado: 40000 });
+    const res = await editar(fijo.body.id, { montoAbono: 120000 });
+    expect(res.status).toBe(200);
+    const cobros = await supertest(app).get(`/turnos-fijos/${fijo.body.id}/cobros`).set('authorization', `Bearer ${token}`);
+    expect(cobros.body).toMatchObject({ monto: 120000, pagado: 40000, saldo: 80000 });
+  });
+
+  it('el monto del abono no puede quedar por debajo de lo ya cobrado (422)', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id, { ...ABONO, montoPagado: 60000 });
+    const res = await editar(fijo.body.id, { montoAbono: 50000 });
+    expect(res.status).toBe(422);
+    expect(Number((await getPrisma().turnoFijo.findUnique({ where: { id: fijo.body.id } }))!.montoAbono)).toBe(100000);
+  });
+
+  it('un fijo sin abono no admite editar monto (422)', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id);
+    expect((await editar(fijo.body.id, { montoAbono: 5000 })).status).toBe(422);
+  });
+
+  it('un body vacío o inválido da 400, y un fijo inexistente 404', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id);
+    expect((await editar(fijo.body.id, {})).status).toBe(400);
+    expect((await editar(fijo.body.id, { horaInicio: '25:00' })).status).toBe(400);
+    expect((await editar('no-existe', { clienteNombre: 'X' })).status).toBe(404);
+  });
+
+  it('editar exige JWT de staff', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id);
+    const res = await supertest(app).patch(`/turnos-fijos/${fijo.body.id}`).set('x-api-key', 'svc').send({ clienteNombre: 'X' });
+    expect(res.status).toBe(401);
+  });
+
+  it('al cambiar el horario se cancelan los turnos futuros ya materializados (sin cobros)', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id);
+    const fecha = await miercolesFuturo();
+    const mat = await supertest(app).post(`/turnos-fijos/${fijo.body.id}/materializar`).set('authorization', `Bearer ${token}`).send({ fecha });
+    expect(mat.status).toBe(201);
+
+    const res = await editar(fijo.body.id, { horaInicio: '19:00', horaFin: '20:00' });
+    expect(res.status).toBe(200);
+    expect(res.body.turnosCancelados).toBe(1);
+    expect((await getPrisma().reserva.findUnique({ where: { id: mat.body.id } }))!.estado).toBe('CANCELADA');
+  });
+
+  it('si un turno futuro materializado ya tiene cobros, rechaza el cambio de horario (422)', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id);
+    const fecha = await miercolesFuturo();
+    const mat = await supertest(app).post(`/turnos-fijos/${fijo.body.id}/materializar`).set('authorization', `Bearer ${token}`).send({ fecha });
+    await getPrisma().cobro.create({ data: { reservaId: mat.body.id, monto: 1000, medio: 'EFECTIVO', origen: 'MANUAL' } });
+
+    const res = await editar(fijo.body.id, { horaInicio: '19:00', horaFin: '20:00' });
+    expect(res.status).toBe(422);
+    expect((await getPrisma().turnoFijo.findUnique({ where: { id: fijo.body.id } }))!.horaInicio).toBe('20:00');
+    expect((await getPrisma().reserva.findUnique({ where: { id: mat.body.id } }))!.estado).not.toBe('CANCELADA');
+  });
+
+  it('cambiar solo el cliente no toca los turnos materializados', async () => {
+    const c = await crearCancha();
+    const fijo = await alta(c.id);
+    const fecha = await miercolesFuturo();
+    const mat = await supertest(app).post(`/turnos-fijos/${fijo.body.id}/materializar`).set('authorization', `Bearer ${token}`).send({ fecha });
+    const res = await editar(fijo.body.id, { clienteNombre: 'Beto' });
+    expect(res.status).toBe(200);
+    expect(res.body.turnosCancelados).toBe(0);
+    expect((await getPrisma().reserva.findUnique({ where: { id: mat.body.id } }))!.estado).not.toBe('CANCELADA');
+  });
+});

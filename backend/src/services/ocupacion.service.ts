@@ -68,7 +68,9 @@ export const ocupacionService = {
   // `opts.vigencia` es el período del fijo que se está creando: solo choca con los fijos cuyo
   // período se solape con el suyo, así renovar un fijo vencido (o consecutivo) en el mismo
   // horario no da 409. Sin "desde" el nuevo fijo empieza hoy, no en el pasado infinito.
-  async conflictoAlCrear(canchaId: string, opts: { diaSemana?: number; fecha?: string; vigencia?: { desde?: string; hasta?: string } }, iniMin: number, finMin: number): Promise<boolean> {
+  // `opts.excluirFijoId` es para EDITAR un fijo: él mismo (y los turnos que ya materializó) no
+  // cuentan como choque, si no mover el horario 30 minutos chocaría consigo mismo.
+  async conflictoAlCrear(canchaId: string, opts: { diaSemana?: number; fecha?: string; vigencia?: { desde?: string; hasta?: string }; excluirFijoId?: string }, iniMin: number, finMin: number): Promise<boolean> {
     const tz = getEnv().TZ_NEGOCIO;
     const cfg = await configService.get();
     const canchas = await ocupacionService.canchasRelacionadas(canchaId);
@@ -80,8 +82,8 @@ export const ocupacionService = {
       const esFinde = opts.diaSemana === 0 || opts.diaSemana === 6;
       const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
       const nuevo = { desde: opts.vigencia?.desde ?? hoyEnTz(tz), hasta: opts.vigencia?.hasta ?? null };
-      const fijosTodos = await prisma.turnoFijo.findMany({ where: { canchaId: { in: canchas }, activo: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true, vigenciaDesde: true, vigenciaHasta: true } });
-      const fijos = fijosTodos.filter((f) => periodosSeSolapan(
+      const fijosTodos = await prisma.turnoFijo.findMany({ where: { canchaId: { in: canchas }, activo: true, diaSemana: opts.diaSemana }, select: { id: true, horaInicio: true, horaFin: true, vigenciaDesde: true, vigenciaHasta: true } });
+      const fijos = fijosTodos.filter((f) => f.id !== opts.excluirFijoId).filter((f) => periodosSeSolapan(
         { desde: f.vigenciaDesde ? f.vigenciaDesde.toISOString().slice(0, 10) : null, hasta: f.vigenciaHasta ? f.vigenciaHasta.toISOString().slice(0, 10) : null },
         nuevo,
       ));
@@ -93,10 +95,11 @@ export const ocupacionService = {
     const sectores = (await prisma.canchaSector.findMany({ where: { canchaId: { in: canchas } }, select: { sectorId: true } })).map((s) => s.sectorId);
     const alquileres = await prisma.reservaSector.findMany({
       where: { sectorId: { in: sectores }, estado: { in: ['CONFIRMADA', 'ESPERANDO_SENA'] }, fechaInicio: { gte: new Date(), lt: new Date(Date.now() + 180 * 86400000) } },
-      select: { fechaInicio: true, fechaFin: true },
+      select: { fechaInicio: true, fechaFin: true, reserva: { select: { turnoFijoId: true } } },
     });
     const fechaTarget = opts.fecha; // YYYY-MM-DD si puntual
     for (const a of alquileres) {
+      if (opts.excluirFijoId && a.reserva.turnoFijoId === opts.excluirFijoId) continue;
       const pi = partesAr(a.fechaInicio, tz); const pf = partesAr(a.fechaFin, tz);
       // Una reserva que termina exactamente a medianoche cae en el día SIGUIENTE, así que su
       // minuto AR es 0 y la comparación `iniMin < 0` nunca se cumplía: esa reserva quedaba

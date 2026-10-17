@@ -10,6 +10,7 @@ import type { Cancha, TurnoFijo } from '@/lib/types';
 import { TurnoFijoDialog } from './turno-fijo-dialog';
 import { ExcepcionDialog } from './excepcion-dialog';
 import { CobrosDialog } from '@/components/reservas/cobros-dialog';
+import { EditarTurnoFijoDialog } from './editar-turno-fijo-dialog';
 import { eliminarTurnoFijo, desactivarTurnoFijo } from '@/lib/fijos-actions';
 import { hoyAR } from '@/lib/fecha';
 
@@ -52,6 +53,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
   const [selectedTurno, setSelectedTurno] = useState<TurnoFijo | null>(null);
   const [seleccion, setSeleccion] = useState<TurnoFijo | null>(null);
   const [cobrosFijoId, setCobrosFijoId] = useState<string | null>(null);
+  const [editando, setEditando] = useState<TurnoFijo | null>(null);
   const [pending, start] = useTransition();
   const confirm = useConfirm();
 
@@ -135,6 +137,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
               {seleccion.montoAbono != null && (
                 <Button className="h-11 w-full" disabled={pending} onClick={() => { setCobrosFijoId(seleccion.id); setSeleccion(null); }}>Cobros del abono</Button>
               )}
+              <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => { setEditando(seleccion); setSeleccion(null); }}>Editar</Button>
               <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => abrirExcepcion(seleccion)}>Liberar fecha</Button>
               {seleccion.activo && (
                 <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => desactivar(seleccion)}>Desactivar</Button>
@@ -146,6 +149,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
       </Sheet>
 
       <CobrosDialog fijoId={cobrosFijoId} open={cobrosFijoId !== null} onOpenChange={(o) => { if (!o) setCobrosFijoId(null); }} />
+      {editando && <EditarTurnoFijoDialog key={editando.id} turno={editando} canchas={canchas} onClose={() => setEditando(null)} />}
       <TurnoFijoDialog open={dialogOpen} onOpenChange={setDialogOpen} canchas={canchas} />
       <ExcepcionDialog key={selectedTurno?.id ?? 'none'} open={excepcionOpen} onOpenChange={setExcepcionOpen} turno={selectedTurno} />
     </>
