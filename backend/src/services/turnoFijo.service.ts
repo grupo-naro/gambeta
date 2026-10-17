@@ -1,7 +1,9 @@
 import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound, BusinessRule } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
-import { dayOfWeekInTz, minutoDeJornada, instanteDeJornada, jornadaWindowUtc } from '../utils/tz.js';
+import { dayOfWeekInTz, minutoDeJornada, instanteDeJornada, jornadaWindowUtc, hoyEnTz } from '../utils/tz.js';
+import { fijoVigenteEn } from './turnoFijo.vigencia.js';
+import { pagoInicialAbono, assertPagoDentroDelSaldo } from './turnoFijo.abono.js';
 import { getEnv } from '../config/env.js';
 import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
@@ -47,6 +49,7 @@ export const turnoFijoService = {
       include: { cancha: { select: { nombre: true } }, excepciones: true },
       orderBy: [{ diaSemana: 'asc' }, { horaInicio: 'asc' }],
     });
+    const cobrado = await cobroRepo.sumByTurnoFijos(fijos.filter((f) => f.montoAbono != null).map((f) => f.id));
     // El panel compara estas fechas como string YYYY-MM-DD contra el día que está mirando; no le
     // sirve un ISO completo ni un Date.
     return fijos.map((f) => ({
@@ -54,20 +57,66 @@ export const turnoFijoService = {
       vigenciaDesde: f.vigenciaDesde ? f.vigenciaDesde.toISOString().slice(0, 10) : null,
       vigenciaHasta: f.vigenciaHasta ? f.vigenciaHasta.toISOString().slice(0, 10) : null,
       montoAbono: f.montoAbono == null ? null : Number(f.montoAbono),
+      // Lo cobrado del abono hasta ahora. null si el fijo no tiene abono, para no mostrar "$0 de nada".
+      abonoPagado: f.montoAbono == null ? null : (cobrado.get(f.id) ?? 0),
     }));
+  },
+  /** Cobros del abono de un fijo, con total, pagado y saldo (misma forma que los de una reserva). */
+  async listarCobros(id: string) {
+    const f = await prisma.turnoFijo.findUnique({ where: { id } });
+    if (!f) throw NotFound('TurnoFijo', id);
+    const cobros = await cobroRepo.listByTurnoFijo(id);
+    const monto = f.montoAbono == null ? 0 : Number(f.montoAbono);
+    const pagado = cobros.reduce((s, c) => s + Number(c.monto), 0);
+    return {
+      monto,
+      pagado,
+      saldo: Math.max(0, monto - pagado),
+      cobros: cobros.map((c) => ({
+        id: c.id, monto: Number(c.monto), medio: c.medio, origen: c.origen,
+        registradoPor: c.registradoPor?.nombre ?? 'Sistema', creadoEn: c.creadoEn,
+      })),
+    };
+  },
+  /** Registra otro pago del abono (la segunda mitad, una cuota). No puede superar el saldo. */
+  async registrarCobro(id: string, input: { monto: number; medio: 'EFECTIVO' | 'TRANSFERENCIA' }, adminId: string | null) {
+    const f = await prisma.turnoFijo.findUnique({ where: { id } });
+    if (!f) throw NotFound('TurnoFijo', id);
+    if (f.montoAbono == null) throw BusinessRule('Este turno fijo no tiene abono: no hay nada que cobrar');
+    const yaPagado = await cobroRepo.sumByTurnoFijo(id);
+    assertPagoDentroDelSaldo(Number(f.montoAbono), yaPagado, input.monto);
+    const adminExists = adminId ? !!(await adminUserRepo.findById(adminId)) : false;
+    const cobro = await cobroRepo.create({
+      turnoFijoId: id, reservaId: null, suscripcionId: null,
+      monto: input.monto, medio: input.medio, origen: 'ABONO', registradoPorId: adminExists ? adminId : null,
+    });
+    const pagado = yaPagado + input.monto;
+    return {
+      cobro: { id: cobro.id, monto: Number(cobro.monto), medio: cobro.medio },
+      pagado,
+      saldo: Math.max(0, Number(f.montoAbono) - pagado),
+    };
   },
   async crear(input: {
     canchaId: string; clienteNombre: string; whatsapp?: string; diaSemana: number; horaInicio: string; horaFin: string;
     vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
+    /** Cuánto pagó ahora del abono. Sin él se asume el total; 0 = todavía no pagó nada. */
+    montoPagado?: number;
   }, adminId: string | null = null) {
     const cfg = await configService.get();
     const esFinde = input.diaSemana === 0 || input.diaSemana === 6;
     const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
-    const choca = await ocupacionService.conflictoAlCrear(input.canchaId, { diaSemana: input.diaSemana }, minutoDeJornada(input.horaInicio, apertura), minutoDeJornada(input.horaFin, apertura));
+    const choca = await ocupacionService.conflictoAlCrear(
+      input.canchaId,
+      { diaSemana: input.diaSemana, vigencia: { desde: input.vigenciaDesde, hasta: input.vigenciaHasta } },
+      minutoDeJornada(input.horaInicio, apertura), minutoDeJornada(input.horaFin, apertura),
+    );
     if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
 
-    const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, ...datosFijo } = input;
-    const conAbono = montoAbono != null;
+    const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, montoPagado, ...datosFijo } = input;
+    // El fijo guarda el TOTAL del abono; lo cobrado ahora puede ser menos (o nada) y el resto se
+    // registra después con `registrarCobro`.
+    const pagoInicial = pagoInicialAbono(montoAbono, montoPagado);
     // El admin del JWT puede haber sido borrado desde que se emitió el token; sin esta guarda
     // la FK de Cobro explota dentro de la transacción y ni el cobro ni el fijo se crean.
     const adminExists = adminId ? !!(await adminUserRepo.findById(adminId)) : false;
@@ -82,12 +131,12 @@ export const turnoFijoService = {
           montoAbono: montoAbono ?? null,
         },
       });
-      // El abono se cobra una sola vez, al dar de alta. Sin esto la plata no aparece en caja:
-      // los turnos salen 0 y el ingreso se perdería.
-      if (conAbono) {
+      // Lo que pagó en el alta se asienta en caja. Sin esto la plata no aparece: los turnos salen
+      // 0 y el ingreso se perdería. Si no pagó nada todavía (0) no se crea ningún cobro.
+      if (pagoInicial > 0) {
         await cobroRepo.create({
           turnoFijoId: fijo.id, reservaId: null, suscripcionId: null,
-          monto: montoAbono, medio: medioAbono!, origen: 'ABONO', registradoPorId,
+          monto: pagoInicial, medio: medioAbono!, origen: 'ABONO', registradoPorId,
         }, tx);
       }
       return fijo;
@@ -106,14 +155,10 @@ export const turnoFijoService = {
   async eliminar(id: string) {
     const f = await prisma.turnoFijo.findUnique({ where: { id } });
     if (!f) throw NotFound('TurnoFijo', id);
-    try {
-      await prisma.turnoFijo.delete({ where: { id } });
-    } catch (e: any) {
-      // Un fijo con abono tiene cobros asociados (onDelete: Restrict): borrarlo perdería el
-      // rastro en la caja. El camino correcto es desactivarlo.
-      if (e?.code === 'P2003') throw BusinessRule('Este turno fijo tiene un abono cobrado. Desactivalo en vez de borrarlo.');
-      throw e;
-    }
+    // Un fijo con abono se puede eliminar: su cobro NO se borra, queda en la caja como abono sin
+    // destino (FK SET NULL + origen 'ABONO'). Las reservas ya materializadas quedan como reservas
+    // sueltas y las excepciones se van en cascada.
+    await prisma.turnoFijo.delete({ where: { id } });
     sheetsSync.marcarSemanaSucia();
     return { ok: true };
   },
@@ -139,7 +184,8 @@ export const turnoFijoService = {
     const dow = dayOfWeekInTz(fecha, getEnv().TZ_NEGOCIO);
     const target = local10(whatsapp);
     const candidatos = await prisma.turnoFijo.findMany({ where: { activo: true, diaSemana: dow } });
-    const fijos = target ? candidatos.filter((f) => local10(f.whatsapp) === target) : [];
+    // Un fijo fuera de su período no ocupa esa fecha: no hay nada que liberar.
+    const fijos = target ? candidatos.filter((f) => local10(f.whatsapp) === target && fijoVigenteEn(f, fecha)) : [];
     if (!fijos.length) return { liberado: false, cantidad: 0 };
     const fechaDate = new Date(fecha + 'T00:00:00.000Z');
     for (const f of fijos) {
@@ -156,8 +202,10 @@ export const turnoFijoService = {
     const target = local10(whatsapp);
     if (!target) return [];
     const candidatos = await prisma.turnoFijo.findMany({ where: { activo: true }, include: { cancha: true } });
+    const hoy = hoyEnTz(getEnv().TZ_NEGOCIO);
     return candidatos
-      .filter((f) => local10(f.whatsapp) === target)
+      // Un fijo cuyo período ya terminó no es "de" el cliente: no se le ofrece para liberar.
+      .filter((f) => local10(f.whatsapp) === target && (!f.vigenciaHasta || f.vigenciaHasta.toISOString().slice(0, 10) >= hoy))
       .sort((a, b) => a.diaSemana - b.diaSemana || a.horaInicio.localeCompare(b.horaInicio))
       .map((f) => ({
         id: f.id,
@@ -180,6 +228,8 @@ export const turnoFijoService = {
     if (!fijo || !fijo.activo) throw NotFound('TurnoFijo', fijoId);
     if (!fijo.whatsapp) throw BusinessRule('El turno fijo no tiene WhatsApp; recargalo con el número para poder cobrarlo');
     if (dayOfWeekInTz(fecha, tz) !== fijo.diaSemana) throw BusinessRule('Ese turno fijo no aplica a esa fecha');
+    // Fuera de su período el fijo no ocupa ese día, así que tampoco se puede cobrar/materializar.
+    if (!fijoVigenteEn(fijo, fecha)) throw BusinessRule('Ese turno fijo no está vigente en esa fecha (fuera de su período)');
     const fechaDate = new Date(fecha + 'T00:00:00.000Z');
     const exc = await prisma.turnoFijoExcepcion.findUnique({ where: { turnoFijoId_fecha: { turnoFijoId: fijoId, fecha: fechaDate } } });
     if (exc) throw BusinessRule('Ese turno fijo está liberado en esa fecha');
@@ -222,8 +272,8 @@ export const turnoFijoService = {
       suscripcionId: suscripcion?.id ?? null,
     });
     // Con abono, el turno ya está pagado por el período: sale 0 y el precio real queda en
-    // montoLista para que la caja pueda informar cuánto se bonificó. El período NO se compara
-    // con la fecha: vencido, el turno igual sale 0 y el panel muestra el aviso de renovar.
+    // montoLista para que la caja pueda informar cuánto se bonificó. Fuera del período ya se
+    // rechazó arriba (fijoVigenteEn), así que acá el turno siempre cae dentro de lo pagado.
     const conAbono = fijo.montoAbono != null;
     return prisma.$transaction(async (tx) => {
       const cliente = await tx.cliente.upsert({

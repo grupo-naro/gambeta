@@ -56,13 +56,14 @@ describe('abono en turnos fijos', () => {
     expect(Number(res.body.montoLista)).toBe(30000);
   });
 
-  it('con el abono VENCIDO el turno igual se materializa en $0 (el aviso es el único control)', async () => {
+  it('con el período VENCIDO el fijo ya no se materializa: pasado el "hasta" no existe', async () => {
     const c = await crearCancha();
     // El período terminó en julio; el turno es de agosto.
     const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-07-01', vigenciaHasta: '2026-07-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
     const res = await supertest(app).post(`/turnos-fijos/${fijo.body.id}/materializar`).set('x-api-key', 'svc').send({ fecha: MIERCOLES });
-    expect(res.status).toBe(201);
-    expect(Number(res.body.monto)).toBe(0);
+    expect(res.status).toBe(422);
+    expect(res.body.error.message).toMatch(/vigente|período/i);
+    expect(await getPrisma().reserva.count({ where: { turnoFijoId: fijo.body.id } })).toBe(0);
   });
 
   it('REGRESIÓN: un fijo sin abono sigue cobrando el precio de la cancha', async () => {
@@ -89,25 +90,45 @@ describe('el backend expone el dato para el aviso', () => {
 
   it('la agenda informa hasta cuándo está paga la reserva de un fijo con abono', async () => {
     const c = await crearCancha();
-    const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-07-01', vigenciaHasta: '2026-07-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
+    const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-08-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
     await supertest(app).post(`/turnos-fijos/${fijo.body.id}/materializar`).set('x-api-key', 'svc').send({ fecha: MIERCOLES });
     const res = await supertest(app).get(`/agenda?fecha=${MIERCOLES}`).set('x-api-key', 'svc');
     expect(res.status).toBe(200);
     // El panel compara este dato con la fecha que está mirando para decidir si avisa.
     const item = res.body.reservas.find((r: any) => r.turnoFijoId === fijo.body.id);
-    expect(item.abonoHasta).toBe('2026-07-31');
+    expect(item.abonoHasta).toBe('2026-08-31');
   });
 
   it('la agenda expone el período y conAbono en el fijo sin materializar (antes de cobrarlo)', async () => {
     const c = await crearCancha();
-    const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-07-01', vigenciaHasta: '2026-07-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
+    const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-08-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
     // No se materializa: el fijo tiene que aparecer en la colección `fijos`, no en `reservas`.
     const res = await supertest(app).get(`/agenda?fecha=${MIERCOLES}`).set('x-api-key', 'svc');
     expect(res.status).toBe(200);
     const item = res.body.fijos.find((f: any) => f.turnoFijoId === fijo.body.id);
     expect(item).toBeTruthy();
-    expect(item.abonoHasta).toBe('2026-07-31');
+    expect(item.abonoHasta).toBe('2026-08-31');
     expect(item.conAbono).toBe(true);
+  });
+
+  it('pasado el "hasta" el fijo ya no figura en la agenda; el último día del período sí', async () => {
+    const c = await crearCancha();
+    // Período 17/07 → 05/08 (MIERCOLES es 2026-08-05, el último día) y el miércoles siguiente ya no.
+    const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-07-17', vigenciaHasta: MIERCOLES, montoAbono: 120000, medioAbono: 'EFECTIVO' });
+    const ultimo = await supertest(app).get(`/agenda?fecha=${MIERCOLES}`).set('x-api-key', 'svc');
+    expect(ultimo.body.fijos.some((f: any) => f.turnoFijoId === fijo.body.id)).toBe(true);
+    const siguiente = await supertest(app).get('/agenda?fecha=2026-08-12').set('x-api-key', 'svc');
+    expect(siguiente.body.fijos.some((f: any) => f.turnoFijoId === fijo.body.id)).toBe(false);
+  });
+
+  it('pasado el "hasta" el horario queda libre en la grilla pública', async () => {
+    const c = await crearCancha();
+    await altaFijo(c.id, { vigenciaDesde: '2026-07-17', vigenciaHasta: MIERCOLES, montoAbono: 120000, medioAbono: 'EFECTIVO' });
+    const { ocupacionService } = await import('../../src/services/ocupacion.service.js');
+    const dentro = await ocupacionService.rangosPlantilla(c.id, MIERCOLES);
+    const fuera = await ocupacionService.rangosPlantilla(c.id, '2026-08-12');
+    expect(dentro.some((r) => r.tipo === 'fijo')).toBe(true);
+    expect(fuera.some((r) => r.tipo === 'fijo')).toBe(false);
   });
 
   it('un fijo sin abono expone conAbono false y abonoHasta null en la agenda', async () => {
@@ -121,14 +142,39 @@ describe('el backend expone el dato para el aviso', () => {
 });
 
 describe('renovación de un fijo con abono', () => {
-  it('borrar un fijo con abono cobrado da 422 (BusinessRule), no 500', async () => {
+  it('borrar un fijo con abono cobrado se puede y conserva el cobro en la caja como abono', async () => {
     const c = await crearCancha();
     const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-07-01', vigenciaHasta: '2026-07-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
     const res = await supertest(app).delete(`/turnos-fijos/${fijo.body.id}`).set('authorization', `Bearer ${token}`);
-    expect(res.status).toBe(422);
-    expect(res.body.error.message).toMatch(/desactiv/i);
-    // No lo borró.
-    expect(await getPrisma().turnoFijo.findUnique({ where: { id: fijo.body.id } })).not.toBeNull();
+    expect(res.status).toBe(200);
+    expect(await getPrisma().turnoFijo.findUnique({ where: { id: fijo.body.id } })).toBeNull();
+
+    // El cobro sigue ahí: sin destino, pero marcado como ABONO.
+    const cobros = await getPrisma().cobro.findMany();
+    expect(cobros).toHaveLength(1);
+    expect(cobros[0].turnoFijoId).toBeNull();
+    expect(cobros[0].origen).toBe('ABONO');
+    expect(Number(cobros[0].monto)).toBe(120000);
+
+    // Y la caja lo sigue contando como abono (no como turno).
+    const caja = await supertest(app).get('/caja').set('authorization', `Bearer ${token}`);
+    expect(caja.status).toBe(200);
+    expect(caja.body.total).toBe(120000);
+    expect(caja.body.porConcepto.abonos).toBe(120000);
+    expect(caja.body.porConcepto.turnos).toBe(0);
+    expect(caja.body.cobros[0].concepto).toBe('ABONO');
+  });
+
+  it('borrar un fijo con abono no borra las reservas ya materializadas: quedan sueltas', async () => {
+    const c = await crearCancha();
+    const fijo = await altaFijo(c.id, { vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-08-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
+    const mat = await supertest(app).post(`/turnos-fijos/${fijo.body.id}/materializar`).set('x-api-key', 'svc').send({ fecha: MIERCOLES });
+    expect(mat.status).toBe(201);
+    const res = await supertest(app).delete(`/turnos-fijos/${fijo.body.id}`).set('authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const reserva = await getPrisma().reserva.findUnique({ where: { id: mat.body.id } });
+    expect(reserva).not.toBeNull();
+    expect(reserva!.turnoFijoId).toBeNull();
   });
 
   it('borrar un fijo SIN abono sigue funcionando (regresión)', async () => {
@@ -162,11 +208,18 @@ describe('renovación de un fijo con abono', () => {
     expect(nuevo.status).toBe(201);
   });
 
-  it('sin desactivar, el mismo horario sigue chocando con 409 (regresión)', async () => {
+  it('con períodos que se solapan, el mismo horario sigue chocando con 409 (regresión)', async () => {
     const c = await crearCancha();
     await altaFijo(c.id, { vigenciaDesde: '2026-07-01', vigenciaHasta: '2026-07-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
-    const otro = await altaFijo(c.id, { vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-08-31', montoAbono: 130000, medioAbono: 'EFECTIVO' });
+    const otro = await altaFijo(c.id, { vigenciaDesde: '2026-07-15', vigenciaHasta: '2026-08-15', montoAbono: 130000, medioAbono: 'EFECTIVO' });
     expect(otro.status).toBe(409);
+  });
+
+  it('renovar sin desactivar: el período siguiente en el mismo horario no choca', async () => {
+    const c = await crearCancha();
+    await altaFijo(c.id, { vigenciaDesde: '2026-07-01', vigenciaHasta: '2026-07-31', montoAbono: 120000, medioAbono: 'EFECTIVO' });
+    const renovacion = await altaFijo(c.id, { vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-08-31', montoAbono: 130000, medioAbono: 'EFECTIVO' });
+    expect(renovacion.status).toBe(201);
   });
 });
 
@@ -213,5 +266,111 @@ describe('el alta con abono sobrevive a un admin borrado', () => {
     const cobros = await getPrisma().cobro.findMany({ where: { turnoFijoId: res.body.id } });
     expect(cobros).toHaveLength(1);
     expect(cobros[0].registradoPorId).toBeNull();
+  });
+});
+
+describe('pago parcial del abono', () => {
+  const ABONO = { vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-08-31', montoAbono: 100000, medioAbono: 'EFECTIVO' };
+  const altaConPago = (canchaId: string, montoPagado?: number) =>
+    supertest(app).post('/turnos-fijos').set('authorization', `Bearer ${token}`)
+      .send({ canchaId, clienteNombre: 'Ana', whatsapp: '1136620274', diaSemana: 3, horaInicio: '20:00', horaFin: '21:00', ...ABONO, ...(montoPagado != null ? { montoPagado } : {}) });
+  const cobrosDe = (id: string) => supertest(app).get(`/turnos-fijos/${id}/cobros`).set('authorization', `Bearer ${token}`);
+  const pagar = (id: string, monto: number, medio = 'TRANSFERENCIA') =>
+    supertest(app).post(`/turnos-fijos/${id}/cobros`).set('authorization', `Bearer ${token}`).send({ monto, medio });
+
+  it('sin montoPagado se cobra el total, como siempre (compatibilidad)', async () => {
+    const c = await crearCancha();
+    const res = await altaConPago(c.id);
+    expect(res.status).toBe(201);
+    const r = await cobrosDe(res.body.id);
+    expect(r.body).toMatchObject({ monto: 100000, pagado: 100000, saldo: 0 });
+  });
+
+  it('con montoPagado menor registra solo esa parte y queda saldo', async () => {
+    const c = await crearCancha();
+    const res = await altaConPago(c.id, 50000);
+    expect(res.status).toBe(201);
+    const r = await cobrosDe(res.body.id);
+    expect(r.body).toMatchObject({ monto: 100000, pagado: 50000, saldo: 50000 });
+    expect(r.body.cobros).toHaveLength(1);
+  });
+
+  it('con montoPagado 0 no crea ningún cobro y el saldo es el total', async () => {
+    const c = await crearCancha();
+    const res = await altaConPago(c.id, 0);
+    expect(res.status).toBe(201);
+    expect(await getPrisma().cobro.count({ where: { turnoFijoId: res.body.id } })).toBe(0);
+    const r = await cobrosDe(res.body.id);
+    expect(r.body).toMatchObject({ monto: 100000, pagado: 0, saldo: 100000 });
+  });
+
+  it('rechaza un montoPagado mayor al abono (400 por validación)', async () => {
+    const c = await crearCancha();
+    const res = await altaConPago(c.id, 100001);
+    expect(res.status).toBe(400);
+    expect(await getPrisma().turnoFijo.count()).toBe(0);
+  });
+
+  it('se puede pagar el resto después, en una o más cuotas, y todo cuenta como abono en caja', async () => {
+    const c = await crearCancha();
+    const fijo = await altaConPago(c.id, 40000);
+    const p1 = await pagar(fijo.body.id, 30000);
+    expect(p1.status).toBe(201);
+    expect(p1.body).toMatchObject({ pagado: 70000, saldo: 30000 });
+    const p2 = await pagar(fijo.body.id, 30000, 'EFECTIVO');
+    expect(p2.status).toBe(201);
+    expect(p2.body).toMatchObject({ pagado: 100000, saldo: 0 });
+
+    const caja = await supertest(app).get('/caja').set('authorization', `Bearer ${token}`);
+    expect(caja.body.total).toBe(100000);
+    expect(caja.body.porConcepto.abonos).toBe(100000);
+    expect(caja.body.porConcepto.turnos).toBe(0);
+  });
+
+  it('un pago que supera el saldo da 422 y no registra nada', async () => {
+    const c = await crearCancha();
+    const fijo = await altaConPago(c.id, 60000);
+    const res = await pagar(fijo.body.id, 40001);
+    expect(res.status).toBe(422);
+    expect(res.body.error.message).toMatch(/saldo|faltan/i);
+    expect(await getPrisma().cobro.count({ where: { turnoFijoId: fijo.body.id } })).toBe(1);
+  });
+
+  it('con el abono ya pago por completo no deja cobrar más', async () => {
+    const c = await crearCancha();
+    const fijo = await altaConPago(c.id);
+    const res = await pagar(fijo.body.id, 1);
+    expect(res.status).toBe(422);
+  });
+
+  it('un fijo sin abono no admite cobros', async () => {
+    const c = await crearCancha();
+    const fijo = await altaFijo(c.id);
+    const res = await pagar(fijo.body.id, 1000);
+    expect(res.status).toBe(422);
+  });
+
+  it('el listado de fijos informa cuánto se cobró del abono', async () => {
+    const c = await crearCancha();
+    await altaConPago(c.id, 25000);
+    const res = await supertest(app).get('/turnos-fijos').set('authorization', `Bearer ${token}`);
+    expect(res.body[0]).toMatchObject({ montoAbono: 100000, abonoPagado: 25000 });
+  });
+
+  it('cobrar el abono exige JWT de staff (no se abre a la clave de servicio)', async () => {
+    const c = await crearCancha();
+    const fijo = await altaConPago(c.id, 10000);
+    const conApiKey = await supertest(app).post(`/turnos-fijos/${fijo.body.id}/cobros`).set('x-api-key', 'svc').send({ monto: 1000, medio: 'EFECTIVO' });
+    expect(conApiKey.status).toBe(401);
+  });
+
+  it('anular un pago del abono (DELETE /cobros/:id) vuelve a sumar al saldo', async () => {
+    const c = await crearCancha();
+    const fijo = await altaConPago(c.id, 50000);
+    const cobro = (await cobrosDe(fijo.body.id)).body.cobros[0];
+    const del = await supertest(app).delete(`/cobros/${cobro.id}`).set('authorization', `Bearer ${token}`);
+    expect(del.status).toBe(200);
+    const r = await cobrosDe(fijo.body.id);
+    expect(r.body).toMatchObject({ pagado: 0, saldo: 100000 });
   });
 });

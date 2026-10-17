@@ -22,6 +22,15 @@ describe('expandirSemana', () => {
     expect(out.some((c) => c.fecha === '2026-06-30')).toBe(false); // no es martes
   });
 
+  it('un fijo con período vencido no aparece después de su "hasta" (inclusive) ni antes de su "desde"', () => {
+    const vencido = expandirSemana({ reservas: [], fijos: [fijo({ vigenciaHasta: '2026-06-28' })], bloqueos: [] }, dias, horas, TZ);
+    expect(vencido.length).toBe(0);
+    const ultimoDia = expandirSemana({ reservas: [], fijos: [fijo({ vigenciaHasta: '2026-06-29' })], bloqueos: [] }, dias, horas, TZ);
+    expect(ultimoDia.length).toBe(2);
+    const futuro = expandirSemana({ reservas: [], fijos: [fijo({ vigenciaDesde: '2026-06-30' })], bloqueos: [] }, dias, horas, TZ);
+    expect(futuro.length).toBe(0);
+  });
+
   it('una excepción en esa fecha excluye el fijo', () => {
     const out = expandirSemana({ reservas: [], fijos: [fijo({ excepciones: ['2026-06-29'] })], bloqueos: [] }, dias, horas, TZ);
     expect(out.length).toBe(0);

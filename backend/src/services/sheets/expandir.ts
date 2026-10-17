@@ -4,6 +4,8 @@ import type { ReservaCelda, TipoTurno } from './grilla.js';
 export interface FijoInput {
   canchaId: string; clienteNombre: string; diaSemana: number;
   horaInicio: string; horaFin: string; precio: number | null; excepciones: string[];
+  /** Período del fijo ('YYYY-MM-DD', inclusivo). Fuera de él no ocupa la celda. */
+  vigenciaDesde?: string | null; vigenciaHasta?: string | null;
 }
 export interface BloqueoInput {
   canchaId: string; motivo: 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO';
@@ -44,6 +46,7 @@ export function expandirSemana(input: ExpandInput, dias: { dia: string; fecha: s
     const dow = dayOfWeekInTz(fecha, tz);
     for (const f of input.fijos) {
       if (f.diaSemana !== dow || f.excepciones.includes(fecha)) continue;
+      if ((f.vigenciaDesde && fecha < f.vigenciaDesde) || (f.vigenciaHasta && fecha > f.vigenciaHasta)) continue;
       expandir(f.canchaId, fecha, f.horaInicio, f.horaFin, (hora) => ({
         canchaId: f.canchaId, fecha, hora, cliente: f.clienteNombre,
         monto: Number(f.precio ?? 0), pagado: 0, tipo: 'fijo',

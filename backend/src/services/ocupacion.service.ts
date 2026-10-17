@@ -1,7 +1,8 @@
 import { prisma } from '../db/prisma.js';
 import { getEnv } from '../config/env.js';
-import { dayOfWeekInTz, hhmmAMin, minutoDeJornada, sumarDias } from '../utils/tz.js';
+import { dayOfWeekInTz, hhmmAMin, hoyEnTz, minutoDeJornada, sumarDias } from '../utils/tz.js';
 import { configService } from './config.service.js';
+import { fijoVigenteEn, periodosSeSolapan } from './turnoFijo.vigencia.js';
 
 // minutos AR (diaSemana + minuto del día) de un timestamp.
 function partesAr(d: Date, tz: string) {
@@ -44,7 +45,8 @@ export const ocupacionService = {
       where: { canchaId: { in: canchas }, activo: true, diaSemana: dia },
       include: { excepciones: { where: { fecha: fechaDate } } },
     });
-    for (const f of fijos) if (f.excepciones.length === 0) out.push({ ini: minutoDeJornada(f.horaInicio, apertura), fin: minutoDeJornada(f.horaFin, apertura), tipo: 'fijo' });
+    // Fuera de su período (pasado el "hasta" o antes del "desde") el fijo no ocupa el horario.
+    for (const f of fijos) if (f.excepciones.length === 0 && fijoVigenteEn(f, fecha)) out.push({ ini: minutoDeJornada(f.horaInicio, apertura), fin: minutoDeJornada(f.horaFin, apertura), tipo: 'fijo' });
 
     const bloqueos = await prisma.bloqueo.findMany({
       where: { canchaId: { in: canchas }, activo: true, OR: [{ recurrente: true, diaSemana: dia }, { recurrente: false, fecha: fechaDate }] },
@@ -63,7 +65,10 @@ export const ocupacionService = {
 
   // Para crear un fijo/bloqueo: ¿pisa un alquiler futuro activo o un fijo/bloqueo existente?
   // match: recurrente => por diaSemana; puntual => por fecha exacta.
-  async conflictoAlCrear(canchaId: string, opts: { diaSemana?: number; fecha?: string }, iniMin: number, finMin: number): Promise<boolean> {
+  // `opts.vigencia` es el período del fijo que se está creando: solo choca con los fijos cuyo
+  // período se solape con el suyo, así renovar un fijo vencido (o consecutivo) en el mismo
+  // horario no da 409. Sin "desde" el nuevo fijo empieza hoy, no en el pasado infinito.
+  async conflictoAlCrear(canchaId: string, opts: { diaSemana?: number; fecha?: string; vigencia?: { desde?: string; hasta?: string } }, iniMin: number, finMin: number): Promise<boolean> {
     const tz = getEnv().TZ_NEGOCIO;
     const cfg = await configService.get();
     const canchas = await ocupacionService.canchasRelacionadas(canchaId);
@@ -74,7 +79,12 @@ export const ocupacionService = {
     } else if (opts.diaSemana != null) {
       const esFinde = opts.diaSemana === 0 || opts.diaSemana === 6;
       const apertura = esFinde ? cfg.horaAperturaFinde : cfg.horaApertura;
-      const fijos = await prisma.turnoFijo.findMany({ where: { canchaId: { in: canchas }, activo: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true } });
+      const nuevo = { desde: opts.vigencia?.desde ?? hoyEnTz(tz), hasta: opts.vigencia?.hasta ?? null };
+      const fijosTodos = await prisma.turnoFijo.findMany({ where: { canchaId: { in: canchas }, activo: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true, vigenciaDesde: true, vigenciaHasta: true } });
+      const fijos = fijosTodos.filter((f) => periodosSeSolapan(
+        { desde: f.vigenciaDesde ? f.vigenciaDesde.toISOString().slice(0, 10) : null, hasta: f.vigenciaHasta ? f.vigenciaHasta.toISOString().slice(0, 10) : null },
+        nuevo,
+      ));
       const bloqs = await prisma.bloqueo.findMany({ where: { canchaId: { in: canchas }, activo: true, recurrente: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true } });
       const tpl = [...fijos, ...bloqs];
       if (tpl.some((x) => minutoDeJornada(x.horaInicio, apertura) < finMin && iniMin < minutoDeJornada(x.horaFin, apertura))) return true;

@@ -92,6 +92,8 @@ export async function dataSemana() {
     horaInicio: f.horaInicio, horaFin: f.horaFin,
     precio: f.precio == null ? null : Number(f.precio),
     excepciones: f.excepciones.map((e) => e.fecha.toISOString().slice(0, 10)),
+    vigenciaDesde: f.vigenciaDesde ? f.vigenciaDesde.toISOString().slice(0, 10) : null,
+    vigenciaHasta: f.vigenciaHasta ? f.vigenciaHasta.toISOString().slice(0, 10) : null,
   }));
 
   const bloqueosDb = await prisma.bloqueo.findMany({ where: { activo: true }, include: { excepciones: true } });

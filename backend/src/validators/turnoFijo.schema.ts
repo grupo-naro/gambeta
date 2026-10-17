@@ -25,6 +25,8 @@ export const crearTurnoFijoSchema = z.object({
     vigenciaHasta: fechaYmd.optional(),
     montoAbono: z.coerce.number().positive().max(99999999.99).optional(),
     medioAbono: z.enum(['EFECTIVO', 'TRANSFERENCIA']).optional(),
+    // Cuánto pagó en el alta. Sin él se asume que pagó el total del abono. 0 = todavía no pagó.
+    montoPagado: z.coerce.number().min(0).max(99999999.99).optional(),
   })
     // `cierreMin` y no comparación de texto: "00:00" es el FIN del día (1440). `agenda.service`
     // y `turnoFijo.service` ya calculan la duración con `cierreMin(horaFin)` justamente para el
@@ -36,7 +38,11 @@ export const crearTurnoFijoSchema = z.object({
       return puestos === 0 || puestos === 4;
     }, { message: 'El abono necesita desde, hasta, monto y medio de pago', path: ['montoAbono'] })
     .refine((b) => !b.vigenciaDesde || !b.vigenciaHasta || b.vigenciaDesde <= b.vigenciaHasta,
-      { message: 'El período del abono está invertido', path: ['vigenciaHasta'] }),
+      { message: 'El período del abono está invertido', path: ['vigenciaHasta'] })
+    .refine((b) => b.montoPagado == null || b.montoAbono != null,
+      { message: 'No se puede informar un pago sin abono', path: ['montoPagado'] })
+    .refine((b) => b.montoPagado == null || b.montoAbono == null || b.montoPagado <= b.montoAbono,
+      { message: 'El pago no puede superar el monto del abono', path: ['montoPagado'] }),
   query: empty, params: empty,
 });
 export const excepcionSchema = z.object({

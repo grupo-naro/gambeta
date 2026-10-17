@@ -10,6 +10,22 @@ export const cobroRepo = {
       orderBy: { creadoEn: 'asc' },
       include: { registradoPor: { select: { nombre: true } } },
     }),
+  listByTurnoFijo: (turnoFijoId: string) =>
+    prisma.cobro.findMany({
+      where: { turnoFijoId },
+      orderBy: { creadoEn: 'asc' },
+      include: { registradoPor: { select: { nombre: true } } },
+    }),
+  sumByTurnoFijo: async (turnoFijoId: string) => {
+    const r = await prisma.cobro.aggregate({ where: { turnoFijoId }, _sum: { monto: true } });
+    return Number(r._sum.monto ?? 0);
+  },
+  /** Cobrado por fijo, para una lista de fijos de una sola vez (evita una consulta por fila). */
+  sumByTurnoFijos: async (ids: string[]) => {
+    if (ids.length === 0) return new Map<string, number>();
+    const rows = await prisma.cobro.groupBy({ by: ['turnoFijoId'], where: { turnoFijoId: { in: ids } }, _sum: { monto: true } });
+    return new Map(rows.map((r) => [r.turnoFijoId as string, Number(r._sum.monto ?? 0)]));
+  },
   findById: (id: string) => prisma.cobro.findUnique({ where: { id } }),
   remove: (id: string) => prisma.cobro.delete({ where: { id } }),
   sumByReserva: async (reservaId: string) => {

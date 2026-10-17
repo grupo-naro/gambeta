@@ -17,9 +17,11 @@ export const cajaService = {
       total += m;
       porMedio[c.medio] += m;
       // Un cobro pertenece a una reserva, a una suscripción o a un turno fijo (abono) —
-      // constraint cobro_destino_unico, "exactamente uno de los tres".
+      // constraint cobro_destino_unico, "exactamente uno de los tres". La excepción es el abono
+      // de un fijo que ya se eliminó: queda sin destino, y por eso el abono se reconoce también
+      // por `origen` y no solo por `turnoFijoId`.
       if (c.suscripcionId) porConcepto.cuotas += m;
-      else if (c.turnoFijoId) porConcepto.abonos += m;
+      else if (c.turnoFijoId || c.origen === 'ABONO') porConcepto.abonos += m;
       else porConcepto.turnos += m;
       const ca = c.reserva?.cancha;
       if (ca) {
@@ -40,7 +42,7 @@ export const cajaService = {
         creadoEn: c.creadoEn,
         monto: Number(c.monto),
         medio: c.medio,
-        concepto: c.suscripcionId ? ('CUOTA' as const) : c.turnoFijoId ? ('ABONO' as const) : ('TURNO' as const),
+        concepto: c.suscripcionId ? ('CUOTA' as const) : c.turnoFijoId || c.origen === 'ABONO' ? ('ABONO' as const) : ('TURNO' as const),
         cancha: c.reserva?.cancha?.nombre ?? '-',
         cliente: c.reserva?.cliente?.nombre ?? c.suscripcion?.cliente?.nombre ?? c.turnoFijo?.clienteNombre ?? '-',
         registradoPor: c.registradoPor?.nombre ?? 'Sistema',

@@ -4,6 +4,7 @@ import { dayOfWeekInTz, jornadaWindowUtc, hhmmAMin, cierreMin } from '../utils/t
 import { precioDeRango } from './precio.service.js';
 import { configService } from './config.service.js';
 import { reservaService } from './reserva.service.js';
+import { fijoVigenteEn } from './turnoFijo.vigencia.js';
 
 export const agendaService = {
   async delDia(fecha: string) {
@@ -50,7 +51,8 @@ export const agendaService = {
       include: { cancha: true, excepciones: { where: { fecha: fechaDate } } },
     });
     const fijos = fijosRaw
-      .filter((f) => f.excepciones.length === 0 && !yaMat.has(f.id))
+      // Pasado el "hasta" del período, el fijo ya no figura (solo vuelve si el cliente renueva).
+      .filter((f) => f.excepciones.length === 0 && !yaMat.has(f.id) && fijoVigenteEn(f, fecha))
       .map((f) => ({
         turnoFijoId: f.id,
         canchaId: f.canchaId,

@@ -4,6 +4,7 @@ import { authAny } from '../middlewares/authAny.js';
 import { validate } from '../middlewares/validate.js';
 import { turnoFijoService } from '../services/turnoFijo.service.js';
 import { crearTurnoFijoSchema, excepcionSchema, idFijoParamSchema, liberarFijoSchema, materializarFijoSchema, misFijosSchema } from '../validators/turnoFijo.schema.js';
+import { crearCobroSchema } from '../validators/cobro.schema.js';
 import { auditService } from '../services/audit.service.js';
 import { prisma } from '../db/prisma.js';
 import { reservaService } from '../services/reserva.service.js';
@@ -22,6 +23,19 @@ turnoFijoRoutes.post('/', authJwt, validate(crearTurnoFijoSchema), async (req, r
     const f = await turnoFijoService.crear(body, adminId);
     await auditService.log(req, { accion: 'CREAR', entidad: 'TurnoFijo', entidadId: f.id, descripcion: 'Creó turno fijo de ' + body.clienteNombre });
     res.status(201).json(f);
+  } catch (e) { next(e); }
+});
+// Cobros del abono del fijo: pagado/saldo y el alta de un pago más (la segunda mitad, una cuota).
+// Solo staff (authJwt): son plata. Anular un cobro usa el mismo DELETE /cobros/:id que las reservas.
+turnoFijoRoutes.get('/:id/cobros', authJwt, validate(idFijoParamSchema), async (req, res, next) => {
+  try { res.json(await turnoFijoService.listarCobros(String(req.params.id))); } catch (e) { next(e); }
+});
+turnoFijoRoutes.post('/:id/cobros', authJwt, validate(crearCobroSchema), async (req, res, next) => {
+  try {
+    const adminId = req.principal?.kind === 'admin' ? req.principal.adminId : null;
+    const r = await turnoFijoService.registrarCobro(String(req.params.id), (req as any).valid.body, adminId);
+    await auditService.log(req, { accion: 'CREAR', entidad: 'Cobro', entidadId: r.cobro.id, descripcion: `Registró un pago de $${r.cobro.monto} del abono de un turno fijo` });
+    res.status(201).json(r);
   } catch (e) { next(e); }
 });
 turnoFijoRoutes.post('/liberar', authAny, validate(liberarFijoSchema), async (req, res, next) => {

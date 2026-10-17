@@ -125,8 +125,9 @@ model TurnoFijo {
   /// Se conserva porque la lista del panel todavía lo muestra. Para el abono existe `montoAbono`.
   precio        Decimal?             @db.Decimal(10, 2)
   /// Abono: período pagado y su monto. Los tres van juntos o ninguno. Si están, los turnos
-  /// de este fijo se materializan en $0. El período NO corta la generación: vencido, el fijo
-  /// sigue generando turnos y solo se enciende un aviso en el panel.
+  /// de este fijo se materializan en $0. El período SÍ corta el fijo: pasado `vigenciaHasta`
+  /// (inclusive) deja de ocupar el horario, de figurar en la agenda y de poder materializarse;
+  /// antes de `vigenciaDesde` tampoco. Para renovar se da de alta un fijo nuevo.
   vigenciaDesde DateTime?            @db.Date
   vigenciaHasta DateTime?            @db.Date
   montoAbono    Decimal?             @db.Decimal(10, 2)
@@ -358,7 +359,9 @@ model Cobro {
   suscripcionId   String?
   suscripcion     Suscripcion? @relation(fields: [suscripcionId], references: [id], onDelete: Restrict)
   turnoFijoId     String?
-  turnoFijo       TurnoFijo?   @relation(fields: [turnoFijoId], references: [id], onDelete: Restrict)
+  /// Al eliminar el fijo el abono se conserva en la caja: queda sin destino y con origen 'ABONO'
+  /// (el CHECK cobro_destino_unico admite ese caso). La caja lo clasifica por `origen`.
+  turnoFijo       TurnoFijo?   @relation(fields: [turnoFijoId], references: [id], onDelete: SetNull)
   monto           Decimal      @db.Decimal(10, 2)
   medio           MedioPago
   origen          String       @default("MANUAL")
