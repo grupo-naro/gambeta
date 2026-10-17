@@ -6,7 +6,7 @@ import type { CobrosReserva, MedioPago } from './types';
 
 type Result = { ok: true } | { ok: false; error: string };
 async function run(fn: () => Promise<unknown>): Promise<Result> {
-  try { await fn(); revalidatePath('/reservas'); revalidatePath('/caja'); return { ok: true }; }
+  try { await fn(); revalidatePath('/reservas'); revalidatePath('/caja'); revalidatePath('/turnos-fijos'); return { ok: true }; }
   catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }
 
@@ -15,6 +15,13 @@ export async function getCobros(reservaId: string): Promise<CobrosReserva> {
 }
 export async function registrarCobro(reservaId: string, input: { monto: number; medio: MedioPago }): Promise<Result> {
   return run(() => apiFetch(`/reservas/${reservaId}/cobros`, { method: 'POST', body: JSON.stringify(input) }));
+}
+// Cobros del abono de un turno fijo: misma forma que los de una reserva (total, pagado, saldo).
+export async function getCobrosFijo(fijoId: string): Promise<CobrosReserva> {
+  return apiFetch<CobrosReserva>(`/turnos-fijos/${fijoId}/cobros`);
+}
+export async function registrarCobroFijo(fijoId: string, input: { monto: number; medio: MedioPago }): Promise<Result> {
+  return run(() => apiFetch(`/turnos-fijos/${fijoId}/cobros`, { method: 'POST', body: JSON.stringify(input) }));
 }
 export async function anularCobro(id: string): Promise<Result> {
   return run(() => apiFetch(`/cobros/${id}`, { method: 'DELETE' }));

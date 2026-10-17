@@ -36,7 +36,11 @@ export function TurnoFijoDialog({
   const [vigenciaHasta, setVigenciaHasta] = useState('');
   const [montoAbono, setMontoAbono] = useState('');
   const [medioAbono, setMedioAbono] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO');
+  // Por defecto paga todo el abono. Si no, se carga cuánto pagó ahora y el resto queda de saldo.
+  const [pagoParcial, setPagoParcial] = useState(false);
+  const [montoPagado, setMontoPagado] = useState('');
   const [pending, start] = useTransition();
+  const saldoAbono = Math.max(0, Number(montoAbono || 0) - Number(montoPagado || 0));
 
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
@@ -51,6 +55,8 @@ export function TurnoFijoDialog({
       setVigenciaHasta('');
       setMontoAbono('');
       setMedioAbono('EFECTIVO');
+      setPagoParcial(false);
+      setMontoPagado('');
     }
     onOpenChange(nextOpen);
   }
@@ -66,12 +72,21 @@ export function TurnoFijoDialog({
       if (vigenciaDesde > vigenciaHasta) { toast.error('El período del abono está invertido'); return; }
       const monto = Number(montoAbono);
       if (!montoAbono || !(monto > 0)) { toast.error('Ingresá el monto del abono'); return; }
+      if (pagoParcial) {
+        // Vacío no vale: "no pagó nada" se carga como 0 a propósito, para no confundirlo con un olvido.
+        if (montoPagado.trim() === '' || !(Number(montoPagado) >= 0)) { toast.error('Ingresá cuánto pagó ahora (0 si todavía no pagó)'); return; }
+        if (Number(montoPagado) > monto) { toast.error('Lo pagado no puede superar el monto del abono'); return; }
+      }
     }
     start(async () => {
       // Los cuatro campos van juntos y solo si el abono está activado: mandarlos vacíos hace
       // fallar el validador del backend, que exige los cuatro o ninguno.
       const abono = conAbono
-        ? { vigenciaDesde, vigenciaHasta, montoAbono: Number(montoAbono), medioAbono }
+        ? {
+            vigenciaDesde, vigenciaHasta, montoAbono: Number(montoAbono), medioAbono,
+            // Sin montoPagado el backend asume que pagó el total.
+            ...(pagoParcial ? { montoPagado: Number(montoPagado) } : {}),
+          }
         : {};
       const r = await crearTurnoFijo({ ...parsed.data, ...abono });
       if (r.ok) { toast.success('Turno fijo creado'); onOpenChange(false); }
@@ -129,6 +144,10 @@ export function TurnoFijoDialog({
               <p className="text-xs text-muted-foreground">
                 Los turnos de este fijo van a salir $0. El abono se registra como cobro al guardar.
               </p>
+              <p className="text-xs text-muted-foreground">
+                El turno solo figura dentro de este período: pasado el &quot;Hasta&quot; (inclusive) deja de
+                aparecer y el horario queda libre. Para seguir, renovalo cargando un fijo nuevo.
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="abono-desde">Desde</Label>
@@ -150,6 +169,19 @@ export function TurnoFijoDialog({
                   </select>
                 </div>
               </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={pagoParcial} onChange={(e) => setPagoParcial(e.target.checked)} />
+                Pagó solo una parte (el resto lo paga después)
+              </label>
+              {pagoParcial && (
+                <div className="space-y-1">
+                  <Label htmlFor="abono-pagado">Pagó ahora</Label>
+                  <Input id="abono-pagado" type="number" min={0} value={montoPagado} onChange={(e) => setMontoPagado(e.target.value)} placeholder="0 si todavía no pagó" />
+                  <p className="text-xs text-muted-foreground">
+                    Saldo pendiente: ${saldoAbono.toLocaleString('es-AR')}. Después lo registrás desde el turno fijo, en &quot;Cobros del abono&quot;.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

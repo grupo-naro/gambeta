@@ -23,6 +23,8 @@ type FijoInput = {
   canchaId: string; clienteNombre: string; whatsapp: string; diaSemana: number; horaInicio: string; horaFin: string;
   // Los cuatro van juntos: el llamador solo los incluye si el abono está activado.
   vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
+  // Cuánto pagó ahora del abono. Sin él el backend asume que pagó el total.
+  montoPagado?: number;
 };
 
 export async function crearTurnoFijo(i: FijoInput): Promise<Result> {

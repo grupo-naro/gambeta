@@ -65,6 +65,8 @@ export interface TurnoFijo {
   vigenciaDesde?: string | null;
   vigenciaHasta?: string | null;
   montoAbono?: number | null;
+  /** Lo cobrado del abono hasta ahora (null si el fijo no tiene abono). Saldo = montoAbono - abonoPagado. */
+  abonoPagado?: number | null;
 }
 export type MotivoBloqueo = 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO';
 export interface Bloqueo {

@@ -8,13 +8,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CobrosReserva, MedioPago } from '@/lib/types';
 import { cobroSchema } from '@/lib/validators';
-import { getCobros, registrarCobro, anularCobro } from '@/lib/cobros-actions';
+import { getCobros, registrarCobro, anularCobro, getCobrosFijo, registrarCobroFijo } from '@/lib/cobros-actions';
 import { useConfirm } from '@/components/ui/confirm';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
-export function CobrosDialog({ reservaId, open, onOpenChange }: { reservaId: string | null; open: boolean; onOpenChange: (o: boolean) => void }) {
+/**
+ * Cobros de una reserva o, si se pasa `fijoId`, del abono de un turno fijo: las dos cosas tienen
+ * total / pagado / saldo y se cobran en partes, así que comparten pantalla.
+ */
+export function CobrosDialog({ reservaId, fijoId, open, onOpenChange }: { reservaId?: string | null; fijoId?: string | null; open: boolean; onOpenChange: (o: boolean) => void }) {
   const router = useRouter();
+  const esFijo = !!fijoId;
+  const destinoId = fijoId ?? reservaId ?? null;
+  const cargar = esFijo ? getCobrosFijo : getCobros;
+  const cobrar = esFijo ? registrarCobroFijo : registrarCobro;
   const [data, setData] = useState<CobrosReserva | null>(null);
   const [monto, setMonto] = useState('');
   const [medio, setMedio] = useState<MedioPago>('EFECTIVO');
@@ -22,27 +30,27 @@ export function CobrosDialog({ reservaId, open, onOpenChange }: { reservaId: str
   const confirm = useConfirm();
 
   useEffect(() => {
-    if (!open || !reservaId) return;
+    if (!open || !destinoId) return;
     let cancelled = false;
-    getCobros(reservaId)
+    cargar(destinoId)
       .then((d) => { if (!cancelled) setData(d); })
       .catch(() => { if (!cancelled) toast.error('No pude cargar los cobros'); });
     return () => { cancelled = true; };
-  }, [open, reservaId]);
+  }, [open, destinoId, cargar]);
 
   function handleOpenChange(next: boolean) {
     if (!next) { setData(null); setMonto(''); }
     onOpenChange(next);
   }
 
-  function refrescar() { if (reservaId) getCobros(reservaId).then(setData).catch(() => {}); router.refresh(); }
+  function refrescar() { if (destinoId) cargar(destinoId).then(setData).catch(() => {}); router.refresh(); }
 
   function registrar() {
     const parsed = cobroSchema.safeParse({ monto, medio });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     start(async () => {
-      if (!reservaId) return;
-      const r = await registrarCobro(reservaId, parsed.data);
+      if (!destinoId) return;
+      const r = await cobrar(destinoId, parsed.data);
       if (r.ok) { toast.success('Cobro registrado'); setMonto(''); refrescar(); } else toast.error(r.error);
     });
   }
@@ -53,7 +61,7 @@ export function CobrosDialog({ reservaId, open, onOpenChange }: { reservaId: str
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Cobros</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{esFijo ? 'Cobros del abono' : 'Cobros'}</DialogTitle></DialogHeader>
         {data ? (
           <div className="space-y-3 text-sm">
             <div className="flex gap-4 rounded-lg bg-neutral-50 p-3">
