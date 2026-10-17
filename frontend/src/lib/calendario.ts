@@ -138,6 +138,9 @@ export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqu
     for (const f of fijos) {
       if (!f.activo || f.diaSemana !== wd) continue;
       if (f.excepciones?.some((e) => e.fecha.slice(0, 10) === dia)) continue;
+      // Fuera de su período (pasado el "hasta" o antes del "desde", ambos inclusivos) el fijo no
+      // existe ese día. Misma regla que el backend (`fijoVigenteEn`): las fechas son 'YYYY-MM-DD'.
+      if ((f.vigenciaDesde && dia < f.vigenciaDesde) || (f.vigenciaHasta && dia > f.vigenciaHasta)) continue;
       if (matPorDia?.get(dia)?.has(f.id)) continue;
       // minutoDeJornada (no aMin crudo): un fijo que cierra a medianoche (horaFin "00:00")
       // pertenece al minuto 1440 de la jornada, no al 0 — si no, fin < ini y el fijo desaparece.

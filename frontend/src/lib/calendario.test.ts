@@ -136,6 +136,28 @@ describe('materializar', () => {
     expect(ev).toHaveLength(0);
   });
 
+  // El período ("Desde / Hasta") corta el fijo: el calendario lo expande acá en el navegador, así
+  // que tiene que respetarlo igual que el backend (si no, "hoy" lo oculta y el calendario no).
+  it('pasado el "hasta" el fijo ya no se dibuja, pero el último día (inclusive) sí', () => {
+    const wed = diaCon(3); // 2026-06-10
+    const fijo = { ...fijoBase, diaSemana: 3, vigenciaHasta: wed };
+    expect(materializar(dias, [fijo], []).filter((e) => e.fecha === wed)).toHaveLength(2);
+    const semanaSiguiente = semanaDe('2026-06-15').dias;
+    expect(materializar(semanaSiguiente, [fijo], [])).toHaveLength(0);
+  });
+
+  it('antes del "desde" el fijo todavía no se dibuja', () => {
+    const wed = diaCon(3);
+    const fijo = { ...fijoBase, diaSemana: 3, vigenciaDesde: '2026-06-17' };
+    expect(materializar(dias, [fijo], [])).toHaveLength(0);
+    expect(materializar(semanaDe('2026-06-15').dias, [{ ...fijo, vigenciaDesde: wed }], [])).toHaveLength(2);
+  });
+
+  it('un fijo con período null (sin abono) se dibuja siempre', () => {
+    const ev = materializar(dias, [{ ...fijoBase, diaSemana: 3, vigenciaDesde: null, vigenciaHasta: null }], []);
+    expect(ev).toHaveLength(2);
+  });
+
   it('un bloqueo puntual aparece sólo en su fecha', () => {
     const mar = diaCon(2);
     const b: Bloqueo = { id: 'b1', canchaId: 'c1', motivo: 'TORNEO', recurrente: false, diaSemana: null, fecha: mar, horaInicio: '19:00', horaFin: '21:00', nota: null, cancha: { nombre: 'C1' } };
