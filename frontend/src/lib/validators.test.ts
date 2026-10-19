@@ -109,6 +109,7 @@ describe('turnoFijoSchema', () => {
 });
 
 describe('bloqueoSchema', () => {
+  it('acepta un recurrente con período desde/hasta', () => expect(bloqueoSchema.safeParse({ canchaId: 'c', motivo: 'TORNEO', recurrente: true, diaSemana: 4, horaInicio: '20:00', horaFin: '23:59', vigenciaDesde: '2026-11-19', vigenciaHasta: '2026-11-26' }).success).toBe(true));
   it('recurrente necesita diaSemana', () => expect(bloqueoSchema.safeParse({ canchaId: 'c', motivo: 'TORNEO', recurrente: true, horaInicio: '18:00', horaFin: '20:00' }).success).toBe(false));
   it('puntual válido', () => expect(bloqueoSchema.safeParse({ canchaId: 'c', motivo: 'TORNEO', recurrente: false, fecha: '2026-06-20', horaInicio: '18:00', horaFin: '20:00' }).success).toBe(true));
 });

@@ -117,8 +117,8 @@ export const bloqueoSchema = z.object({
   horaInicio: hhmm, horaFin: hhmm,
   nota: z.string().optional(),
   // Período de un bloqueo recurrente (inclusivo, cada extremo opcional).
-  vigenciaDesde: z.string().regex(/^d{4}-d{2}-d{2}$/).optional(),
-  vigenciaHasta: z.string().regex(/^d{4}-d{2}-d{2}$/).optional(),
+  vigenciaDesde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  vigenciaHasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 }).refine((b) => hhmmAMin(b.horaInicio) < cierreMin(b.horaFin), { message: 'Inicio debe ser antes del fin', path: ['horaFin'] })
   .refine((b) => (b.recurrente ? b.diaSemana != null : !!b.fecha), { message: 'Completá día (recurrente) o fecha (puntual)', path: ['recurrente'] })
   .refine((b) => !b.vigenciaDesde || !b.vigenciaHasta || b.vigenciaDesde <= b.vigenciaHasta, { message: 'El período está invertido: "Desde" es posterior a "Hasta"', path: ['vigenciaHasta'] });
