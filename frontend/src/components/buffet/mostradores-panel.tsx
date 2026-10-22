@@ -76,7 +76,19 @@ function FilaMostrador({ m }: { m: MostradorAdmin }) {
 export function MostradoresPanel({ mostradores }: { mostradores: MostradorAdmin[] }) {
   return (
     <section className="rounded-xl border bg-white p-4">
-      <h2 className="font-medium">Mostradores</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-medium">Mostradores</h2>
+        {/* Acceso directo a la pantalla del mostrador: pide el PIN del puesto, que es el que
+            decide a cuál de los mostradores se entra. Abre en otra pestaña para no perder el panel. */}
+        <a
+          href="/mostrador"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 items-center rounded-lg bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700"
+        >
+          Ir al mostrador
+        </a>
+      </div>
       <p className="mt-1 text-sm text-neutral-600">
         Cada puesto entra con su propio PIN. Cambiar el PIN no cierra las sesiones ya abiertas:
         para eso, desactivá el mostrador.
