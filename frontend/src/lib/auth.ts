@@ -28,6 +28,7 @@ export async function login(_prev: unknown, formData: FormData): Promise<{ error
     if (!res.ok) {
       const body = await res.json().catch(() => null);
       if (body?.error?.code === 'USUARIO_VENCIDO') return { error: 'Usuario vencido' };
+      if (res.status === 429) return { error: 'Demasiados intentos. Esperá unos minutos y probá de nuevo.' };
       return { error: 'Credenciales inválidas' };
     }
     const data = (await res.json()) as LoginResult;

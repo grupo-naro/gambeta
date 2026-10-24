@@ -1,12 +1,20 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
-// Anti fuerza-bruta del login: pocos intentos por IP en una ventana amplia.
+// Anti fuerza-bruta del login: pocos intentos FALLIDOS por IP + usuario en una ventana amplia.
+// Cuentan solo los fallidos (skipSuccessfulRequests) y la clave incluye el email: el panel llama
+// al backend desde su propio servidor, así que todos los usuarios comparten IP y, con una clave
+// solo por IP, tres personas que se equivocan un par de veces se bloqueaban entre sí.
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    return `${ipKeyGenerator(req.ip ?? '')}|${email}`;
+  },
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  message: { error: 'Demasiados intentos, probá más tarde' },
+  message: { error: { code: 'DEMASIADOS_INTENTOS', message: 'Demasiados intentos, probá más tarde' } },
 });
 
 // Anti-flood general, holgado para no estrangular al bot ni al panel.
