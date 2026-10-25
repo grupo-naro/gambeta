@@ -35,6 +35,8 @@ export const canchaSchema = z.object({
   precio90Pico: z.number().positive().nullable().optional(),
   precio120: z.number().positive().nullable().optional(),
   precio120Pico: z.number().positive().nullable().optional(),
+  turnoBloqueMin: z.union([z.literal(60), z.literal(90), z.literal(120)]).nullable().optional(),
+  turnoDesfaseMin: z.number().int().min(0).max(120).optional(),
 });
 
 export const canchaDivisibleSchema = z.object({

@@ -4,7 +4,7 @@ import { authJwt } from '../middlewares/authJwt.js';
 import { authAny } from '../middlewares/authAny.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { canchaService } from '../services/cancha.service.js';
-import { createCanchaSchema, updateCanchaSchema, setActivaSchema, listCanchaSchema, idCanchaParamSchema, crearDivisibleSchema } from '../validators/cancha.schema.js';
+import { createCanchaSchema, updateCanchaSchema, setActivaSchema, listCanchaSchema, idCanchaParamSchema, crearDivisibleSchema, escalonarPadelSchema } from '../validators/cancha.schema.js';
 import { auditService } from '../services/audit.service.js';
 
 export const canchaRoutes = Router();
@@ -34,6 +34,15 @@ canchaRoutes.post('/divisible', authJwt, requireRole('ADMIN'), validate(crearDiv
     const r = await canchaService.crearDivisible(body);
     await auditService.log(req, { accion: 'CREAR', entidad: 'Cancha', descripcion: 'Creó la cancha divisible «' + body.nombre + '»' });
     res.status(201).json(r);
+  } catch (e) { next(e); }
+});
+
+canchaRoutes.post('/escalonar-padel', authJwt, requireRole('ADMIN'), validate(escalonarPadelSchema), async (req, res, next) => {
+  try {
+    const { bloqueMin, pasoMin } = (req as any).valid.body;
+    const r = await canchaService.escalonarPadel(bloqueMin, pasoMin);
+    await auditService.log(req, { accion: 'EDITAR', entidad: 'Cancha', descripcion: bloqueMin ? 'Escalonó las canchas de pádel (turnos de ' + bloqueMin + ' min, cada ' + pasoMin + ' min)' : 'Quitó el escalonado de las canchas de pádel' });
+    res.json(r);
   } catch (e) { next(e); }
 });
 

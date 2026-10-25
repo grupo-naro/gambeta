@@ -98,6 +98,11 @@ model Cancha {
   precio120      Decimal?            @db.Decimal(10, 2)
   precio120Pico  Decimal?            @db.Decimal(10, 2)
   senaMonto      Decimal?            @db.Decimal(10, 2)
+  /// Turnos en bloques fijos (minutos). null = agenda libre del deporte. Con valor, la cancha ofrece
+  /// SOLO turnos de esa duración, alineados a (apertura + turnoDesfaseMin) + k × bloque. Sirve para
+  /// escalonar las canchas de pádel (cada una arranca media hora después que la anterior).
+  turnoBloqueMin Int?
+  turnoDesfaseMin Int                @default(0)
   activa         Boolean             @default(true)
   creadoEn       DateTime            @default(now())
   grupoId        String?

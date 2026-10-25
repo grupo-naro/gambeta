@@ -1,0 +1,2 @@
+ALTER TABLE "Cancha" ADD COLUMN "turnoBloqueMin" INTEGER;
+ALTER TABLE "Cancha" ADD COLUMN "turnoDesfaseMin" INTEGER NOT NULL DEFAULT 0;

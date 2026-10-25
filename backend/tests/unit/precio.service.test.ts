@@ -124,3 +124,14 @@ describe('reglasDeAgenda', () => {
     expect([...r.duracionesMin]).toEqual([60, 90, 120]);
   });
 });
+
+describe('reglasDeAgenda con bloque fijo (pádel escalonado)', () => {
+  it('un bloque de 90 con desfase 30 ofrece un solo largo y paso igual al bloque', () => {
+    expect(reglasDeAgenda({ tipo: 'padel', turnoBloqueMin: 90, turnoDesfaseMin: 30 }))
+      .toEqual({ pasoMin: 90, duracionesMin: [90], desfaseMin: 30, bloqueFijo: true });
+  });
+  it('sin bloque conserva la agenda libre del deporte', () => {
+    expect(reglasDeAgenda({ tipo: 'padel', turnoBloqueMin: null })).toMatchObject({ pasoMin: 30, bloqueFijo: false, desfaseMin: 0 });
+    expect(reglasDeAgenda('futbol5')).toMatchObject({ pasoMin: 60, duracionesMin: [60], bloqueFijo: false });
+  });
+});

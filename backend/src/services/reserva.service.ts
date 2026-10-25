@@ -91,7 +91,8 @@ export const reservaService = {
   async crear(input: CreateReservaInput, opts: { porStaff?: boolean } = {}) {
     const cancha = await canchaService.get(input.canchaId);
     const tz = getEnv().TZ_NEGOCIO;
-    const duracionMin = input.duracionMin ?? DURACION_DEFAULT_MIN;
+    // Una cancha en bloques fijos solo tiene un largo de turno: es el que corresponde si no lo piden.
+    const duracionMin = input.duracionMin ?? (cancha.turnoBloqueMin ?? DURACION_DEFAULT_MIN);
     const cfg = await configService.get();
 
     // La reserva tiene que terminar antes o justo en el cierre. Antes no hacía falta:
@@ -132,11 +133,16 @@ export const reservaService = {
     // El schema zod valida la forma (60/90/120) pero no conoce la cancha, así que la regla
     // por deporte vive acá. Sin este chequeo se puede saltear la grilla y crear por API una
     // reserva de fútbol de dos horas.
-    const reglas = reglasDeAgenda(cancha.tipo);
+    const reglas = reglasDeAgenda(cancha);
     if (!reglas.duracionesMin.includes(duracionMin)) {
       throw BusinessRule(`Esta cancha solo admite turnos de ${reglas.duracionesMin.map((d) => d / 60).join(', ')} hora(s)`);
     }
-    if (iniMin % reglas.pasoMin !== 0) {
+    // Con bloque fijo el turno tiene que caer en la grilla propia de la cancha: apertura + desfase + k × bloque.
+    if (reglas.bloqueFijo) {
+      if ((iniMin - minutoDeJornada(apertura, apertura) - reglas.desfaseMin) % reglas.pasoMin !== 0 || iniMin < reglas.desfaseMin + minutoDeJornada(apertura, apertura)) {
+        throw BusinessRule('El turno no coincide con los horarios de esta cancha');
+      }
+    } else if (iniMin % reglas.pasoMin !== 0) {
       throw BusinessRule(reglas.pasoMin === 60 ? 'Esta cancha se reserva en horas en punto' : 'El turno debe arrancar en punto o y media');
     }
 

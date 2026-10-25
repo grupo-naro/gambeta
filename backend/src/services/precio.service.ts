@@ -24,7 +24,14 @@ export interface ReglasDeAgenda {
   pasoMin: number;
   /** Duraciones reservables, en minutos. Siempre ascendente. */
   duracionesMin: readonly number[];
+  /** Minutos desde la apertura hasta el primer turno. Solo con bloque fijo; si no, 0. */
+  desfaseMin: number;
+  /** true si la cancha trabaja en bloques fijos alineados a (apertura + desfaseMin). */
+  bloqueFijo: boolean;
 }
+
+/** Lo que `reglasDeAgenda` necesita saber de la cancha además de su tipo. */
+export interface CanchaAgenda { tipo: string; turnoBloqueMin?: number | null; turnoDesfaseMin?: number | null }
 
 /**
  * Reglas de agenda según el deporte de la cancha.
@@ -37,11 +44,17 @@ export interface ReglasDeAgenda {
  * `disponibilidad.service.grilla` para separar deportes. Si algún día esto tiene que ser
  * configurable por cancha desde el panel, **este es el único lugar que hay que cambiar**.
  */
-export function reglasDeAgenda(tipo: string): ReglasDeAgenda {
+export function reglasDeAgenda(cancha: string | CanchaAgenda): ReglasDeAgenda {
+  const { tipo, turnoBloqueMin, turnoDesfaseMin } = typeof cancha === 'string' ? { tipo: cancha } as CanchaAgenda : cancha;
+  // Bloque fijo (pádel escalonado): un solo largo de turno y un paso igual a ese largo, con el
+  // primer turno corrido `desfaseMin` desde la apertura.
+  if (turnoBloqueMin) {
+    return { pasoMin: turnoBloqueMin, duracionesMin: [turnoBloqueMin], desfaseMin: turnoDesfaseMin ?? 0, bloqueFijo: true };
+  }
   const esFutbol = tipo.toLowerCase().startsWith('futbol');
   return esFutbol
-    ? { pasoMin: 60, duracionesMin: [60] }
-    : { pasoMin: 30, duracionesMin: DURACIONES_MIN };
+    ? { pasoMin: 60, duracionesMin: [60], desfaseMin: 0, bloqueFijo: false }
+    : { pasoMin: 30, duracionesMin: DURACIONES_MIN, desfaseMin: 0, bloqueFijo: false };
 }
 
 /**

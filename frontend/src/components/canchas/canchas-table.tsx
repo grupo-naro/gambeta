@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useConfirm } from '@/components/ui/confirm';
 import type { Cancha } from '@/lib/types';
 import { CanchaDialog } from './cancha-dialog';
-import { setActivaCancha, eliminarCancha } from '@/lib/canchas-actions';
+import { setActivaCancha, eliminarCancha, escalonarPadel } from '@/lib/canchas-actions';
 import { tipoLabel, tamanoLabel } from '@/lib/canchas-catalogo';
 
 const money = (n: number | string) => '$' + Number(n || 0).toLocaleString('es-AR');
@@ -43,13 +43,29 @@ export function CanchasTable({ canchas }: { canchas: Cancha[] }) {
     }
   }
 
+  const hayPadel = canchas.some((c) => c.activa && c.tipo.toLowerCase() === 'padel');
+  const escalonado = canchas.some((c) => c.activa && c.tipo.toLowerCase() === 'padel' && c.turnoBloqueMin);
+  async function escalonar(bloqueMin: number | null) {
+    const ok = await confirm(bloqueMin
+      ? { title: '¿Escalonar las canchas de pádel?', description: 'Cada cancha de pádel pasa a turnos de 1½ hora y arranca 30 minutos después que la anterior (por orden de nombre: la 1 a la apertura, la 2 a +30 min, la 3 a +1 h…). Las reservas ya hechas no se tocan.', confirmLabel: 'Escalonar' }
+      : { title: '¿Volver a la agenda libre?', description: 'Las canchas de pádel vuelven a ofrecer turnos cada media hora de 1, 1½ o 2 horas.', confirmLabel: 'Quitar escalonado' });
+    if (ok) act(() => escalonarPadel(bloqueMin), bloqueMin ? 'Canchas de pádel escalonadas' : 'Escalonado quitado');
+  }
+
   const sorted = sortCanchas(canchas);
 
   return (
     <>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Canchas</h1>
-        <Button onClick={nueva}><Plus className="mr-1 h-4 w-4" /> Nueva cancha</Button>
+        <div className="flex gap-2">
+          {hayPadel && (
+            <Button variant="outline" disabled={pending} onClick={() => escalonar(escalonado ? null : 90)}>
+              {escalonado ? 'Quitar escalonado del pádel' : 'Escalonar pádel'}
+            </Button>
+          )}
+          <Button onClick={nueva}><Plus className="mr-1 h-4 w-4" /> Nueva cancha</Button>
+        </div>
       </div>
 
       {canchas.length === 0 ? (

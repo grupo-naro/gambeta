@@ -27,6 +27,8 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
   const [precio90Pico, setPrecio90Pico] = useState(cancha?.precio90Pico != null ? String(Number(cancha.precio90Pico)) : '');
   const [precio120, setPrecio120] = useState(cancha?.precio120 != null ? String(Number(cancha.precio120)) : '');
   const [precio120Pico, setPrecio120Pico] = useState(cancha?.precio120Pico != null ? String(Number(cancha.precio120Pico)) : '');
+  const [turnoBloque, setTurnoBloque] = useState(cancha?.turnoBloqueMin ? String(cancha.turnoBloqueMin) : '');
+  const [turnoDesfase, setTurnoDesfase] = useState(String(cancha?.turnoDesfaseMin ?? 0));
   const [tipoForm, setTipoForm] = useState<'simple' | 'divisible'>('simple');
   const [partes, setPartes] = useState('3');
   const [precioEntera, setPrecioEntera] = useState('');
@@ -49,6 +51,8 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
       setPrecio90Pico(cancha?.precio90Pico != null ? String(Number(cancha.precio90Pico)) : '');
       setPrecio120(cancha?.precio120 != null ? String(Number(cancha.precio120)) : '');
       setPrecio120Pico(cancha?.precio120Pico != null ? String(Number(cancha.precio120Pico)) : '');
+      setTurnoBloque(cancha?.turnoBloqueMin ? String(cancha.turnoBloqueMin) : '');
+      setTurnoDesfase(String(cancha?.turnoDesfaseMin ?? 0));
       setTipoForm('simple');
       setPartes('3');
       setPrecioEntera('');
@@ -74,6 +78,8 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
       nombre, tipo, precioHora: precio, jugadores, destacada, precioHoraPico: precioPico || 0,
       senaMonto: senaMonto.trim() === '' ? null : Number(senaMonto),
       precio90: aNum(precio90), precio90Pico: aNum(precio90Pico), precio120: aNum(precio120), precio120Pico: aNum(precio120Pico),
+      turnoBloqueMin: tipo !== 'futbol' && turnoBloque ? Number(turnoBloque) : null,
+      turnoDesfaseMin: tipo !== 'futbol' && turnoBloque ? Number(turnoDesfase) : 0,
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     start(async () => {
@@ -161,6 +167,33 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
                     </div>
                     <div className="space-y-1"><Label htmlFor="c-p120-pico">2 horas en pico</Label>
                       <Input id="c-p120-pico" type="number" min="0" value={precio120Pico} onChange={(e) => setPrecio120Pico(e.target.value)} placeholder="proporcional" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {tipo !== 'futbol' && (
+                <div className="space-y-3 rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Turnos escalonados: la cancha ofrece solo turnos de un largo fijo, y el primero arranca
+                    corrido desde la apertura (ej. 90 min y +30 min = 08:30, 10:00, 11:30…). Sin elegir bloque,
+                    se puede reservar cada media hora con 1, 1½ o 2 horas.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1"><Label htmlFor="c-bloque">Largo del turno</Label>
+                      <select id="c-bloque" value={turnoBloque} onChange={(e) => setTurnoBloque(e.target.value)} className="w-full rounded-md border px-2 py-1.5">
+                        <option value="">Libre (1, 1½ o 2 h)</option>
+                        <option value="60">1 hora</option>
+                        <option value="90">1½ hora</option>
+                        <option value="120">2 horas</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1"><Label htmlFor="c-desfase">Primer turno</Label>
+                      <select id="c-desfase" value={turnoDesfase} onChange={(e) => setTurnoDesfase(e.target.value)} disabled={!turnoBloque} className="w-full rounded-md border px-2 py-1.5 disabled:opacity-50">
+                        <option value="0">A la hora de apertura</option>
+                        <option value="30">30 min después</option>
+                        <option value="60">1 hora después</option>
+                        <option value="90">1½ hora después</option>
+                      </select>
                     </div>
                   </div>
                 </div>

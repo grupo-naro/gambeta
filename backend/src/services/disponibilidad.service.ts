@@ -61,9 +61,9 @@ export const disponibilidadService = {
 
     // El paso y las duraciones dependen del deporte: fútbol se agenda por hora en punto,
     // pádel cada media hora y con turnos de hasta 2 horas.
-    const { pasoMin, duracionesMin } = reglasDeAgenda(cancha.tipo);
+    const { pasoMin, duracionesMin, desfaseMin } = reglasDeAgenda(cancha);
 
-    for (let t = hhmmAMin(apertura); t + pasoMin <= cierreM; t += pasoMin) {
+    for (let t = hhmmAMin(apertura) + desfaseMin; t + pasoMin <= cierreM; t += pasoMin) {
       const duraciones: DuracionSlot[] = [];
       for (const min of duracionesMin) {
         if (t + min > cierreM) continue; // no puede pasar del cierre

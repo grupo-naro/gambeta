@@ -8,6 +8,10 @@ export interface Cancha {
   precio90Pico?: number | null;
   precio120?: number | null;
   precio120Pico?: number | null;
+  /** Turnos en bloques fijos (minutos). null = agenda libre. Con valor, la cancha ofrece solo turnos de esa duración. */
+  turnoBloqueMin?: number | null;
+  /** Minutos desde la apertura hasta el primer turno de la cancha (escalonado). */
+  turnoDesfaseMin?: number;
 }
 export interface Cliente { id: string; nombre: string; whatsapp: string; confiable: boolean; totalReservas: number; cumplidas: number; confianza: boolean }
 export type MetodoSena = 'MERCADO_PAGO' | 'TRANSFERENCIA';

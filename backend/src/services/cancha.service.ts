@@ -26,6 +26,22 @@ export const canchaService = {
     if (sena != null && Number(sena) > precio) throw BusinessRule('La seña no puede superar el precio de la cancha');
     return canchaRepo.update(id, input);
   },
+  /**
+   * Escalona las canchas de pádel activas: todas pasan a turnos de `bloqueMin` y cada una arranca
+   * `pasoMin` más tarde que la anterior (por orden de nombre: 1, 2, 3…). Con `bloqueMin: null`
+   * vuelve todo a la agenda libre. Devuelve el desfase asignado a cada cancha.
+   */
+  escalonarPadel: async (bloqueMin: number | null, pasoMin: number) => {
+    const canchas = (await canchaRepo.list(true))
+      .filter((c) => c.tipo.toLowerCase() === 'padel')
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true }));
+    if (canchas.length === 0) throw BusinessRule('No hay canchas de pádel activas');
+    const plan = canchas.map((c, i) => ({ c, desfase: bloqueMin ? i * pasoMin : 0 }));
+    if (plan.some((p) => p.desfase > 120)) throw BusinessRule('Hay demasiadas canchas para escalonarlas con ese paso');
+    await prisma.$transaction(plan.map(({ c, desfase }) =>
+      prisma.cancha.update({ where: { id: c.id }, data: { turnoBloqueMin: bloqueMin, turnoDesfaseMin: desfase } })));
+    return plan.map(({ c, desfase }) => ({ id: c.id, nombre: c.nombre, desfaseMin: desfase }));
+  },
   setActiva: async (id: string, activa: boolean) => {
     await canchaService.get(id);
     return canchaRepo.update(id, { activa });
