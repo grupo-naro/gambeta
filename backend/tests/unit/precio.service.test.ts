@@ -126,6 +126,10 @@ describe('reglasDeAgenda', () => {
 });
 
 describe('reglasDeAgenda con bloque fijo (pádel escalonado)', () => {
+  it('inicios cada hora conservan 1, 1½ y 2 h, con el primer turno corrido por el desfase', () => {
+    expect(reglasDeAgenda({ tipo: 'padel', turnoBloqueMin: 60, turnoDesfaseMin: 30 }))
+      .toEqual({ pasoMin: 60, duracionesMin: [60, 90, 120], desfaseMin: 30, bloqueFijo: true });
+  });
   it('un bloque de 90 con desfase 30 ofrece un solo largo y paso igual al bloque', () => {
     expect(reglasDeAgenda({ tipo: 'padel', turnoBloqueMin: 90, turnoDesfaseMin: 30 }))
       .toEqual({ pasoMin: 90, duracionesMin: [90], desfaseMin: 30, bloqueFijo: true });

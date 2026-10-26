@@ -174,17 +174,17 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
               {tipo !== 'futbol' && (
                 <div className="space-y-3 rounded-md border p-3">
                   <p className="text-xs text-muted-foreground">
-                    Turnos escalonados: la cancha ofrece solo turnos de un largo fijo, y el primero arranca
-                    corrido desde la apertura (ej. 90 min y +30 min = 08:30, 10:00, 11:30…). Sin elegir bloque,
-                    se puede reservar cada media hora con 1, 1½ o 2 horas.
+                    Inicios escalonados: los turnos de la cancha arrancan cada cierto tiempo, corridos desde la
+                    apertura (ej. cada 1 hora y +30 min = 08:30, 09:30, 10:30…). Con inicios cada hora o menos se
+                    siguen pudiendo reservar 1, 1½ o 2 horas. Sin elegir, se puede arrancar cada media hora.
                   </p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1"><Label htmlFor="c-bloque">Largo del turno</Label>
+                    <div className="space-y-1"><Label htmlFor="c-bloque">Los turnos arrancan</Label>
                       <select id="c-bloque" value={turnoBloque} onChange={(e) => setTurnoBloque(e.target.value)} className="w-full rounded-md border px-2 py-1.5">
-                        <option value="">Libre (1, 1½ o 2 h)</option>
-                        <option value="60">1 hora</option>
-                        <option value="90">1½ hora</option>
-                        <option value="120">2 horas</option>
+                        <option value="">Cada media hora</option>
+                        <option value="60">Cada 1 hora</option>
+                        <option value="90">Cada 1½ hora (turno fijo)</option>
+                        <option value="120">Cada 2 horas (turno fijo)</option>
                       </select>
                     </div>
                     <div className="space-y-1"><Label htmlFor="c-desfase">Primer turno</Label>

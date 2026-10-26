@@ -26,7 +26,7 @@ export interface ReglasDeAgenda {
   duracionesMin: readonly number[];
   /** Minutos desde la apertura hasta el primer turno. Solo con bloque fijo; si no, 0. */
   desfaseMin: number;
-  /** true si la cancha trabaja en bloques fijos alineados a (apertura + desfaseMin). */
+  /** true si los inicios están alineados a (apertura + desfaseMin) con un paso propio de la cancha. */
   bloqueFijo: boolean;
 }
 
@@ -46,10 +46,12 @@ export interface CanchaAgenda { tipo: string; turnoBloqueMin?: number | null; tu
  */
 export function reglasDeAgenda(cancha: string | CanchaAgenda): ReglasDeAgenda {
   const { tipo, turnoBloqueMin, turnoDesfaseMin } = typeof cancha === 'string' ? { tipo: cancha } as CanchaAgenda : cancha;
-  // Bloque fijo (pádel escalonado): un solo largo de turno y un paso igual a ese largo, con el
-  // primer turno corrido `desfaseMin` desde la apertura.
+  // Inicios escalonados (pádel): los turnos arrancan cada `turnoBloqueMin` minutos, contados desde
+  // la apertura + `desfaseMin`. Con un paso de hasta 1 hora se conservan las duraciones de siempre
+  // (1, 1½ y 2 h); con uno mayor, el único largo posible es el propio paso (bloque fijo).
   if (turnoBloqueMin) {
-    return { pasoMin: turnoBloqueMin, duracionesMin: [turnoBloqueMin], desfaseMin: turnoDesfaseMin ?? 0, bloqueFijo: true };
+    const duraciones = turnoBloqueMin <= 60 ? DURACIONES_MIN : [turnoBloqueMin];
+    return { pasoMin: turnoBloqueMin, duracionesMin: duraciones, desfaseMin: turnoDesfaseMin ?? 0, bloqueFijo: true };
   }
   const esFutbol = tipo.toLowerCase().startsWith('futbol');
   return esFutbol

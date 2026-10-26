@@ -47,8 +47,8 @@ export function CanchasTable({ canchas }: { canchas: Cancha[] }) {
   const escalonado = canchas.some((c) => c.activa && c.tipo.toLowerCase() === 'padel' && c.turnoBloqueMin);
   async function escalonar(bloqueMin: number | null) {
     const ok = await confirm(bloqueMin
-      ? { title: '¿Escalonar las canchas de pádel?', description: 'Cada cancha de pádel pasa a turnos de 1½ hora y arranca 30 minutos después que la anterior (por orden de nombre: la 1 a la apertura, la 2 a +30 min, la 3 a +1 h…). Las reservas ya hechas no se tocan.', confirmLabel: 'Escalonar' }
-      : { title: '¿Volver a la agenda libre?', description: 'Las canchas de pádel vuelven a ofrecer turnos cada media hora de 1, 1½ o 2 horas.', confirmLabel: 'Quitar escalonado' });
+      ? { title: '¿Escalonar las canchas de pádel?', description: 'Las canchas de pádel arrancan sus turnos cada 1 hora, alternando: la 1 y la 3 en punto, la 2 y la 4 y media (por orden de nombre). Se siguen pudiendo reservar 1, 1½ o 2 horas. Las reservas ya hechas no se tocan.', confirmLabel: 'Escalonar' }
+      : { title: '¿Volver a la agenda libre?', description: 'Todas las canchas de pádel vuelven a ofrecer turnos cada media hora.', confirmLabel: 'Quitar escalonado' });
     if (ok) act(() => escalonarPadel(bloqueMin), bloqueMin ? 'Canchas de pádel escalonadas' : 'Escalonado quitado');
   }
 
@@ -60,9 +60,10 @@ export function CanchasTable({ canchas }: { canchas: Cancha[] }) {
         <h1 className="text-2xl font-semibold tracking-tight">Canchas</h1>
         <div className="flex gap-2">
           {hayPadel && (
-            <Button variant="outline" disabled={pending} onClick={() => escalonar(escalonado ? null : 90)}>
-              {escalonado ? 'Quitar escalonado del pádel' : 'Escalonar pádel'}
-            </Button>
+            <Button variant="outline" disabled={pending} onClick={() => escalonar(60)}>Escalonar pádel</Button>
+          )}
+          {escalonado && (
+            <Button variant="outline" disabled={pending} onClick={() => escalonar(null)}>Quitar escalonado</Button>
           )}
           <Button onClick={nueva}><Plus className="mr-1 h-4 w-4" /> Nueva cancha</Button>
         </div>

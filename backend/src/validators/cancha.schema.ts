@@ -30,7 +30,7 @@ export const updateCanchaSchema = z.object({
 });
 export const escalonarPadelSchema = z.object({
   body: z.object({
-    bloqueMin: z.union([z.literal(60), z.literal(90), z.literal(120)]).nullable().default(90),
+    bloqueMin: z.union([z.literal(60), z.literal(90), z.literal(120)]).nullable().default(60),
     pasoMin: z.union([z.literal(30), z.literal(60)]).default(30),
   }),
   query: empty, params: empty,
