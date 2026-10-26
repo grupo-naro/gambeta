@@ -13,6 +13,17 @@ const fechaReal = (s: string) => {
 };
 const fechaYmd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(fechaReal, { message: 'La fecha no existe' });
 
+export const disponibilidadFijoSchema = z.object({
+  body: z.unknown(),
+  query: z.object({
+    deporte: z.enum(['futbol', 'padel']),
+    diaSemana: z.coerce.number().int().min(0).max(6),
+    duracionMin: z.coerce.number().int().refine((n) => [60, 90, 120].includes(n), 'Duración inválida').default(60),
+    semanas: z.coerce.number().int().min(1).max(26).default(8),
+  }),
+  params: empty,
+});
+
 export const crearTurnoFijoSchema = z.object({
   body: z.object({
     canchaId: z.string().min(1),

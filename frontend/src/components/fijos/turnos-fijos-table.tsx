@@ -1,6 +1,7 @@
 'use client';
 import { useState, useTransition } from 'react';
-import { Plus } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -78,7 +79,10 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
     <>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Turnos fijos</h1>
-        <Button onClick={() => setDialogOpen(true)}><Plus className="mr-1 h-4 w-4" /> Nuevo turno fijo</Button>
+        <div className="flex gap-2">
+          <Link href="/turnos-fijos/disponibilidad" className="inline-flex h-8 items-center rounded-lg border bg-white px-3 text-sm font-medium hover:bg-neutral-50"><Search className="mr-1 h-4 w-4" /> Ver disponibilidad</Link>
+          <Button onClick={() => setDialogOpen(true)}><Plus className="mr-1 h-4 w-4" /> Nuevo turno fijo</Button>
+        </div>
       </div>
 
       {fijos.length === 0 ? (

@@ -3,14 +3,22 @@ import { authJwt } from '../middlewares/authJwt.js';
 import { authAny } from '../middlewares/authAny.js';
 import { validate } from '../middlewares/validate.js';
 import { turnoFijoService } from '../services/turnoFijo.service.js';
-import { crearTurnoFijoSchema, editarTurnoFijoSchema, excepcionSchema, idFijoParamSchema, liberarFijoSchema, materializarFijoSchema, misFijosSchema } from '../validators/turnoFijo.schema.js';
+import { crearTurnoFijoSchema, editarTurnoFijoSchema, excepcionSchema, idFijoParamSchema, liberarFijoSchema, materializarFijoSchema, misFijosSchema, disponibilidadFijoSchema } from '../validators/turnoFijo.schema.js';
 import { crearCobroSchema } from '../validators/cobro.schema.js';
 import { auditService } from '../services/audit.service.js';
 import { prisma } from '../db/prisma.js';
+import { disponibilidadFijoService } from '../services/disponibilidadFijo.service.js';
 import { reservaService } from '../services/reserva.service.js';
 
 export const turnoFijoRoutes = Router();
 turnoFijoRoutes.get('/', authJwt, async (req, res, next) => { try { res.json(await turnoFijoService.list((req.query.canchaId as string) || undefined)); } catch (e) { next(e); } });
+// Consulta de horarios semanales libres (antes de cargar un fijo). Va antes de cualquier ruta con :id.
+turnoFijoRoutes.get('/disponibilidad', authJwt, validate(disponibilidadFijoSchema), async (req, res, next) => {
+  try {
+    const q = (req as any).valid.query;
+    res.json(await disponibilidadFijoService.semanal(q.deporte, q.diaSemana, q.duracionMin, q.semanas));
+  } catch (e) { next(e); }
+});
 turnoFijoRoutes.get('/mios', authAny, validate(misFijosSchema), async (req, res, next) => {
   try {
     res.json(await turnoFijoService.misFijos((req as any).valid.query.whatsapp));

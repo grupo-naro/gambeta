@@ -192,3 +192,12 @@ export interface Origenes {
   porTipo: OrigenPorTipo[];
   porEtiqueta: OrigenPorEtiqueta[];
 }
+
+export type EstadoCeldaDisp = 'libre' | 'ocupada' | 'conflicto';
+export interface CeldaDisp { estado: EstadoCeldaDisp; detalle?: string; fechas?: string[] }
+/** Lo que devuelve `/turnos-fijos/disponibilidad`: ¿entraría un fijo semanal en cada cancha y horario? */
+export interface DisponibilidadSemanal {
+  deporte: 'futbol' | 'padel'; diaSemana: number; duracionMin: number; semanas: number;
+  horas: string[]; canchas: { id: string; nombre: string }[];
+  celdas: Record<string, Record<string, CeldaDisp>>;
+}

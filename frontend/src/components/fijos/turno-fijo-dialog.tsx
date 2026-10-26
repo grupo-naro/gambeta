@@ -19,15 +19,18 @@ export function TurnoFijoDialog({
   open,
   onOpenChange,
   canchas,
+  inicial,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   canchas: Cancha[];
+  /** Valores con los que arranca (p. ej. al venir de la pantalla de disponibilidad). El padre cambia el `key` para reiniciarlos. */
+  inicial?: { canchaId: string; diaSemana: number; horaInicio: string; horaFin: string };
 }) {
-  const [canchaId, setCanchaId] = useState(canchas[0]?.id ?? '');
-  const [diaSemana, setDiaSemana] = useState('1');
-  const [horaInicio, setHoraInicio] = useState('');
-  const [horaFin, setHoraFin] = useState('');
+  const [canchaId, setCanchaId] = useState(inicial?.canchaId ?? canchas[0]?.id ?? '');
+  const [diaSemana, setDiaSemana] = useState(String(inicial?.diaSemana ?? 1));
+  const [horaInicio, setHoraInicio] = useState(inicial?.horaInicio ?? '');
+  const [horaFin, setHoraFin] = useState(inicial?.horaFin ?? '');
   const [clienteNombre, setClienteNombre] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const clienteEncontrado = useClienteAutocomplete(whatsapp, setClienteNombre);
@@ -44,10 +47,10 @@ export function TurnoFijoDialog({
 
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
-      setCanchaId(canchas[0]?.id ?? '');
-      setDiaSemana('1');
-      setHoraInicio('');
-      setHoraFin('');
+      setCanchaId(inicial?.canchaId ?? canchas[0]?.id ?? '');
+      setDiaSemana(String(inicial?.diaSemana ?? 1));
+      setHoraInicio(inicial?.horaInicio ?? '');
+      setHoraFin(inicial?.horaFin ?? '');
       setClienteNombre('');
       setWhatsapp('');
       setConAbono(false);
