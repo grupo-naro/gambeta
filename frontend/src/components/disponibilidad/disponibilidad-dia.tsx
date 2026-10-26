@@ -4,7 +4,6 @@ import type { GrillaDisponibilidad } from '@/lib/types';
 import { hhmmAMin, sumarDias } from '@/lib/hora';
 import { nombreCancha } from '@/lib/calendario';
 
-const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 // Franjas del día, en minutos desde la medianoche. Las horas de madrugada (00:00–06:00) cuentan
@@ -16,8 +15,23 @@ const FRANJAS: { v: string; l: string; ok: (min: number) => boolean }[] = [
   { v: 'noche', l: 'Noche', ok: (m) => m >= 1200 || m < 360 },
 ];
 
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function Segmentos({ valor, opciones, onChange }: { valor: string; opciones: { v: string; l: string }[]; onChange: (v: string) => void }) {
+  return (
+    <div className="inline-flex flex-wrap gap-1">
+      {opciones.map((o) => (
+        <button key={o.v} type="button" onClick={() => onChange(o.v)}
+          className={`rounded-md border px-3 py-1.5 text-sm font-medium ${o.v === valor ? 'border-neutral-900 bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'}`}>
+          {o.l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const diaDe = (f: string) => new Date(f + 'T12:00:00Z').getUTCDay();
-const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
 const largo = (min: number) => (min === 60 ? '1 h' : min === 90 ? '1½ h' : `${min / 60} h`);
 
 /**
@@ -35,11 +49,11 @@ export function DisponibilidadDia({ grilla, deporte, fecha, franja, hoy }: {
     router.replace(`/disponibilidad?${p.toString()}`);
   }
 
-  // Los próximos 14 días como atajos: "jueves" suele ser "el jueves que viene".
-  const atajos = Array.from({ length: 14 }, (_, i) => sumarDias(hoy, i));
+  // Mini calendario de 5 semanas alineado de lunes a domingo, empezando por la semana actual.
+  const lunes = sumarDias(hoy, -((diaDe(hoy) + 6) % 7));
+  const dias = Array.from({ length: 35 }, (_, i) => sumarDias(lunes, i));
   const f = FRANJAS.find((x) => x.v === franja) ?? FRANJAS[0];
   const horas = grilla.horas.filter((h) => f.ok(hhmmAMin(h)));
-  const campo = 'rounded-md border bg-white px-2 py-1.5 text-sm';
 
   // Cuántas canchas libres hay por hora (para el resumen de la fila).
   const libresEn = (h: string) => grilla.canchas.filter((c) => grilla.libres[c.id]?.[h]).length;
@@ -49,33 +63,39 @@ export function DisponibilidadDia({ grilla, deporte, fecha, franja, hoy }: {
       <h1 className="mb-1 text-2xl font-semibold tracking-tight">Disponibilidad</h1>
       <p className="mb-4 text-sm text-neutral-600">Mirá qué canchas están libres un día y una franja, sin armar la reserva.</p>
 
-      <div className="mb-3 flex flex-wrap items-end gap-3">
-        <label className="text-sm">Deporte{' '}
-          <select value={deporte} onChange={(e) => ir({ deporte: e.target.value })} className={campo}>
-            <option value="padel">Pádel</option>
-            <option value="futbol">Fútbol</option>
-          </select>
-        </label>
-        <label className="text-sm">Fecha{' '}
-          <input type="date" value={fecha} min={hoy} onChange={(e) => e.target.value && ir({ fecha: e.target.value })} className={campo} />
-        </label>
-        <label className="text-sm">Franja{' '}
-          <select value={franja} onChange={(e) => ir({ franja: e.target.value })} className={campo}>
-            {FRANJAS.map((x) => <option key={x.v} value={x.v}>{x.l}</option>)}
-          </select>
-        </label>
+      <div className="mb-4 grid gap-4 md:grid-cols-[auto_1fr]">
+        <div className="space-y-3">
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Deporte</p>
+            <Segmentos valor={deporte} opciones={[{ v: 'padel', l: 'Pádel' }, { v: 'futbol', l: 'Fútbol' }]} onChange={(v) => ir({ deporte: v })} />
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Franja del día</p>
+            <Segmentos valor={franja} opciones={FRANJAS.map((x) => ({ v: x.v, l: x.l }))} onChange={(v) => ir({ franja: v })} />
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Día</p>
+          <div className="grid max-w-md grid-cols-7 gap-1">
+            {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => <div key={d} className="pb-1 text-center text-xs text-neutral-500">{d}</div>)}
+            {dias.map((d) => {
+              const pasado = d < hoy;
+              const elegido = d === fecha;
+              const primero = d.endsWith('-01') || d === dias[0];
+              return (
+                <button key={d} type="button" disabled={pasado} onClick={() => ir({ fecha: d })}
+                  className={`flex h-11 flex-col items-center justify-center rounded-md border text-sm leading-tight ${elegido ? 'border-neutral-900 bg-neutral-900 text-white' : pasado ? 'border-transparent text-neutral-300' : 'bg-white hover:bg-neutral-50'}`}>
+                  <span className="font-medium">{Number(d.slice(8, 10))}</span>
+                  {(d === hoy || primero) && <span className={`text-[10px] ${elegido ? 'text-neutral-300' : 'text-neutral-500'}`}>{d === hoy ? 'hoy' : MESES[Number(d.slice(5, 7)) - 1]}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {atajos.map((d) => (
-          <button key={d} type="button" onClick={() => ir({ fecha: d })}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${d === fecha ? 'border-neutral-900 bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'}`}>
-            {d === hoy ? 'Hoy' : `${DIAS_CORTO[diaDe(d)]} ${ddmm(d)}`}
-          </button>
-        ))}
-      </div>
-
-      <h2 className="mb-2 text-sm font-medium capitalize text-neutral-700">{DIAS[diaDe(fecha)]} {ddmm(fecha)} · {f.l.toLowerCase()}</h2>
+      <h2 className="mb-2 text-sm font-medium capitalize text-neutral-700">{DIAS[diaDe(fecha)]} {Number(fecha.slice(8, 10))} de {MESES_LARGO[Number(fecha.slice(5, 7)) - 1]} · {f.l.toLowerCase()}</h2>
 
       {grilla.canchas.length === 0 || horas.length === 0 ? (
         <p className="rounded-lg border bg-white p-8 text-center text-sm text-neutral-600">
