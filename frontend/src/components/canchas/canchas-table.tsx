@@ -47,7 +47,7 @@ export function CanchasTable({ canchas }: { canchas: Cancha[] }) {
   const escalonado = canchas.some((c) => c.activa && c.tipo.toLowerCase() === 'padel' && c.turnoBloqueMin);
   async function escalonar(bloqueMin: number | null) {
     const ok = await confirm(bloqueMin
-      ? { title: '¿Escalonar las canchas de pádel?', description: 'Las canchas de pádel arrancan sus turnos cada 1 hora, alternando: la 1 y la 3 en punto, la 2 y la 4 y media (por orden de nombre). Se siguen pudiendo reservar 1, 1½ o 2 horas. Las reservas ya hechas no se tocan.', confirmLabel: 'Escalonar' }
+      ? { title: '¿Escalonar las canchas de pádel?', description: 'Los turnos de pádel arrancan cada 1 hora y el primero de cada cancha se corre 30 minutos más que el de la anterior (por orden de nombre): la 1 a la apertura, la 2 a +30 min, la 3 a +1 h, la 4 a +1½ h. Se siguen pudiendo reservar 1, 1½ o 2 horas. Las reservas ya hechas no se tocan.', confirmLabel: 'Escalonar' }
       : { title: '¿Volver a la agenda libre?', description: 'Todas las canchas de pádel vuelven a ofrecer turnos cada media hora.', confirmLabel: 'Quitar escalonado' });
     if (ok) act(() => escalonarPadel(bloqueMin), bloqueMin ? 'Canchas de pádel escalonadas' : 'Escalonado quitado');
   }
