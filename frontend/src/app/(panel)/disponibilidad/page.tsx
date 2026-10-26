@@ -8,9 +8,12 @@ type Params = { deporte?: string; fecha?: string; franja?: string };
 export default async function DisponibilidadPage({ searchParams }: { searchParams: Promise<Params> }) {
   const q = await searchParams;
   const hoy = hoyAR();
-  const deporte = q.deporte === 'futbol' ? 'futbol' : 'padel';
-  const fecha = q.fecha && /^\d{4}-\d{2}-\d{2}$/.test(q.fecha) ? q.fecha : hoy;
+  const deporte = q.deporte === 'futbol' || q.deporte === 'padel' ? q.deporte : '';
+  const fecha = q.fecha && /^\d{4}-\d{2}-\d{2}$/.test(q.fecha) ? q.fecha : '';
   const franja = ['manana', 'tarde', 'noche', 'todo'].includes(q.franja ?? '') ? (q.franja as string) : 'todo';
-  const grilla = await apiFetch<GrillaDisponibilidad>(`/disponibilidad/grilla?deporte=${deporte}&fecha=${fecha}`);
+  // Sin día y deporte elegidos solo se muestra el formulario; la grilla se pide recién al buscar.
+  const grilla = deporte && fecha
+    ? await apiFetch<GrillaDisponibilidad>(`/disponibilidad/grilla?deporte=${deporte}&fecha=${fecha}`)
+    : null;
   return <DisponibilidadDia grilla={grilla} deporte={deporte} fecha={fecha} franja={franja} hoy={hoy} />;
 }

@@ -1,8 +1,11 @@
 'use client';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft, Search } from 'lucide-react';
 import type { GrillaDisponibilidad } from '@/lib/types';
 import { hhmmAMin, sumarDias } from '@/lib/hora';
 import { nombreCancha } from '@/lib/calendario';
+import { Button } from '@/components/ui/button';
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
@@ -18,12 +21,17 @@ const FRANJAS: { v: string; l: string; ok: (min: number) => boolean }[] = [
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
+const diaDe = (f: string) => new Date(f + 'T12:00:00Z').getUTCDay();
+const largo = (min: number) => (min === 60 ? '1 h' : min === 90 ? '1½ h' : `${min / 60} h`);
+const fechaLarga = (f: string) => `${DIAS[diaDe(f)]} ${Number(f.slice(8, 10))} de ${MESES_LARGO[Number(f.slice(5, 7)) - 1]}`;
+const etiquetaDeporte = (d: string) => (d === 'futbol' ? 'Fútbol' : 'Pádel');
+
 function Segmentos({ valor, opciones, onChange }: { valor: string; opciones: { v: string; l: string }[]; onChange: (v: string) => void }) {
   return (
     <div className="inline-flex flex-wrap gap-1">
       {opciones.map((o) => (
         <button key={o.v} type="button" onClick={() => onChange(o.v)}
-          className={`rounded-md border px-3 py-1.5 text-sm font-medium ${o.v === valor ? 'border-neutral-900 bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'}`}>
+          className={`rounded-md border px-4 py-2 text-sm font-medium ${o.v === valor ? 'border-neutral-900 bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'}`}>
           {o.l}
         </button>
       ))}
@@ -31,71 +39,94 @@ function Segmentos({ valor, opciones, onChange }: { valor: string; opciones: { v
   );
 }
 
-const diaDe = (f: string) => new Date(f + 'T12:00:00Z').getUTCDay();
-const largo = (min: number) => (min === 60 ? '1 h' : min === 90 ? '1½ h' : `${min / 60} h`);
+const Titulo = ({ n, children }: { n: number; children: React.ReactNode }) => (
+  <p className="mb-2 text-sm font-medium text-neutral-700"><span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-xs text-white">{n}</span>{children}</p>
+);
 
 /**
- * "¿Tenés cancha el jueves a la tarde?" en una grilla: canchas × horarios para una fecha, con la
- * franja del día para recortar. Es solo consulta: lo libre sale de la misma grilla que usa la web
- * de reservas, así que ya descuenta reservas, turnos fijos y bloqueos.
+ * "¿Tenés cancha el jueves a la tarde?" en dos pasos: primero se elige día, deporte y franja y se
+ * aprieta Buscar; recién entonces aparece la grilla (con su propio botón para volver a buscar).
+ * Es solo consulta: lo libre sale de la misma grilla que usa la web de reservas, así que ya
+ * descuenta reservas, turnos fijos y bloqueos.
  */
 export function DisponibilidadDia({ grilla, deporte, fecha, franja, hoy }: {
-  grilla: GrillaDisponibilidad; deporte: 'futbol' | 'padel'; fecha: string; franja: string; hoy: string;
+  grilla: GrillaDisponibilidad | null; deporte: string; fecha: string; franja: string; hoy: string;
 }) {
-  const router = useRouter();
+  return (
+    <>
+      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Disponibilidad</h1>
+      <p className="mb-5 text-sm text-neutral-600">Mirá qué canchas están libres un día y una franja, sin armar la reserva.</p>
+      {grilla ? <Resultado grilla={grilla} deporte={deporte} fecha={fecha} franja={franja} /> : <Formulario hoy={hoy} deporteInicial={deporte} fechaInicial={fecha} franjaInicial={franja} />}
+    </>
+  );
+}
 
-  function ir(c: { deporte?: string; fecha?: string; franja?: string }) {
-    const p = new URLSearchParams({ deporte: c.deporte ?? deporte, fecha: c.fecha ?? fecha, franja: c.franja ?? franja });
-    router.replace(`/disponibilidad?${p.toString()}`);
-  }
+function Formulario({ hoy, deporteInicial, fechaInicial, franjaInicial }: { hoy: string; deporteInicial: string; fechaInicial: string; franjaInicial: string }) {
+  const router = useRouter();
+  const [fecha, setFecha] = useState(fechaInicial);
+  const [deporte, setDeporte] = useState(deporteInicial);
+  const [franja, setFranja] = useState(franjaInicial || 'todo');
 
   // Mini calendario de 5 semanas alineado de lunes a domingo, empezando por la semana actual.
   const lunes = sumarDias(hoy, -((diaDe(hoy) + 6) % 7));
   const dias = Array.from({ length: 35 }, (_, i) => sumarDias(lunes, i));
+  const listo = !!fecha && !!deporte;
+
+  function buscar() {
+    if (!listo) return;
+    router.push(`/disponibilidad?${new URLSearchParams({ deporte, fecha, franja }).toString()}`);
+  }
+
+  return (
+    <div className="max-w-xl space-y-6 rounded-xl border bg-white p-5">
+      <div>
+        <Titulo n={1}>Elegí el día</Titulo>
+        <div className="grid grid-cols-7 gap-1">
+          {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => <div key={d} className="pb-1 text-center text-xs text-neutral-500">{d}</div>)}
+          {dias.map((d) => {
+            const pasado = d < hoy;
+            const elegido = d === fecha;
+            const primero = d.endsWith('-01') || d === dias[0];
+            return (
+              <button key={d} type="button" disabled={pasado} onClick={() => setFecha(d)}
+                className={`flex h-11 flex-col items-center justify-center rounded-md border text-sm leading-tight ${elegido ? 'border-neutral-900 bg-neutral-900 text-white' : pasado ? 'border-transparent text-neutral-300' : 'bg-white hover:bg-neutral-50'}`}>
+                <span className="font-medium">{Number(d.slice(8, 10))}</span>
+                {(d === hoy || primero) && <span className={`text-[10px] ${elegido ? 'text-neutral-300' : 'text-neutral-500'}`}>{d === hoy ? 'hoy' : MESES[Number(d.slice(5, 7)) - 1]}</span>}
+              </button>
+            );
+          })}
+        </div>
+        {fecha && <p className="mt-2 text-sm font-medium capitalize text-neutral-700">{fechaLarga(fecha)}</p>}
+      </div>
+
+      <div>
+        <Titulo n={2}>Elegí el deporte</Titulo>
+        <Segmentos valor={deporte} opciones={[{ v: 'padel', l: 'Pádel' }, { v: 'futbol', l: 'Fútbol' }]} onChange={setDeporte} />
+      </div>
+
+      <div>
+        <Titulo n={3}>Franja del día</Titulo>
+        <Segmentos valor={franja} opciones={FRANJAS.map((x) => ({ v: x.v, l: x.l }))} onChange={setFranja} />
+      </div>
+
+      <Button className="h-11 w-full" disabled={!listo} onClick={buscar}><Search className="mr-1 h-4 w-4" /> Buscar disponibilidad</Button>
+    </div>
+  );
+}
+
+function Resultado({ grilla, deporte, fecha, franja }: { grilla: GrillaDisponibilidad; deporte: string; fecha: string; franja: string }) {
+  const router = useRouter();
   const f = FRANJAS.find((x) => x.v === franja) ?? FRANJAS[0];
   const horas = grilla.horas.filter((h) => f.ok(hhmmAMin(h)));
-
   // Cuántas canchas libres hay por hora (para el resumen de la fila).
   const libresEn = (h: string) => grilla.canchas.filter((c) => grilla.libres[c.id]?.[h]).length;
 
   return (
     <>
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Disponibilidad</h1>
-      <p className="mb-4 text-sm text-neutral-600">Mirá qué canchas están libres un día y una franja, sin armar la reserva.</p>
-
-      <div className="mb-4 grid gap-4 md:grid-cols-[auto_1fr]">
-        <div className="space-y-3">
-          <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Deporte</p>
-            <Segmentos valor={deporte} opciones={[{ v: 'padel', l: 'Pádel' }, { v: 'futbol', l: 'Fútbol' }]} onChange={(v) => ir({ deporte: v })} />
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Franja del día</p>
-            <Segmentos valor={franja} opciones={FRANJAS.map((x) => ({ v: x.v, l: x.l }))} onChange={(v) => ir({ franja: v })} />
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-500">Día</p>
-          <div className="grid max-w-md grid-cols-7 gap-1">
-            {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => <div key={d} className="pb-1 text-center text-xs text-neutral-500">{d}</div>)}
-            {dias.map((d) => {
-              const pasado = d < hoy;
-              const elegido = d === fecha;
-              const primero = d.endsWith('-01') || d === dias[0];
-              return (
-                <button key={d} type="button" disabled={pasado} onClick={() => ir({ fecha: d })}
-                  className={`flex h-11 flex-col items-center justify-center rounded-md border text-sm leading-tight ${elegido ? 'border-neutral-900 bg-neutral-900 text-white' : pasado ? 'border-transparent text-neutral-300' : 'bg-white hover:bg-neutral-50'}`}>
-                  <span className="font-medium">{Number(d.slice(8, 10))}</span>
-                  {(d === hoy || primero) && <span className={`text-[10px] ${elegido ? 'text-neutral-300' : 'text-neutral-500'}`}>{d === hoy ? 'hoy' : MESES[Number(d.slice(5, 7)) - 1]}</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Button variant="outline" onClick={() => router.push('/disponibilidad')}><ArrowLeft className="mr-1 h-4 w-4" /> Nueva búsqueda</Button>
+        <p className="text-base font-medium capitalize text-neutral-800">{etiquetaDeporte(deporte)} · {fechaLarga(fecha)} · <span className="normal-case">{f.l.toLowerCase()}</span></p>
       </div>
-
-      <h2 className="mb-2 text-sm font-medium capitalize text-neutral-700">{DIAS[diaDe(fecha)]} {Number(fecha.slice(8, 10))} de {MESES_LARGO[Number(fecha.slice(5, 7)) - 1]} · {f.l.toLowerCase()}</h2>
 
       {grilla.canchas.length === 0 || horas.length === 0 ? (
         <p className="rounded-lg border bg-white p-8 text-center text-sm text-neutral-600">
