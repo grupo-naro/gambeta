@@ -79,7 +79,7 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
       senaMonto: senaMonto.trim() === '' ? null : Number(senaMonto),
       precio90: aNum(precio90), precio90Pico: aNum(precio90Pico), precio120: aNum(precio120), precio120Pico: aNum(precio120Pico),
       turnoBloqueMin: tipo !== 'futbol' && turnoBloque ? Number(turnoBloque) : null,
-      turnoDesfaseMin: tipo !== 'futbol' && turnoBloque ? Number(turnoDesfase) : 0,
+      turnoDesfaseMin: tipo !== 'futbol' ? Number(turnoDesfase) : 0,
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     start(async () => {
@@ -174,9 +174,9 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
               {tipo !== 'futbol' && (
                 <div className="space-y-3 rounded-md border p-3">
                   <p className="text-xs text-muted-foreground">
-                    Inicios escalonados: los turnos de la cancha arrancan cada cierto tiempo, corridos desde la
-                    apertura (ej. cada 1 hora y +30 min = 08:30, 09:30, 10:30…). Con inicios cada hora o menos se
-                    siguen pudiendo reservar 1, 1½ o 2 horas. Sin elegir, se puede arrancar cada media hora.
+                    Escalonado: el primer turno de la cancha se corre desde la apertura (ej. +30 min = el primero a
+                    las 08:30 si abren a las 08:00). "Los turnos arrancan" en "Cada media hora" deja todos los
+                    inicios a :00 y :30 con turnos de 1, 1½ o 2 horas; las otras opciones fijan una grilla propia.
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1"><Label htmlFor="c-bloque">Los turnos arrancan</Label>
@@ -188,7 +188,7 @@ export function CanchaDialog({ open, onOpenChange, cancha }: { open: boolean; on
                       </select>
                     </div>
                     <div className="space-y-1"><Label htmlFor="c-desfase">Primer turno</Label>
-                      <select id="c-desfase" value={turnoDesfase} onChange={(e) => setTurnoDesfase(e.target.value)} disabled={!turnoBloque} className="w-full rounded-md border px-2 py-1.5 disabled:opacity-50">
+                      <select id="c-desfase" value={turnoDesfase} onChange={(e) => setTurnoDesfase(e.target.value)} className="w-full rounded-md border px-2 py-1.5">
                         <option value="0">A la hora de apertura</option>
                         <option value="30">30 min después</option>
                         <option value="60">1 hora después</option>

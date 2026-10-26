@@ -12,7 +12,7 @@ import { precioDeRango, DURACION_DEFAULT_MIN, reglasDeAgenda } from './precio.se
 import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { clasificarOrigen } from './visita.service.js';
-import { jornadaWindowUtc, dayOfWeekInTz, hoyEnTz, sumarDias, minutoDeJornada, instanteDeJornada } from '../utils/tz.js';
+import { jornadaWindowUtc, dayOfWeekInTz, hoyEnTz, sumarDias, minutoDeJornada, instanteDeJornada, hhmmDeMin } from '../utils/tz.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
@@ -136,6 +136,10 @@ export const reservaService = {
     const reglas = reglasDeAgenda(cancha);
     if (!reglas.duracionesMin.includes(duracionMin)) {
       throw BusinessRule(`Esta cancha solo admite turnos de ${reglas.duracionesMin.map((d) => d / 60).join(', ')} hora(s)`);
+    }
+    // Una cancha con primer turno corrido no ofrece nada antes de apertura + desfase.
+    if (iniMin < minutoDeJornada(apertura, apertura) + reglas.desfaseMin) {
+      throw BusinessRule('Esta cancha empieza a las ' + hhmmDeMin(minutoDeJornada(apertura, apertura) + reglas.desfaseMin));
     }
     // Con bloque fijo el turno tiene que caer en la grilla propia de la cancha: apertura + desfase + k × bloque.
     if (reglas.bloqueFijo) {

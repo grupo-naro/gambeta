@@ -24,7 +24,7 @@ export interface ReglasDeAgenda {
   pasoMin: number;
   /** Duraciones reservables, en minutos. Siempre ascendente. */
   duracionesMin: readonly number[];
-  /** Minutos desde la apertura hasta el primer turno. Solo con bloque fijo; si no, 0. */
+  /** Minutos desde la apertura hasta el primer turno de la cancha (0 = desde la apertura). */
   desfaseMin: number;
   /** true si los inicios están alineados a (apertura + desfaseMin) con un paso propio de la cancha. */
   bloqueFijo: boolean;
@@ -54,9 +54,12 @@ export function reglasDeAgenda(cancha: string | CanchaAgenda): ReglasDeAgenda {
     return { pasoMin: turnoBloqueMin, duracionesMin: duraciones, desfaseMin: turnoDesfaseMin ?? 0, bloqueFijo: true };
   }
   const esFutbol = tipo.toLowerCase().startsWith('futbol');
+  // Agenda libre con primer turno corrido: el paso no cambia, pero la cancha no ofrece nada antes de
+  // apertura + desfase (Pádel 1 a las 07:00, Pádel 2 a las 07:30…).
+  const desfaseMin = turnoDesfaseMin ?? 0;
   return esFutbol
-    ? { pasoMin: 60, duracionesMin: [60], desfaseMin: 0, bloqueFijo: false }
-    : { pasoMin: 30, duracionesMin: DURACIONES_MIN, desfaseMin: 0, bloqueFijo: false };
+    ? { pasoMin: 60, duracionesMin: [60], desfaseMin, bloqueFijo: false }
+    : { pasoMin: 30, duracionesMin: DURACIONES_MIN, desfaseMin, bloqueFijo: false };
 }
 
 /**

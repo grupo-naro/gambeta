@@ -139,3 +139,10 @@ describe('reglasDeAgenda con bloque fijo (pádel escalonado)', () => {
     expect(reglasDeAgenda('futbol5')).toMatchObject({ pasoMin: 60, duracionesMin: [60], bloqueFijo: false });
   });
 });
+
+describe('reglasDeAgenda con primer turno corrido y agenda libre', () => {
+  it('conserva el paso de media hora y las 3 duraciones, y expone el desfase', () => {
+    expect(reglasDeAgenda({ tipo: 'padel', turnoBloqueMin: null, turnoDesfaseMin: 60 }))
+      .toEqual({ pasoMin: 30, duracionesMin: [60, 90, 120], desfaseMin: 60, bloqueFijo: false });
+  });
+});

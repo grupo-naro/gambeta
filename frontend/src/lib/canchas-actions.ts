@@ -32,7 +32,7 @@ export async function crearCanchaDivisible(input: { nombre: string; partes: numb
   return run(() => apiFetch('/canchas/divisible', { method: 'POST', body: JSON.stringify(input) }));
 }
 
-/** Escalona las canchas de pádel (o, con `bloqueMin: null`, las vuelve a la agenda libre). */
-export async function escalonarPadel(bloqueMin: number | null): Promise<Result> {
-  return run(() => apiFetch('/canchas/escalonar-padel', { method: 'POST', body: JSON.stringify({ bloqueMin, pasoMin: 30 }) }));
+/** Escalona las canchas de pádel (corre el primer turno de cada una 30 min) o, con `quitar`, las deja todas desde la apertura. */
+export async function escalonarPadel(quitar: boolean): Promise<Result> {
+  return run(() => apiFetch('/canchas/escalonar-padel', { method: 'POST', body: JSON.stringify({ quitar, pasoMin: 30 }) }));
 }

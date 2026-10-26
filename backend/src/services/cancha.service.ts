@@ -31,13 +31,14 @@ export const canchaService = {
    * `pasoMin` más tarde que la anterior (por orden de nombre: 1, 2, 3…). Con `bloqueMin: null`
    * vuelve todo a la agenda libre. Devuelve el desfase asignado a cada cancha.
    */
-  escalonarPadel: async (bloqueMin: number | null, pasoMin: number) => {
+  escalonarPadel: async (bloqueMin: number | null, pasoMin: number, quitar = false) => {
     const canchas = (await canchaRepo.list(true))
       .filter((c) => c.tipo.toLowerCase() === 'padel')
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true }));
     if (canchas.length === 0) throw BusinessRule('No hay canchas de pádel activas');
     // Cada cancha corre su primer turno `pasoMin` más que la anterior (07:00, 07:30, 08:00, 08:30…).
-    const plan = canchas.map((c, i) => ({ c, desfase: bloqueMin ? i * pasoMin : 0 }));
+    const plan = canchas.map((c, i) => ({ c, desfase: quitar ? 0 : i * pasoMin }));
+    if (quitar) bloqueMin = null;
     if (plan.some((p) => p.desfase > 120)) throw BusinessRule('Hay demasiadas canchas para escalonarlas con ese paso');
     await prisma.$transaction(plan.map(({ c, desfase }) =>
       prisma.cancha.update({ where: { id: c.id }, data: { turnoBloqueMin: bloqueMin, turnoDesfaseMin: desfase } })));

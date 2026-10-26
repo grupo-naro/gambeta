@@ -44,12 +44,12 @@ export function CanchasTable({ canchas }: { canchas: Cancha[] }) {
   }
 
   const hayPadel = canchas.some((c) => c.activa && c.tipo.toLowerCase() === 'padel');
-  const escalonado = canchas.some((c) => c.activa && c.tipo.toLowerCase() === 'padel' && c.turnoBloqueMin);
-  async function escalonar(bloqueMin: number | null) {
-    const ok = await confirm(bloqueMin
-      ? { title: '¿Escalonar las canchas de pádel?', description: 'Los turnos de pádel arrancan cada 1 hora y el primero de cada cancha se corre 30 minutos más que el de la anterior (por orden de nombre): la 1 a la apertura, la 2 a +30 min, la 3 a +1 h, la 4 a +1½ h. Se siguen pudiendo reservar 1, 1½ o 2 horas. Las reservas ya hechas no se tocan.', confirmLabel: 'Escalonar' }
+  const escalonado = canchas.some((c) => c.activa && c.tipo.toLowerCase() === 'padel' && (c.turnoBloqueMin || (c.turnoDesfaseMin ?? 0) > 0));
+  async function escalonar(quitar: boolean) {
+    const ok = await confirm(!quitar
+      ? { title: '¿Escalonar las canchas de pádel?', description: 'El primer turno de cada cancha de pádel se corre 30 minutos más que el de la anterior (por orden de nombre): la 1 a la apertura, la 2 a +30 min, la 3 a +1 h, la 4 a +1½ h. Después todas siguen cada media hora, con turnos de 1, 1½ o 2 horas. Las reservas ya hechas no se tocan.', confirmLabel: 'Escalonar' }
       : { title: '¿Volver a la agenda libre?', description: 'Todas las canchas de pádel vuelven a ofrecer turnos cada media hora.', confirmLabel: 'Quitar escalonado' });
-    if (ok) act(() => escalonarPadel(bloqueMin), bloqueMin ? 'Canchas de pádel escalonadas' : 'Escalonado quitado');
+    if (ok) act(() => escalonarPadel(quitar), !quitar ? 'Canchas de pádel escalonadas' : 'Escalonado quitado');
   }
 
   const sorted = sortCanchas(canchas);
@@ -60,10 +60,10 @@ export function CanchasTable({ canchas }: { canchas: Cancha[] }) {
         <h1 className="text-2xl font-semibold tracking-tight">Canchas</h1>
         <div className="flex gap-2">
           {hayPadel && (
-            <Button variant="outline" disabled={pending} onClick={() => escalonar(60)}>Escalonar pádel</Button>
+            <Button variant="outline" disabled={pending} onClick={() => escalonar(false)}>Escalonar pádel</Button>
           )}
           {escalonado && (
-            <Button variant="outline" disabled={pending} onClick={() => escalonar(null)}>Quitar escalonado</Button>
+            <Button variant="outline" disabled={pending} onClick={() => escalonar(true)}>Quitar escalonado</Button>
           )}
           <Button onClick={nueva}><Plus className="mr-1 h-4 w-4" /> Nueva cancha</Button>
         </div>

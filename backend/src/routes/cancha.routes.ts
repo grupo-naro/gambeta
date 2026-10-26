@@ -39,9 +39,9 @@ canchaRoutes.post('/divisible', authJwt, requireRole('ADMIN'), validate(crearDiv
 
 canchaRoutes.post('/escalonar-padel', authJwt, requireRole('ADMIN'), validate(escalonarPadelSchema), async (req, res, next) => {
   try {
-    const { bloqueMin, pasoMin } = (req as any).valid.body;
-    const r = await canchaService.escalonarPadel(bloqueMin, pasoMin);
-    await auditService.log(req, { accion: 'EDITAR', entidad: 'Cancha', descripcion: bloqueMin ? 'Escalonó las canchas de pádel (turnos de ' + bloqueMin + ' min, cada ' + pasoMin + ' min)' : 'Quitó el escalonado de las canchas de pádel' });
+    const { bloqueMin, pasoMin, quitar } = (req as any).valid.body;
+    const r = await canchaService.escalonarPadel(bloqueMin, pasoMin, quitar);
+    await auditService.log(req, { accion: 'EDITAR', entidad: 'Cancha', descripcion: quitar ? 'Quitó el escalonado de las canchas de pádel' : 'Escalonó las canchas de pádel (primer turno de cada una corrido ' + pasoMin + ' min)' });
     res.json(r);
   } catch (e) { next(e); }
 });
