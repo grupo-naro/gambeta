@@ -16,13 +16,13 @@ describe('navAgrupado', () => {
   it('ADMIN ve los 3 grupos, en orden y con las cantidades correctas', () => {
     const r = navAgrupado('ADMIN');
     expect(r.map((g) => g.grupo)).toEqual(['Operación', 'Programación', 'Administración']);
-    expect(r.map((g) => g.items.length)).toEqual([7, 3, 4 + CON_SOCIOS]);
+    expect(r.map((g) => g.items.length)).toEqual([8, 3, 4 + CON_SOCIOS]);
   });
 
   it('RECEPCIONISTA ve solo Operación y Programación (sin Administración)', () => {
     const r = navAgrupado('RECEPCIONISTA');
     expect(r.map((g) => g.grupo)).toEqual(['Operación', 'Programación']);
-    expect(r.map((g) => g.items.length)).toEqual([5, 1]);
+    expect(r.map((g) => g.items.length)).toEqual([6, 1]);
     expect(r[1].items[0].href).toBe('/turnos-fijos'); // único de Programación visible para recepción
   });
 

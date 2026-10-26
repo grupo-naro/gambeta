@@ -201,3 +201,13 @@ export interface DisponibilidadSemanal {
   horas: string[]; canchas: { id: string; nombre: string }[];
   celdas: Record<string, Record<string, CeldaDisp>>;
 }
+
+/** Lo que devuelve `/disponibilidad/grilla`: qué canchas están libres a cada hora de una fecha. */
+export interface GrillaDisponibilidad {
+  deporte: string; fecha: string;
+  canchas: { id: string; nombre: string; precioHora: number }[];
+  horas: string[];
+  libres: Record<string, Record<string, boolean>>;
+  precios: Record<string, Record<string, number>>;
+  duraciones: Record<string, Record<string, DuracionSlot[]>>;
+}

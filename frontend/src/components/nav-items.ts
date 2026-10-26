@@ -1,4 +1,4 @@
-import { Sun, LayoutDashboard, CalendarDays, CalendarRange, LandPlot, CalendarClock, Ban, Settings, Users, Activity, Wallet, Contact, ShoppingBasket, Handshake, BadgeCheck, type LucideIcon } from 'lucide-react';
+import { Sun, LayoutDashboard, CalendarDays, CalendarRange, CalendarCheck, LandPlot, CalendarClock, Ban, Settings, Users, Activity, Wallet, Contact, ShoppingBasket, Handshake, BadgeCheck, type LucideIcon } from 'lucide-react';
 import type { Rol } from '@/lib/types';
 import { SOCIOS_HABILITADO } from '@/lib/features';
 
@@ -16,6 +16,7 @@ export const nav: NavItem[] = [
   // Operación — el día a día
   { href: '/hoy', label: 'Hoy', icon: Sun, roles: AMBOS, grupo: 'Operación' },
   { href: '/reservas', label: 'Reservas', icon: CalendarDays, roles: AMBOS, grupo: 'Operación' },
+  { href: '/disponibilidad', label: 'Disponibilidad', icon: CalendarCheck, roles: AMBOS, grupo: 'Operación' },
   { href: '/calendario', label: 'Calendario', icon: CalendarRange, roles: AMBOS, grupo: 'Operación' },
   { href: '/caja', label: 'Caja', icon: Wallet, roles: AMBOS, grupo: 'Operación' },
   { href: '/clientes', label: 'Clientes', icon: Contact, roles: AMBOS, grupo: 'Operación' },
