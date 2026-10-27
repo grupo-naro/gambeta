@@ -12,10 +12,21 @@ import { nuevaReservaSchema } from '@/lib/validators';
 import { previewWhatsapp } from '@/lib/whatsapp';
 import { useClienteAutocomplete } from '@/lib/use-cliente-autocomplete';
 
-export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha[]; senaMontoFijo: number }) {
-  const [open, setOpen] = useState(false);
-  const [canchaId, setCanchaId] = useState('');
-  const [fecha, setFecha] = useState('');
+/**
+ * Por defecto trae su propio botón "Nueva reserva". Con `controlado` lo abre y cierra el padre (sin
+ * botón), y con `inicial` arranca con cancha, fecha y hora ya cargadas (p. ej. al tocar un horario
+ * libre en Disponibilidad). El padre cambia el `key` para reiniciarlo con otro `inicial`.
+ */
+export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial }: {
+  canchas: Cancha[]; senaMontoFijo: number;
+  controlado?: { open: boolean; onOpenChange: (o: boolean) => void };
+  inicial?: { canchaId: string; fecha: string; horaInicio: string };
+}) {
+  const [openInterno, setOpenInterno] = useState(false);
+  const open = controlado ? controlado.open : openInterno;
+  const setOpen = controlado ? controlado.onOpenChange : setOpenInterno;
+  const [canchaId, setCanchaId] = useState(inicial?.canchaId ?? '');
+  const [fecha, setFecha] = useState(inicial?.fecha ?? '');
   const [horaInicio, setHora] = useState('');
   const [duracionMin, setDuracionMin] = useState(60);
   const [nombreCliente, setNombre] = useState('');
@@ -24,7 +35,7 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha
   const [cobro, setCobro] = useState<'ninguno' | 'sena' | 'total'>('sena');
   const [medioCobro, setMedioCobro] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO');
   const [slots, setSlots] = useState<Slot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(!!inicial); // con `inicial` los horarios se piden al montar
   const [montoSena, setMontoSena] = useState('');
   const [pending, start] = useTransition();
   const requestIdRef = useRef(0);
@@ -35,6 +46,22 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha
   useEffect(() => {
     if (cobro === 'sena') setMontoSena(String(senaDefault(canchas.find((c) => c.id === canchaId))));
   }, [canchaId, cobro]);
+
+  // Con valores iniciales, trae los horarios de esa cancha y fecha y deja elegido el pedido.
+  useEffect(() => {
+    if (!inicial) return;
+    const { canchaId: c, fecha: f, horaInicio: h } = inicial;
+    requestIdRef.current += 1;
+    const esta = requestIdRef.current;
+    getDisponibilidad(c, f).then((r) => {
+      if (requestIdRef.current !== esta) return;
+      setSlots(r);
+      setSlotsLoading(false);
+      if (r.some((s) => s.horaInicio === h)) setHora(h);
+    });
+    // Solo al montar: el padre cambia el key para cada selección nueva.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function resetForm() {
     setCanchaId('');
@@ -96,7 +123,7 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo }: { canchas: Cancha
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button />}><Plus className="mr-1 h-4 w-4" /> Nueva reserva</DialogTrigger>
+      {!controlado && <DialogTrigger render={<Button />}><Plus className="mr-1 h-4 w-4" /> Nueva reserva</DialogTrigger>}
       <DialogContent>
         <DialogHeader><DialogTitle>Nueva reserva</DialogTitle></DialogHeader>
         <div className="space-y-3">

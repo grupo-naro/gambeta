@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Search } from 'lucide-react';
-import type { GrillaDisponibilidad } from '@/lib/types';
+import type { Cancha, GrillaDisponibilidad } from '@/lib/types';
+import { NuevaReservaDialog } from '@/components/reservas/nueva-reserva-dialog';
 import { hhmmAMin, sumarDias } from '@/lib/hora';
 import { nombreCancha } from '@/lib/calendario';
 import { Button } from '@/components/ui/button';
@@ -50,14 +51,15 @@ const Titulo = ({ n, children }: { n: number; children: React.ReactNode }) => (
  * Es solo consulta: lo libre sale de la misma grilla que usa la web de reservas, así que ya
  * descuenta reservas, turnos fijos y bloqueos.
  */
-export function DisponibilidadDia({ grilla, deporte, fecha, franja, hoy }: {
+export function DisponibilidadDia({ grilla, deporte, fecha, franja, hoy, canchas, senaMontoFijo }: {
   grilla: GrillaDisponibilidad | null; deporte: string; fecha: string; franja: string; hoy: string;
+  canchas: Cancha[]; senaMontoFijo: number;
 }) {
   return (
     <>
       <h1 className="mb-1 text-2xl font-semibold tracking-tight">Disponibilidad</h1>
       <p className="mb-5 text-sm text-neutral-600">Mirá qué canchas están libres un día y una franja, sin armar la reserva.</p>
-      {grilla ? <Resultado grilla={grilla} deporte={deporte} fecha={fecha} franja={franja} /> : <Formulario hoy={hoy} deporteInicial={deporte} fechaInicial={fecha} franjaInicial={franja} />}
+      {grilla ? <Resultado grilla={grilla} deporte={deporte} fecha={fecha} franja={franja} canchas={canchas} senaMontoFijo={senaMontoFijo} /> : <Formulario hoy={hoy} deporteInicial={deporte} fechaInicial={fecha} franjaInicial={franja} />}
     </>
   );
 }
@@ -113,8 +115,11 @@ function Formulario({ hoy, deporteInicial, fechaInicial, franjaInicial }: { hoy:
   );
 }
 
-function Resultado({ grilla, deporte, fecha, franja }: { grilla: GrillaDisponibilidad; deporte: string; fecha: string; franja: string }) {
+function Resultado({ grilla, deporte, fecha, franja, canchas, senaMontoFijo }: { grilla: GrillaDisponibilidad; deporte: string; fecha: string; franja: string; canchas: Cancha[]; senaMontoFijo: number }) {
   const router = useRouter();
+  // Horario libre tocado: abre Nueva reserva con cancha, fecha y hora cargadas. `n` reinicia el diálogo en cada toque.
+  const [sel, setSel] = useState<{ canchaId: string; horaInicio: string; n: number } | null>(null);
+  const [abierto, setAbierto] = useState(false);
   const f = FRANJAS.find((x) => x.v === franja) ?? FRANJAS[0];
   const horas = grilla.horas.filter((h) => f.ok(hhmmAMin(h)));
   // Cuántas canchas libres hay por hora (para el resumen de la fila).
@@ -151,10 +156,11 @@ function Resultado({ grilla, deporte, fecha, franja }: { grilla: GrillaDisponibi
                     return (
                       <td key={c.id} className="px-1 py-1">
                         {libre ? (
-                          <div className="rounded bg-green-200 px-2 py-1 text-center text-xs font-medium text-green-900"
+                          <button type="button" onClick={() => { setSel({ canchaId: c.id, horaInicio: h, n: (sel?.n ?? 0) + 1 }); setAbierto(true); }}
+                            className="w-full rounded bg-green-200 px-2 py-1 text-center text-xs font-medium text-green-900 hover:bg-green-300"
                             title={durs.map((d) => `${largo(d.min)}: $${d.precio.toLocaleString('es-AR')}`).join(' · ')}>
                             Libre{max > 60 ? ` · hasta ${largo(max)}` : ''}
-                          </div>
+                          </button>
                         ) : (
                           <div className="rounded bg-neutral-100 px-2 py-1 text-center text-xs text-neutral-400">—</div>
                         )}
@@ -167,7 +173,13 @@ function Resultado({ grilla, deporte, fecha, franja }: { grilla: GrillaDisponibi
           </table>
         </div>
       )}
-      <p className="mt-3 text-xs text-neutral-500">Pasá el mouse (o mantené apretado) por una celda libre para ver los precios por duración. Para reservar, usá Nueva reserva en Reservas u Hoy.</p>
+      <p className="mt-3 text-xs text-neutral-500">Tocá un horario libre para reservarlo. Pasá el mouse por encima para ver los precios por duración.</p>
+
+      {sel && (
+        <NuevaReservaDialog key={sel.n} canchas={canchas} senaMontoFijo={senaMontoFijo}
+          controlado={{ open: abierto, onOpenChange: setAbierto }}
+          inicial={{ canchaId: sel.canchaId, fecha, horaInicio: sel.horaInicio }} />
+      )}
     </>
   );
 }

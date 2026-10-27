@@ -1,6 +1,6 @@
 import { apiFetch } from '@/lib/api';
 import { hoyAR } from '@/lib/fecha';
-import type { GrillaDisponibilidad } from '@/lib/types';
+import type { Cancha, Config, GrillaDisponibilidad } from '@/lib/types';
 import { DisponibilidadDia } from '@/components/disponibilidad/disponibilidad-dia';
 
 type Params = { deporte?: string; fecha?: string; franja?: string };
@@ -15,5 +15,9 @@ export default async function DisponibilidadPage({ searchParams }: { searchParam
   const grilla = deporte && fecha
     ? await apiFetch<GrillaDisponibilidad>(`/disponibilidad/grilla?deporte=${deporte}&fecha=${fecha}`)
     : null;
-  return <DisponibilidadDia grilla={grilla} deporte={deporte} fecha={fecha} franja={franja} hoy={hoy} />;
+  // Para poder reservar desde la grilla hacen falta las canchas y la seña por defecto (solo si hay grilla).
+  const [canchas, config] = grilla
+    ? await Promise.all([apiFetch<Cancha[]>('/canchas'), apiFetch<Config>('/config')])
+    : [[] as Cancha[], null];
+  return <DisponibilidadDia grilla={grilla} deporte={deporte} fecha={fecha} franja={franja} hoy={hoy} canchas={canchas} senaMontoFijo={Number(config?.senaMontoFijo ?? 0)} />;
 }

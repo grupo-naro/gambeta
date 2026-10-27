@@ -48,6 +48,7 @@ export async function crearReserva(input: { canchaId: string; whatsapp: string; 
     revalidatePath('/reservas');
     revalidatePath('/calendario');
     revalidatePath('/hoy');
+    revalidatePath('/disponibilidad');
     return { ok: true, cobroOmitido: data.cobroOmitido };
   }
   catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
