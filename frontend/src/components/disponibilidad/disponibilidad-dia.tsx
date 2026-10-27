@@ -18,6 +18,7 @@ const FRANJAS: { v: string; l: string; ok: (min: number) => boolean }[] = [
   { v: 'noche', l: 'Noche', ok: (m) => m >= 1200 || m < 360 },
 ];
 
+const DIAS_CORTO = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -67,9 +68,8 @@ function Formulario({ hoy, deporteInicial, fechaInicial, franjaInicial }: { hoy:
   const [deporte, setDeporte] = useState(deporteInicial);
   const [franja, setFranja] = useState(franjaInicial || 'todo');
 
-  // Mini calendario de 5 semanas alineado de lunes a domingo, empezando por la semana actual.
-  const lunes = sumarDias(hoy, -((diaDe(hoy) + 6) % 7));
-  const dias = Array.from({ length: 35 }, (_, i) => sumarDias(lunes, i));
+  // Tira horizontal con las próximas 3 semanas, desde hoy.
+  const dias = Array.from({ length: 21 }, (_, i) => sumarDias(hoy, i));
   const listo = !!fecha && !!deporte;
 
   function buscar() {
@@ -78,38 +78,37 @@ function Formulario({ hoy, deporteInicial, fechaInicial, franjaInicial }: { hoy:
   }
 
   return (
-    <div className="max-w-xl space-y-6 rounded-xl border bg-white p-5">
+    <div className="space-y-5 rounded-xl border bg-white p-5">
       <div>
         <Titulo n={1}>Elegí el día</Titulo>
-        <div className="grid grid-cols-7 gap-1">
-          {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => <div key={d} className="pb-1 text-center text-xs text-neutral-500">{d}</div>)}
+        <div className="flex gap-1.5 overflow-x-auto pb-2">
           {dias.map((d) => {
-            const pasado = d < hoy;
             const elegido = d === fecha;
-            const primero = d.endsWith('-01') || d === dias[0];
+            const nuevoMes = d.endsWith('-01') || d === dias[0];
             return (
-              <button key={d} type="button" disabled={pasado} onClick={() => setFecha(d)}
-                className={`flex h-11 flex-col items-center justify-center rounded-md border text-sm leading-tight ${elegido ? 'border-neutral-900 bg-neutral-900 text-white' : pasado ? 'border-transparent text-neutral-300' : 'bg-white hover:bg-neutral-50'}`}>
-                <span className="font-medium">{Number(d.slice(8, 10))}</span>
-                {(d === hoy || primero) && <span className={`text-[10px] ${elegido ? 'text-neutral-300' : 'text-neutral-500'}`}>{d === hoy ? 'hoy' : MESES[Number(d.slice(5, 7)) - 1]}</span>}
+              <button key={d} type="button" onClick={() => setFecha(d)}
+                className={`flex h-16 w-14 shrink-0 flex-col items-center justify-center rounded-lg border leading-tight ${elegido ? 'border-neutral-900 bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'}`}>
+                <span className={`text-xs ${elegido ? 'text-neutral-300' : 'text-neutral-500'}`}>{d === hoy ? 'Hoy' : DIAS_CORTO[diaDe(d)]}</span>
+                <span className="text-lg font-semibold">{Number(d.slice(8, 10))}</span>
+                <span className={`text-[10px] ${elegido ? 'text-neutral-300' : 'text-neutral-500'}`}>{nuevoMes ? MESES[Number(d.slice(5, 7)) - 1] : ' '}</span>
               </button>
             );
           })}
         </div>
-        {fecha && <p className="mt-2 text-sm font-medium capitalize text-neutral-700">{fechaLarga(fecha)}</p>}
+        {fecha && <p className="text-sm font-medium capitalize text-neutral-700">{fechaLarga(fecha)}</p>}
       </div>
 
-      <div>
-        <Titulo n={2}>Elegí el deporte</Titulo>
-        <Segmentos valor={deporte} opciones={[{ v: 'padel', l: 'Pádel' }, { v: 'futbol', l: 'Fútbol' }]} onChange={setDeporte} />
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+        <div>
+          <Titulo n={2}>Deporte</Titulo>
+          <Segmentos valor={deporte} opciones={[{ v: 'padel', l: 'Pádel' }, { v: 'futbol', l: 'Fútbol' }]} onChange={setDeporte} />
+        </div>
+        <div>
+          <Titulo n={3}>Franja del día</Titulo>
+          <Segmentos valor={franja} opciones={FRANJAS.map((x) => ({ v: x.v, l: x.l }))} onChange={setFranja} />
+        </div>
+        <Button className="h-10 px-6" disabled={!listo} onClick={buscar}><Search className="mr-1 h-4 w-4" /> Buscar</Button>
       </div>
-
-      <div>
-        <Titulo n={3}>Franja del día</Titulo>
-        <Segmentos valor={franja} opciones={FRANJAS.map((x) => ({ v: x.v, l: x.l }))} onChange={setFranja} />
-      </div>
-
-      <Button className="h-11 w-full" disabled={!listo} onClick={buscar}><Search className="mr-1 h-4 w-4" /> Buscar disponibilidad</Button>
     </div>
   );
 }
