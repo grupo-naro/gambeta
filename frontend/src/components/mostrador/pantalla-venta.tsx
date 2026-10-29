@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { CajaBuffetEstado, ProductoCobro, MedioPago, ConciliacionPendiente, StockAsignado } from '@/lib/types';
 import { abrirCaja, cerrarCaja, cobrar, buscarPorCodigo, salirDelMostrador } from '@/lib/buffet-actions';
@@ -156,6 +157,11 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
           Salir
         </button>
       </div>
+
+      {/* Las cuentas por cancha las usan los dos puestos. */}
+      <Link href="/mostrador/cuentas" className="rounded-xl border border-violet-600 px-4 py-2 text-center font-semibold text-violet-700">
+        Cuentas por cancha
+      </Link>
 
       {mostrador.tipo === 'PRINCIPAL' && (
         <div className="flex flex-wrap items-center gap-2">
