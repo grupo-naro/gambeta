@@ -41,7 +41,7 @@ consumos mientras dura el turno y al final se **rinde la cuenta** (se ve el deta
 - **Caja:** un mostrador **no puede cerrar su caja** mientras tenga cuentas abiertas. Sin esto, el conteo y la conciliación del cierre se descuadran.
 - **Visibilidad:** cada mostrador ve y maneja las cuentas que abrió; el panel de admin puede ver todas (lectura), con su estado y total.
 - **Enlace con la reserva:** si la cancha tiene una reserva en curso al abrir, se guarda el vínculo para mostrar cliente y horario en la cuenta. Es opcional: se puede abrir una cuenta sin reserva.
-- **Idempotencia:** igual que el cobro de hoy, cada operación lleva un identificador único para que un doble toque no sume dos veces ni cobre dos veces.
+- **Idempotencia:** un doble toque no puede sumar dos veces ni cobrar dos veces. Los consumos se guardan como **cantidad absoluta** por producto (fijar 3, no "sumar 1"), así reintentar da el mismo resultado; rendir usa un identificador de ticket propio de la cuenta, y cancelar o marcar impaga sobre una cuenta ya resuelta devuelve esa cuenta sin error. (Ajuste hecho al planificar: reemplaza el identificador único por operación del cobro actual.)
 
 ## Restricciones técnicas
 
