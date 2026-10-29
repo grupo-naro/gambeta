@@ -16,7 +16,7 @@ let canchaId: string; let cocaId: string; let panchoId: string;
 beforeEach(async () => {
   await resetTables();
   const p = getPrisma();
-  canchaId = (await p.cancha.create({ data: { nombre: 'Cancha 1', tipo: 'futbol5', precioHora: 30000 } })).id;
+  canchaId = (await p.cancha.create({ data: { nombre: 'Cancha 1', tipo: 'padel', precioHora: 30000 } })).id;
   cocaId = (await p.productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 20 } })).id;
   panchoId = (await p.productoBuffet.create({ data: { nombre: 'Pancho', precio: 3000, stock: 20 } })).id;
 });

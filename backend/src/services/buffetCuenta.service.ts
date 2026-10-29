@@ -22,6 +22,9 @@ export interface CuentaDTO {
 
 const MAX_CANTIDAD = 999;
 
+/** Las cuentas por cancha son solo de pádel: en fútbol no se consume durante el turno. */
+export const esCanchaDePadel = (tipo: string) => tipo.toLowerCase() === 'padel';
+
 const incluir = {
   cancha: { select: { nombre: true } },
   reserva: { select: { fechaInicio: true, fechaFin: true, cliente: { select: { nombre: true } } } },
@@ -79,6 +82,7 @@ export const buffetCuentaService = {
     const cancha = await prisma.cancha.findUnique({ where: { id: canchaId } });
     if (!cancha) throw NotFound('Cancha', canchaId);
     if (!cancha.activa) throw BusinessRule('La cancha está desactivada');
+    if (!esCanchaDePadel(cancha.tipo)) throw BusinessRule('Las cuentas por cancha son solo para pádel');
     const yaAbierta = await prisma.cuentaBuffet.findFirst({ where: { canchaId, estado: 'ABIERTA' } });
     if (yaAbierta) throw Conflict('Esa cancha ya tiene una cuenta abierta');
 

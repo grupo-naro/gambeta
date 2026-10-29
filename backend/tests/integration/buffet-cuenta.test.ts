@@ -15,8 +15,8 @@ let canchaId: string; let cancha2Id: string; let cocaId: string; let panchoId: s
 beforeEach(async () => {
   await resetTables();
   const p = getPrisma();
-  canchaId = (await p.cancha.create({ data: { nombre: 'Cancha 1', tipo: 'futbol5', precioHora: 30000 } })).id;
-  cancha2Id = (await p.cancha.create({ data: { nombre: 'Cancha 2', tipo: 'futbol5', precioHora: 30000 } })).id;
+  canchaId = (await p.cancha.create({ data: { nombre: 'Cancha 1', tipo: 'padel', precioHora: 30000 } })).id;
+  cancha2Id = (await p.cancha.create({ data: { nombre: 'Cancha 2', tipo: 'padel', precioHora: 30000 } })).id;
   cocaId = (await p.productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 10 } })).id;
   panchoId = (await p.productoBuffet.create({ data: { nombre: 'Pancho', precio: 3000, stock: 10 } })).id;
 });
@@ -45,6 +45,11 @@ describe('cuentas por cancha: abrir', () => {
     await buffetCuentaService.abrir(PRINCIPAL, canchaId);
     await buffetCuentaService.abrir(PRINCIPAL, cancha2Id);
     expect(await buffetCuentaService.listarAbiertas(PRINCIPAL)).toHaveLength(2);
+  });
+
+  it('las canchas de fútbol no tienen cuentas: es una regla de negocio', async () => {
+    const futbol = await getPrisma().cancha.create({ data: { nombre: 'Fútbol 5', tipo: 'futbol5', precioHora: 30000 } });
+    await fallaCon(() => buffetCuentaService.abrir(PRINCIPAL, futbol.id), 422);
   });
 
   it('una cancha que no existe es 404', async () => {

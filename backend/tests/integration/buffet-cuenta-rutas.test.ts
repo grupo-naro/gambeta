@@ -22,8 +22,8 @@ beforeEach(async () => {
   const p = getPrisma();
   await p.mostrador.update({ where: { id: 'mostrador-principal' }, data: { pinHash: await hashPassword('1111') } });
   mostradorToken = (await supertest(app).post('/buffet/pin/verificar').set('x-buffet-key', KEY).send({ pin: '1111' })).body.token;
-  canchaId = (await p.cancha.create({ data: { nombre: 'Cancha 1', tipo: 'futbol5', precioHora: 30000 } })).id;
-  await p.cancha.create({ data: { nombre: 'Vieja', tipo: 'futbol5', precioHora: 30000, activa: false } });
+  canchaId = (await p.cancha.create({ data: { nombre: 'Cancha 1', tipo: 'padel', precioHora: 30000 } })).id;
+  await p.cancha.create({ data: { nombre: 'Vieja', tipo: 'padel', precioHora: 30000, activa: false } });
   cocaId = (await p.productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 10 } })).id;
 });
 
@@ -32,7 +32,8 @@ const m = (r: any) => r.set('x-buffet-key', KEY).set('x-mostrador', mostradorTok
 const abrir = async () => (await m(supertest(app).post('/buffet/cuentas')).send({ canchaId })).body;
 
 describe('rutas de cuentas del mostrador', () => {
-  it('GET /buffet/canchas lista solo las canchas activas', async () => {
+  it('GET /buffet/canchas lista solo las canchas de pádel activas (no fútbol ni inactivas)', async () => {
+    await getPrisma().cancha.create({ data: { nombre: 'Fútbol 5', tipo: 'futbol5', precioHora: 30000 } });
     const r = await m(supertest(app).get('/buffet/canchas'));
     expect(r.status).toBe(200);
     expect(r.body).toEqual([{ id: canchaId, nombre: 'Cancha 1' }]);
