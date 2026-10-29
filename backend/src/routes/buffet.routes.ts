@@ -10,7 +10,9 @@ import { buffetPinService } from '../services/buffetPin.service.js';
 import { buffetEntregaService } from '../services/buffetEntrega.service.js';
 import { buffetConciliacionService } from '../services/buffetConciliacion.service.js';
 import { mostradorService } from '../services/mostrador.service.js';
-import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema } from '../validators/buffet.schema.js';
+import { buffetCuentaService } from '../services/buffetCuenta.service.js';
+import { canchaRepo } from '../repositories/cancha.repo.js';
+import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema, abrirCuentaSchema, cuentaIdSchema, fijarCantidadSchema, rendirCuentaSchema, listarCuentasAdminSchema } from '../validators/buffet.schema.js';
 import { idParamSchema } from '../validators/reserva.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
 import { Forbidden, NotFound, Unauthorized } from '../utils/errors.js';
@@ -48,6 +50,45 @@ buffetRoutes.post('/cobrar', authMostrador, validate(cobrarSchema), async (req, 
     const mostradorId = (req as any).mostrador.id;
     res.json(await buffetCajaService.cobrar({ ...(req as any).valid.body, mostradorId }));
   } catch (e) { next(e); }
+});
+
+// --- Cuentas por cancha (mostrador) ---
+buffetRoutes.get('/canchas', authMostrador, async (_req, res, next) => {
+  try { res.json((await canchaRepo.list(true)).map((c) => ({ id: c.id, nombre: c.nombre }))); } catch (e) { next(e); }
+});
+
+buffetRoutes.get('/cuentas', authMostrador, async (req, res, next) => {
+  try { res.json(await buffetCuentaService.listarAbiertas((req as any).mostrador.id)); } catch (e) { next(e); }
+});
+
+buffetRoutes.post('/cuentas', authMostrador, validate(abrirCuentaSchema), async (req, res, next) => {
+  try { res.status(201).json(await buffetCuentaService.abrir((req as any).mostrador.id, (req as any).valid.body.canchaId)); } catch (e) { next(e); }
+});
+
+buffetRoutes.get('/cuentas/:id', authMostrador, validate(cuentaIdSchema), async (req, res, next) => {
+  try { res.json(await buffetCuentaService.detalle((req as any).mostrador.id, (req as any).valid.params.id)); } catch (e) { next(e); }
+});
+
+buffetRoutes.put('/cuentas/:id/lineas/:productoId', authMostrador, validate(fijarCantidadSchema), async (req, res, next) => {
+  try {
+    const { id, productoId } = (req as any).valid.params;
+    res.json(await buffetCuentaService.fijarCantidad((req as any).mostrador.id, id, productoId, (req as any).valid.body.cantidad));
+  } catch (e) { next(e); }
+});
+
+buffetRoutes.post('/cuentas/:id/rendir', authMostrador, validate(rendirCuentaSchema), async (req, res, next) => {
+  try {
+    const { medioPago, montoPagado } = (req as any).valid.body;
+    res.json(await buffetCuentaService.rendir({ mostradorId: (req as any).mostrador.id, cuentaId: (req as any).valid.params.id, medioPago, montoPagado }));
+  } catch (e) { next(e); }
+});
+
+buffetRoutes.post('/cuentas/:id/cancelar', authMostrador, validate(cuentaIdSchema), async (req, res, next) => {
+  try { res.json(await buffetCuentaService.cancelar((req as any).mostrador.id, (req as any).valid.params.id)); } catch (e) { next(e); }
+});
+
+buffetRoutes.post('/cuentas/:id/impaga', authMostrador, validate(cuentaIdSchema), async (req, res, next) => {
+  try { res.json(await buffetCuentaService.darPorImpaga((req as any).mostrador.id, (req as any).valid.params.id)); } catch (e) { next(e); }
 });
 
 buffetRoutes.post('/caja/cerrar', authMostrador, async (req, res, next) => {
@@ -112,6 +153,10 @@ buffetRoutes.post('/pin/verificar', authBuffet, loginLimiter, validate(verificar
 });
 
 // --- Admin (JWT) ---
+buffetRoutes.get('/admin/cuentas', authJwt, requireRole('ADMIN'), validate(listarCuentasAdminSchema), async (req, res, next) => {
+  try { res.json(await buffetCuentaService.listarParaAdmin((req as any).valid.query.estado)); } catch (e) { next(e); }
+});
+
 buffetRoutes.get('/cajas', authJwt, requireRole('ADMIN'), async (_req, res, next) => {
   try { res.json(await buffetCajaService.listCierres()); } catch (e) { next(e); }
 });

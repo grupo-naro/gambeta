@@ -101,6 +101,12 @@ export const buffetCuentaService = {
     return cuentas.map(aDTO);
   },
 
+  /** Todas las cuentas de todos los mostradores, para el panel del admin (solo lectura). */
+  async listarParaAdmin(estado?: EstadoCuenta): Promise<CuentaDTO[]> {
+    const cuentas = await prisma.cuentaBuffet.findMany({ where: estado ? { estado } : {}, include: incluir, orderBy: { abiertaEn: 'desc' }, take: 200 });
+    return cuentas.map(aDTO);
+  },
+
   async detalle(mostradorId: string, cuentaId: string): Promise<CuentaDTO> {
     return aDTO(await cargar(mostradorId, cuentaId));
   },

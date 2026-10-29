@@ -89,3 +89,20 @@ export const rangoFechasSchema = z.object({
   query: z.object({ desde: fechaISO.optional(), hasta: fechaISO.optional() }),
   params: empty,
 });
+
+// --- Cuentas por cancha ---
+const estadoCuenta = z.enum(['ABIERTA', 'RENDIDA', 'CANCELADA', 'IMPAGA']);
+export const abrirCuentaSchema = z.object({ body: z.object({ canchaId: z.string().min(1) }), query: empty, params: empty });
+export const cuentaIdSchema = z.object({ body: z.unknown(), query: empty, params: idParam });
+export const fijarCantidadSchema = z.object({
+  // Entero estricto (sin coerce): "3" o 1.5 no son una cantidad válida.
+  body: z.object({ cantidad: z.number().int().min(0).max(999) }),
+  query: empty,
+  params: z.object({ id: z.string().min(1), productoId: z.string().min(1) }),
+});
+export const rendirCuentaSchema = z.object({
+  body: z.object({ medioPago: z.enum(['EFECTIVO', 'TRANSFERENCIA']), montoPagado: z.coerce.number().nonnegative() }),
+  query: empty,
+  params: idParam,
+});
+export const listarCuentasAdminSchema = z.object({ body: z.unknown(), query: z.object({ estado: estadoCuenta.optional() }), params: empty });
