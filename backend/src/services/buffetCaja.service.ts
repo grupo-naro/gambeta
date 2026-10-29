@@ -1,15 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound, BusinessRule } from '../utils/errors.js';
 
-// Postgres check_violation SQLSTATE es 23514. Con el driver adapter de Prisma 7, el código
-// vive en e.cause.code (no en e.code ni en e.meta.code) — mismo patrón que isExclusionViolation
-// en reserva.repo.ts. Se filtra además por el nombre de la constraint para no confundir esto
-// con cualquier otro CHECK que pueda existir en la base.
-function esViolacionStockAsignadoNegativo(e: unknown): boolean {
-  const anyE = e as any;
-  const esCheckViolation = anyE?.code === '23514' || anyE?.cause?.code === '23514' || anyE?.meta?.code === '23514';
-  return esCheckViolation && String(anyE?.message ?? '').includes('StockMostrador_cantidad_no_negativa');
-}
+import { calcularPago, descontarStock, esViolacionStockAsignadoNegativo, mensajeSinStockAsignado } from './buffetStock.js';
 
 type Medio = 'EFECTIVO' | 'TRANSFERENCIA';
 export interface TicketLineaDTO { productoId: string; nombre: string; cantidad: number; precioUnit: number }
@@ -154,7 +146,6 @@ export const buffetCajaService = {
 
     const mostrador = await prisma.mostrador.findUnique({ where: { id: input.mostradorId } });
     if (!mostrador) throw NotFound('Mostrador', input.mostradorId);
-    const esSecundario = mostrador.tipo === 'SECUNDARIO';
 
     const ids = input.items.map((i) => i.productoId);
     const productos = await prisma.productoBuffet.findMany({ where: { id: { in: ids }, activo: true } });
@@ -165,11 +156,7 @@ export const buffetCajaService = {
     }
     const total = input.items.reduce((a, it) => a + Number(byId.get(it.productoId)!.precio) * it.cantidad, 0);
 
-    let montoPagado: number; let vuelto: number;
-    if (input.medioPago === 'EFECTIVO') {
-      if (input.montoPagado < total) throw BusinessRule('El monto pagado es menor al total');
-      montoPagado = input.montoPagado; vuelto = montoPagado - total;
-    } else { montoPagado = total; vuelto = 0; }
+    const { montoPagado, vuelto } = calcularPago(input.medioPago, input.montoPagado, total);
 
     let ticketId = '';
     // Si la carrera la gana la restricción CHECK de la base (ver esViolacionStockAsignadoNegativo
@@ -184,24 +171,8 @@ export const buffetCajaService = {
           const p = byId.get(it.productoId)!;
           await tx.ventaBuffet.create({ data: { ticketId: ticket.id, productoId: p.id, precioUnit: p.precio, cantidad: it.cantidad } });
 
-          // El principal vende contra el stock general; el secundario, contra lo que se le
-          // asignó. Descontar del general una venta del secundario contaría dos veces la misma
-          // unidad: ya había salido del general cuando se la entregaron.
-          if (esSecundario) {
-            const asignado = await tx.stockMostrador.findUnique({
-              where: { mostradorId_productoId: { mostradorId: input.mostradorId, productoId: p.id } },
-            });
-            if (!asignado || asignado.cantidad < it.cantidad) {
-              throw BusinessRule(`No tenés stock asignado de ${p.nombre}. Pedile al mostrador principal que te entregue.`);
-            }
-            productoEnCurso = p;
-            await tx.stockMostrador.update({
-              where: { mostradorId_productoId: { mostradorId: input.mostradorId, productoId: p.id } },
-              data: { cantidad: { decrement: it.cantidad } },
-            });
-          } else {
-            await tx.productoBuffet.update({ where: { id: p.id }, data: { stock: { decrement: it.cantidad } } });
-          }
+          productoEnCurso = p;
+          await descontarStock(tx, { id: input.mostradorId, tipo: mostrador.tipo }, p, it.cantidad);
         }
       });
     } catch (e: any) {
@@ -224,7 +195,7 @@ export const buffetCajaService = {
       // Es el mismo caso de negocio que el pre-chequeo de arriba, solo que descubierto por la
       // base en vez de por el código — así que es el mismo BusinessRule, no un 500.
       if (esViolacionStockAsignadoNegativo(e)) {
-        throw BusinessRule(`No tenés stock asignado de ${productoEnCurso?.nombre ?? 'ese producto'}. Pedile al mostrador principal que te entregue.`);
+        throw BusinessRule(mensajeSinStockAsignado(productoEnCurso?.nombre ?? 'ese producto'));
       }
       throw e;
     }
