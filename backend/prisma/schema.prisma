@@ -83,36 +83,37 @@ model ReservaSector {
 }
 
 model Cancha {
-  id             String              @id @default(cuid())
-  nombre         String
-  tipo           String
-  jugadores      Int                 @default(5)
-  destacada      Boolean             @default(false)
-  precioHora     Decimal             @db.Decimal(10, 2)
-  precioHoraPico Decimal             @default(0) @db.Decimal(10, 2)
+  id              String              @id @default(cuid())
+  nombre          String
+  tipo            String
+  jugadores       Int                 @default(5)
+  destacada       Boolean             @default(false)
+  precioHora      Decimal             @db.Decimal(10, 2)
+  precioHoraPico  Decimal             @default(0) @db.Decimal(10, 2)
   /// Precio propio por duración, por banda. Opcionales: si faltan, el precio de esa duración
   /// se deriva proporcionalmente de precioHora/precioHoraPico, como siempre.
   /// La decisión es POR DURACIÓN: una cancha puede tener precio120 y no precio90.
-  precio90       Decimal?            @db.Decimal(10, 2)
-  precio90Pico   Decimal?            @db.Decimal(10, 2)
-  precio120      Decimal?            @db.Decimal(10, 2)
-  precio120Pico  Decimal?            @db.Decimal(10, 2)
-  senaMonto      Decimal?            @db.Decimal(10, 2)
+  precio90        Decimal?            @db.Decimal(10, 2)
+  precio90Pico    Decimal?            @db.Decimal(10, 2)
+  precio120       Decimal?            @db.Decimal(10, 2)
+  precio120Pico   Decimal?            @db.Decimal(10, 2)
+  senaMonto       Decimal?            @db.Decimal(10, 2)
   /// Turnos en bloques fijos (minutos). null = agenda libre del deporte. Con valor, la cancha ofrece
   /// SOLO turnos de esa duración, alineados a (apertura + turnoDesfaseMin) + k × bloque. Sirve para
   /// escalonar las canchas de pádel (cada una arranca media hora después que la anterior).
-  turnoBloqueMin Int?
-  turnoDesfaseMin Int                @default(0)
-  activa         Boolean             @default(true)
-  creadoEn       DateTime            @default(now())
-  grupoId        String?
-  grupo          CanchaGrupo?        @relation(fields: [grupoId], references: [id])
-  esEntera       Boolean             @default(false)
-  sectores       CanchaSector[]
-  reservas       Reserva[]
-  horarios       HorarioDisponible[]
-  turnosFijos    TurnoFijo[]
-  bloqueos       Bloqueo[]
+  turnoBloqueMin  Int?
+  turnoDesfaseMin Int                 @default(0)
+  activa          Boolean             @default(true)
+  creadoEn        DateTime            @default(now())
+  grupoId         String?
+  grupo           CanchaGrupo?        @relation(fields: [grupoId], references: [id])
+  esEntera        Boolean             @default(false)
+  sectores        CanchaSector[]
+  reservas        Reserva[]
+  horarios        HorarioDisponible[]
+  turnosFijos     TurnoFijo[]
+  bloqueos        Bloqueo[]
+  cuentasBuffet   CuentaBuffet[]
 
   @@index([activa])
 }
@@ -167,22 +168,22 @@ enum MotivoBloqueo {
 }
 
 model Bloqueo {
-  id          String             @id @default(cuid())
-  canchaId    String
-  cancha      Cancha             @relation(fields: [canchaId], references: [id])
-  excepciones BloqueoExcepcion[]
-  motivo      MotivoBloqueo
-  recurrente  Boolean            @default(false)
-  diaSemana   Int?
-  fecha       DateTime?          @db.Date
-  horaInicio  String
-  horaFin     String
-  nota        String?
+  id            String             @id @default(cuid())
+  canchaId      String
+  cancha        Cancha             @relation(fields: [canchaId], references: [id])
+  excepciones   BloqueoExcepcion[]
+  motivo        MotivoBloqueo
+  recurrente    Boolean            @default(false)
+  diaSemana     Int?
+  fecha         DateTime?          @db.Date
+  horaInicio    String
+  horaFin       String
+  nota          String?
   /// Período de un bloqueo RECURRENTE (inclusivo, null = sin límite). Fuera de él no bloquea.
-  vigenciaDesde DateTime?        @db.Date
-  vigenciaHasta DateTime?        @db.Date
-  activo      Boolean            @default(true)
-  creadoEn    DateTime           @default(now())
+  vigenciaDesde DateTime?          @db.Date
+  vigenciaHasta DateTime?          @db.Date
+  activo        Boolean            @default(true)
+  creadoEn      DateTime           @default(now())
 
   @@index([canchaId])
 }
@@ -260,6 +261,7 @@ model Reserva {
   pago           Pago?
   sectores       ReservaSector[]
   cobros         Cobro[]
+  cuentasBuffet  CuentaBuffet[]
 
   @@unique([turnoFijoId, fechaInicio])
   @@index([canchaId, fechaInicio])
@@ -399,6 +401,7 @@ model ProductoBuffet {
   orden            Int                     @default(0)
   activo           Boolean                 @default(true)
   ventas           VentaBuffet[]
+  cuentaLineas     CuentaBuffetLinea[]
   stockMostradores StockMostrador[]
   entregas         EntregaMostradorLinea[]
   conteosCierre    ConteoCierreLinea[]
@@ -418,6 +421,7 @@ model Mostrador {
   pinHash  String             @default("")
   activo   Boolean            @default(true)
   cajas    CajaBuffet[]
+  cuentas  CuentaBuffet[]
   stock    StockMostrador[]
   entregas EntregaMostrador[]
 
@@ -442,6 +446,7 @@ model CajaBuffet {
   /// que ya están guardados.
   totalAlquileres  Decimal?            @db.Decimal(10, 2)
   alquileres       Alquiler[]
+  cuentas          CuentaBuffet[]
 
   @@index([mostradorId])
 }
@@ -516,6 +521,7 @@ model TicketBuffet {
   vuelto      Decimal       @db.Decimal(10, 2)
   creadoEn    DateTime      @default(now())
   lineas      VentaBuffet[]
+  cuenta      CuentaBuffet?
 
   @@index([cajaId])
 }
@@ -618,4 +624,53 @@ model Visita {
   // subsumen a un índice simple por `creadoEn`, que por eso no existe aparte.
   @@index([creadoEn, tipo, visitanteId])
   @@index([creadoEn, etiqueta, tipo, visitanteId])
+}
+
+enum EstadoCuentaBuffet {
+  ABIERTA
+  RENDIDA
+  CANCELADA
+  IMPAGA
+}
+
+/// Cuenta de consumos del buffet a nombre de una cancha, abierta durante el turno y rendida al
+/// final. Una cancha tiene como mucho una ABIERTA (índice único parcial en la migración). El stock
+/// se descuenta al sumar el consumo, no al rendir.
+model CuentaBuffet {
+  id          String              @id @default(cuid())
+  mostradorId String
+  mostrador   Mostrador           @relation(fields: [mostradorId], references: [id])
+  canchaId    String
+  cancha      Cancha              @relation(fields: [canchaId], references: [id])
+  /// Reserva en curso de esa cancha al abrir la cuenta, si había. Solo informativa.
+  reservaId   String?
+  reserva     Reserva?            @relation(fields: [reservaId], references: [id])
+  estado      EstadoCuentaBuffet  @default(ABIERTA)
+  abiertaEn   DateTime            @default(now())
+  cerradaEn   DateTime?
+  /// Caja del mostrador en la que se rindió o se dio por impaga.
+  cajaId      String?
+  caja        CajaBuffet?         @relation(fields: [cajaId], references: [id])
+  /// Ticket de venta que se crea al rendir. Las impagas y canceladas no tienen.
+  ticketId    String?             @unique
+  ticket      TicketBuffet?       @relation(fields: [ticketId], references: [id])
+  /// Total congelado al rendir o dar por impaga.
+  total       Decimal?            @db.Decimal(10, 2)
+  lineas      CuentaBuffetLinea[]
+
+  @@index([mostradorId, estado])
+  @@index([canchaId])
+}
+
+model CuentaBuffetLinea {
+  id         String         @id @default(cuid())
+  cuentaId   String
+  cuenta     CuentaBuffet   @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+  productoId String
+  producto   ProductoBuffet @relation(fields: [productoId], references: [id])
+  /// Precio del producto al agregar la línea: cambiarlo después no altera una cuenta abierta.
+  precioUnit Decimal        @db.Decimal(10, 2)
+  cantidad   Int
+
+  @@unique([cuentaId, productoId])
 }
