@@ -1,8 +1,9 @@
 'use server';
+import { revalidatePath } from 'next/cache';
 import { buffetFetch } from './buffet-api';
 import { crearSesionBuffet, borrarSesionBuffet, requireSesionBuffet } from './buffet-session';
 import { ApiError } from './types';
-import type { CajaBuffetEstado, CierreBuffet, MedioPago, CobroResultado, ProductoCobro, MostradorIdentificado, LineaConciliacion } from './types';
+import type { CuentaBuffet, CanchaMostrador, RendirCuentaResultado, CajaBuffetEstado, CierreBuffet, MedioPago, CobroResultado, ProductoCobro, MostradorIdentificado, LineaConciliacion } from './types';
 
 /**
  * El PIN ya no dice solo "sí o no": dice QUÉ mostrador es. El token que devuelve el backend
@@ -68,4 +69,42 @@ export async function conciliarCaja(
     `/buffet/cajas/${encodeURIComponent(cajaId)}/conciliacion`,
     { method: 'POST', body: JSON.stringify({ conteos }) },
   ));
+}
+
+// --- Cuentas por cancha ---
+// Cada cuenta que cambia revalida la lista: la pantalla de cuentas se arma en el servidor.
+const jsonPost = (body?: unknown): RequestInit => ({ method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) });
+
+async function conCuentas<T>(fn: () => Promise<T>): Promise<Resultado<T>> {
+  const r = await conSesion(fn);
+  if (r.ok) revalidatePath('/mostrador/cuentas');
+  return r;
+}
+
+export async function getCanchasMostrador(): Promise<Resultado<CanchaMostrador[]>> {
+  return conSesion(() => buffetFetch<CanchaMostrador[]>('/buffet/canchas'));
+}
+
+export async function abrirCuenta(canchaId: string): Promise<Resultado<CuentaBuffet>> {
+  return conCuentas(() => buffetFetch<CuentaBuffet>('/buffet/cuentas', jsonPost({ canchaId })));
+}
+
+/** Deja el consumo de un producto en `cantidad` (absoluta; 0 lo quita). Reintentar da el mismo resultado. */
+export async function fijarConsumo(cuentaId: string, productoId: string, cantidad: number): Promise<Resultado<CuentaBuffet>> {
+  return conCuentas(() => buffetFetch<CuentaBuffet>(
+    `/buffet/cuentas/${encodeURIComponent(cuentaId)}/lineas/${encodeURIComponent(productoId)}`,
+    { method: 'PUT', body: JSON.stringify({ cantidad }) },
+  ));
+}
+
+export async function rendirCuenta(cuentaId: string, medioPago: MedioPago, montoPagado: number): Promise<Resultado<RendirCuentaResultado>> {
+  return conCuentas(() => buffetFetch<RendirCuentaResultado>(`/buffet/cuentas/${encodeURIComponent(cuentaId)}/rendir`, jsonPost({ medioPago, montoPagado })));
+}
+
+export async function cancelarCuenta(cuentaId: string): Promise<Resultado<CuentaBuffet>> {
+  return conCuentas(() => buffetFetch<CuentaBuffet>(`/buffet/cuentas/${encodeURIComponent(cuentaId)}/cancelar`, jsonPost()));
+}
+
+export async function cuentaImpaga(cuentaId: string): Promise<Resultado<CuentaBuffet>> {
+  return conCuentas(() => buffetFetch<CuentaBuffet>(`/buffet/cuentas/${encodeURIComponent(cuentaId)}/impaga`, jsonPost()));
 }

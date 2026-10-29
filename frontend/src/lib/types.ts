@@ -211,3 +211,15 @@ export interface GrillaDisponibilidad {
   precios: Record<string, Record<string, number>>;
   duraciones: Record<string, Record<string, DuracionSlot[]>>;
 }
+
+export type EstadoCuentaBuffet = 'ABIERTA' | 'RENDIDA' | 'CANCELADA' | 'IMPAGA';
+export interface CuentaLinea { productoId: string; nombre: string; cantidad: number; precioUnit: number; subtotal: number }
+/** Cuenta de consumos del buffet a nombre de una cancha (ver backend/src/services/buffetCuenta.service.ts). */
+export interface CuentaBuffet {
+  id: string; canchaId: string; canchaNombre: string; estado: EstadoCuentaBuffet;
+  abiertaEn: string; cerradaEn: string | null;
+  reserva: { clienteNombre: string; horaInicio: string; horaFin: string } | null;
+  total: number; lineas: CuentaLinea[];
+}
+export interface CanchaMostrador { id: string; nombre: string }
+export interface RendirCuentaResultado { cuenta: CuentaBuffet; ticketId: string; total: number; vuelto: number }
