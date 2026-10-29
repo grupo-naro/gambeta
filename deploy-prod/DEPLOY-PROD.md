@@ -99,6 +99,35 @@ se excluye con `--omit=dev`).
 
 Apuntar el webhook a `https://api.gambeteandopadelyfutbol.ar/webhooks`.
 
+### 8. WhatsApp (avisos de seña confirmada y recordatorio)
+
+El sistema manda WhatsApp **solo para avisar** (no recibe ni responde mensajes):
+
+- Al **confirmarse la seña** (Mercado Pago aprobado, o transferencia aprobada desde el panel): "Confirmamos tu seña ✅…".
+- **A las 18:00 del día anterior** al turno: "Te recordamos tu turno…". No se manda a reservas canceladas, que esperan seña, que salen de un turno fijo, ni a las hechas después de esa hora.
+
+Se usa Evolution API (WhatsApp Web). Hace falta un número de WhatsApp dedicado al complejo. Mientras no se configure, todo lo demás funciona igual y los avisos quedan apagados (el backend lo avisa en el log al arrancar).
+
+1. En `deploy-prod/.env` agregar (la clave la inventás vos, larga y al azar):
+   ```
+   EVOLUTION_API_KEY=<clave-larga-al-azar>
+   EVOLUTION_INSTANCE=gambeteando
+   ```
+2. Crear la base de Evolution (una sola vez) y levantar el servicio:
+   ```bash
+   cd ~/gambeta/deploy-prod
+   docker compose up -d postgres
+   docker exec gambeta-prod-postgres psql -U "$PG_USER" -d gambeta -c 'CREATE DATABASE evolution;'
+   docker compose --profile whatsapp up -d evolution
+   ```
+3. Conectar el número (escaneando un QR). El panel de Evolution **no está público**: solo escucha en el localhost del VPS. Desde tu PC abrí un túnel SSH y entrá a `http://localhost:8082/manager`:
+   ```bash
+   ssh -L 8082:127.0.0.1:8082 deploy@<ip-del-vps>
+   ```
+   Con la clave `EVOLUTION_API_KEY` creá una instancia llamada igual que `EVOLUTION_INSTANCE` (`gambeteando`) y escaneá el QR desde el WhatsApp del número del complejo (Dispositivos vinculados). **No configures webhooks ni chatbots en la instancia**: tiene que quedar solo para enviar.
+4. Reiniciar el backend para que tome la clave: `docker compose up -d backend`. En el log debe decir `job de recordatorios iniciado`.
+5. Probar: aprobar una seña de prueba y confirmar que llega el mensaje.
+
 ---
 
 ## Día a día

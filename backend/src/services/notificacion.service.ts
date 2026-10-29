@@ -27,12 +27,20 @@ function fraseHora(fechaInicio: Date, tz: string): string {
   return fechaInicio.toLocaleTimeString('es-AR', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+/** Cierre de todo mensaje al cliente: este número solo notifica, no atiende conversaciones. */
+const AVISO_SIN_RESPUESTA = '\n\n_Este número solo envía avisos y no responde mensajes._';
+
 export function mensajeSenaAprobada(r: { cancha: { nombre: string }; fechaInicio: Date }, tz: string): string {
-  return `¡Listo! Confirmamos tu seña ✅. Tu turno de ${r.cancha.nombre} ${fraseDia(r.fechaInicio, tz)} a las ${fraseHora(r.fechaInicio, tz)} quedó reservado. ¡Te esperamos!`;
+  return `¡Listo! Confirmamos tu seña ✅. Tu turno de ${r.cancha.nombre} ${fraseDia(r.fechaInicio, tz)} a las ${fraseHora(r.fechaInicio, tz)} quedó reservado. ¡Te esperamos!${AVISO_SIN_RESPUESTA}`;
 }
 
 export function mensajeReservaConfirmada(d: DatosNotificacion, tz: string): string {
-  return `¡Hola ${d.nombreCliente}! Tu turno de ${d.canchaNombre} ${fraseDia(d.fechaInicio, tz)} a las ${fraseHora(d.fechaInicio, tz)} quedó confirmado ✅. ¡Te esperamos!`;
+  return `¡Hola ${d.nombreCliente}! Tu turno de ${d.canchaNombre} ${fraseDia(d.fechaInicio, tz)} a las ${fraseHora(d.fechaInicio, tz)} quedó confirmado ✅. ¡Te esperamos!${AVISO_SIN_RESPUESTA}`;
+}
+
+/** Un día antes del turno. Solo avisa: no pide ni espera respuesta del cliente. */
+export function mensajeRecordatorio(d: { nombreCliente: string; canchaNombre: string; fechaInicio: Date }, tz: string): string {
+  return `¡Hola ${d.nombreCliente}! Te recordamos tu turno de ${d.canchaNombre} ${fraseDia(d.fechaInicio, tz)} a las ${fraseHora(d.fechaInicio, tz)} ⏰. ¡Te esperamos!${AVISO_SIN_RESPUESTA}`;
 }
 
 export function mensajeComprobantePendiente(d: DatosNotificacion, tz: string): string {

@@ -231,37 +231,39 @@ enum MetodoSena {
 }
 
 model Reserva {
-  id             String          @id @default(cuid())
-  canchaId       String
-  cancha         Cancha          @relation(fields: [canchaId], references: [id])
-  clienteId      String
-  cliente        Cliente         @relation(fields: [clienteId], references: [id])
-  fechaInicio    DateTime        @db.Timestamptz(3)
-  fechaFin       DateTime        @db.Timestamptz(3)
-  estado         EstadoReserva
-  esContacto     Boolean
-  monto          Decimal         @db.Decimal(10, 2)
-  montoSena      Decimal?        @db.Decimal(10, 2)
+  id                    String          @id @default(cuid())
+  canchaId              String
+  cancha                Cancha          @relation(fields: [canchaId], references: [id])
+  clienteId             String
+  cliente               Cliente         @relation(fields: [clienteId], references: [id])
+  fechaInicio           DateTime        @db.Timestamptz(3)
+  fechaFin              DateTime        @db.Timestamptz(3)
+  estado                EstadoReserva
+  esContacto            Boolean
+  monto                 Decimal         @db.Decimal(10, 2)
+  montoSena             Decimal?        @db.Decimal(10, 2)
   /// Nullable y sin default a propósito: las reservas anteriores a este campo, las que carga el
   /// panel y las de socio no eligieron nada, y `null` es la lectura honesta. Un default
   /// fabricaría un método que nadie eligió.
-  metodoSena     MetodoSena?
+  metodoSena            MetodoSena?
   /// Por qué link llegó el cliente que hizo esta reserva (last-touch). Nullable y sin default
   /// por el mismo motivo que `metodoSena`: las reservas que carga el panel, las del bot y las
   /// anteriores a este campo no vinieron de ningún link, y `null` es la lectura honesta.
-  origenEtiqueta String?
-  origenTipo     TipoOrigen?
-  notas          String?
-  turnoFijoId    String?
-  turnoFijo      TurnoFijo?      @relation(fields: [turnoFijoId], references: [id])
-  suscripcionId  String?
-  suscripcion    Suscripcion?    @relation(fields: [suscripcionId], references: [id])
-  montoLista     Decimal?        @db.Decimal(10, 2)
-  creadoEn       DateTime        @default(now())
-  pago           Pago?
-  sectores       ReservaSector[]
-  cobros         Cobro[]
-  cuentasBuffet  CuentaBuffet[]
+  origenEtiqueta        String?
+  origenTipo            TipoOrigen?
+  notas                 String?
+  turnoFijoId           String?
+  turnoFijo             TurnoFijo?      @relation(fields: [turnoFijoId], references: [id])
+  suscripcionId         String?
+  suscripcion           Suscripcion?    @relation(fields: [suscripcionId], references: [id])
+  montoLista            Decimal?        @db.Decimal(10, 2)
+  creadoEn              DateTime        @default(now())
+  /// Cuándo se avisó por WhatsApp el recordatorio de un día antes. null = todavía no. Evita repetirlo.
+  recordatorioEnviadoEn DateTime?
+  pago                  Pago?
+  sectores              ReservaSector[]
+  cobros                Cobro[]
+  cuentasBuffet         CuentaBuffet[]
 
   @@unique([turnoFijoId, fechaInicio])
   @@index([canchaId, fechaInicio])
