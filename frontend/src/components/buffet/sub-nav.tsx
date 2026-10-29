@@ -5,6 +5,7 @@ const PAGINAS = [
   { clave: 'cierres', href: '/buffet/cierres', label: 'Cierres' },
   { clave: 'conciliaciones', href: '/buffet/conciliaciones', label: 'Faltantes' },
   { clave: 'entregas', href: '/buffet/entregas', label: 'Entregas' },
+  { clave: 'cuentas', href: '/buffet/cuentas', label: 'Cuentas' },
 ] as const;
 
 export type PaginaBuffet = (typeof PAGINAS)[number]['clave'];
