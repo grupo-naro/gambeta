@@ -205,6 +205,11 @@ export const buffetCajaService = {
   async cerrar(mostradorId: string): Promise<CierreDTO> {
     const caja = await cajaAbierta(mostradorId);
     if (!caja) throw Conflict('No hay una caja abierta');
+    // Un consumo sin cobrar se perdería en silencio y descuadraría el conteo del cierre.
+    const abiertas = await prisma.cuentaBuffet.count({ where: { mostradorId, estado: 'ABIERTA' } });
+    if (abiertas > 0) {
+      throw Conflict(`Hay ${abiertas} cuenta${abiertas === 1 ? '' : 's'} abierta${abiertas === 1 ? '' : 's'}: rendila, cancelala o marcala como impaga antes de cerrar la caja`);
+    }
     const est = await estadoDe(caja.id);
     await prisma.cajaBuffet.update({
       where: { id: caja.id },

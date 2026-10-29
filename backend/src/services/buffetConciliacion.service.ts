@@ -37,6 +37,13 @@ async function calcularResumen(cajaId: string): Promise<{ lineas: LineaConciliac
     include: { producto: { select: { nombre: true } } },
   });
 
+  // Una cuenta impaga consumió stock sin generar ticket: cuenta como vendida de esta caja, si no el
+  // conteo del cierre mostraría un faltante que en realidad se consumió.
+  const impagas = await prisma.cuentaBuffetLinea.findMany({
+    where: { cuenta: { cajaId, estado: 'IMPAGA' } },
+    include: { producto: { select: { nombre: true } } },
+  });
+
   const mapa = new Map<string, LineaConciliacion>();
   const tomar = (id: string, nombre: string) => {
     const cur = mapa.get(id) ?? { productoId: id, nombre, entregado: 0, vendido: 0, esperado: 0 };
@@ -45,6 +52,7 @@ async function calcularResumen(cajaId: string): Promise<{ lineas: LineaConciliac
   };
   for (const e of entregas) tomar(e.productoId, e.producto.nombre).entregado += e.cantidad;
   for (const v of ventas) tomar(v.productoId, v.producto.nombre).vendido += v.cantidad;
+  for (const l of impagas) tomar(l.productoId, l.producto.nombre).vendido += l.cantidad;
   for (const l of mapa.values()) l.esperado = l.entregado - l.vendido;
 
   const entregaIds = [...new Set(entregas.map((e) => e.entrega.id))];

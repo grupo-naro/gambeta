@@ -2,7 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { getEnv } from '../config/env.js';
 import { BadRequest, BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { cajaAbierta } from './buffetCaja.service.js';
-import { descontarStock, devolverStock, esViolacionStockAsignadoNegativo, mensajeSinStockAsignado, type MostradorStock } from './buffetStock.js';
+import { calcularPago, descontarStock, devolverStock, esViolacionStockAsignadoNegativo, mensajeSinStockAsignado, type MedioPago, type MostradorStock } from './buffetStock.js';
 
 /**
  * Cuentas por cancha del buffet: se abre una al empezar el turno, se le van sumando consumos y al
@@ -65,6 +65,14 @@ async function cargar(mostradorId: string, cuentaId: string) {
 // El índice único parcial de la base (una cancha, una cuenta ABIERTA) es el que frena la carrera de
 // dos aperturas simultáneas: Prisma lo reporta como P2002 o con el SQLSTATE 23505 en la causa.
 const esViolacionUnica = (e: any) => e?.code === 'P2002' || e?.code === '23505' || e?.cause?.code === '23505';
+
+export interface RendirInput { mostradorId: string; cuentaId: string; medioPago: MedioPago; montoPagado: number }
+export interface RendirResultado { cuenta: CuentaDTO; ticketId: string; total: number; vuelto: number }
+
+async function resultadoDeRendida(c: NonNullable<CuentaConDatos>): Promise<RendirResultado> {
+  const t = await prisma.ticketBuffet.findUniqueOrThrow({ where: { id: c.ticketId! } });
+  return { cuenta: aDTO(c), ticketId: t.id, total: Number(t.total), vuelto: Number(t.vuelto) };
+}
 
 export const buffetCuentaService = {
   async abrir(mostradorId: string, canchaId: string): Promise<CuentaDTO> {
@@ -138,6 +146,44 @@ export const buffetCuentaService = {
       throw e;
     }
     return aDTO(await cargar(mostradorId, cuentaId));
+  },
+
+  /**
+   * Cobra la cuenta de una vez: crea el ticket de venta en la caja abierta con los precios guardados
+   * en las líneas. El stock ya se descontó al sumar cada consumo, así que acá NO se toca. Rendir de
+   * nuevo una cuenta ya rendida devuelve el mismo ticket (un doble toque no cobra dos veces).
+   */
+  async rendir(input: RendirInput): Promise<RendirResultado> {
+    const actual = await cargar(input.mostradorId, input.cuentaId);
+    if (actual.estado === 'RENDIDA') return resultadoDeRendida(actual);
+    if (actual.estado !== 'ABIERTA') throw Conflict('La cuenta ya se resolvió');
+    if (actual.lineas.length === 0) throw BusinessRule('La cuenta está vacía: cancelala en vez de rendirla');
+    const caja = await cajaAbierta(input.mostradorId);
+    if (!caja) throw Conflict('No hay una caja abierta');
+
+    const total = actual.lineas.reduce((a, l) => a + Number(l.precioUnit) * l.cantidad, 0);
+    const { montoPagado, vuelto } = calcularPago(input.medioPago, input.montoPagado, total);
+
+    await prisma.$transaction(async (tx) => {
+      // Se reclama pasando de ABIERTA a RENDIDA: si dos pedidos llegan juntos, el segundo espera la
+      // fila, ve count 0 y no crea otro ticket (abajo se relee el resultado del ganador).
+      const r = await tx.cuentaBuffet.updateMany({
+        where: { id: input.cuentaId, estado: 'ABIERTA' },
+        data: { estado: 'RENDIDA', cerradaEn: new Date(), cajaId: caja.id, total },
+      });
+      if (r.count === 0) return;
+      const ticket = await tx.ticketBuffet.create({
+        data: { uid: `cuenta-${input.cuentaId}`, cajaId: caja.id, total, medioPago: input.medioPago, montoPagado, vuelto },
+      });
+      for (const l of actual.lineas) {
+        await tx.ventaBuffet.create({ data: { ticketId: ticket.id, productoId: l.productoId, precioUnit: l.precioUnit, cantidad: l.cantidad } });
+      }
+      await tx.cuentaBuffet.update({ where: { id: input.cuentaId }, data: { ticketId: ticket.id } });
+    });
+
+    const final = await cargar(input.mostradorId, input.cuentaId);
+    if (final.estado !== 'RENDIDA') throw Conflict('La cuenta ya se resolvió');
+    return resultadoDeRendida(final);
   },
 
   /** Anula una cuenta abierta (error de carga): devuelve todo el stock y no genera ticket. */
