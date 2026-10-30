@@ -25,6 +25,8 @@ type FijoInput = {
   vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
   // Cuánto pagó ahora del abono. Sin él el backend asume que pagó el total.
   montoPagado?: number;
+  // Nota libre del turno fijo.
+  nota?: string;
 };
 
 export async function crearTurnoFijo(i: FijoInput): Promise<Result> {
@@ -33,6 +35,8 @@ export async function crearTurnoFijo(i: FijoInput): Promise<Result> {
 
 type CambiosFijo = Partial<{
   canchaId: string; clienteNombre: string; whatsapp: string; diaSemana: number; horaInicio: string; horaFin: string;
+  // '' borra la nota.
+  nota: string;
   // Solo para fijos con abono. El medio de pago no se edita: es el de un cobro ya asentado.
   vigenciaDesde: string; vigenciaHasta: string; montoAbono: number;
 }>;

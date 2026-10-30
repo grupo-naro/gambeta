@@ -269,3 +269,15 @@ describe('cierre posterior a la medianoche', () => {
     expect(config({ picoDesde: '20:00', picoHasta: '01:00' }).success).toBe(true);
   });
 });
+
+describe('turnoFijoSchema: nota', () => {
+  const base = { canchaId: 'c', clienteNombre: 'Ana', whatsapp: '11 3662 0274', diaSemana: 3, horaInicio: '20:00', horaFin: '21:00' };
+  it('la nota es opcional y se recorta', () => {
+    expect(turnoFijoSchema.safeParse(base).success).toBe(true);
+    const r = turnoFijoSchema.safeParse({ ...base, nota: '  paga en efectivo  ' });
+    expect(r.success && r.data.nota).toBe('paga en efectivo');
+  });
+  it('rechaza una nota de más de 500 caracteres', () => {
+    expect(turnoFijoSchema.safeParse({ ...base, nota: 'x'.repeat(501) }).success).toBe(false);
+  });
+});

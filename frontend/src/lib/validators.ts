@@ -95,6 +95,7 @@ export const turnoFijoSchema = z.object({
   whatsapp: z.string().refine((s) => aCanonico(s) !== null, 'WhatsApp inválido (ej: 11 3662 0274)'),
   diaSemana: z.coerce.number().int().min(0).max(6),
   horaInicio: hhmm, horaFin: hhmm,
+  nota: z.string().trim().max(500, 'La nota es muy larga (máximo 500 caracteres)').optional(),
 }).refine((b) => hhmmAMin(b.horaInicio) < cierreMin(b.horaFin), { message: 'Inicio debe ser antes del fin', path: ['horaFin'] });
 
 export const usuarioSchema = z.object({

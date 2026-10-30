@@ -32,6 +32,7 @@ export function EditarTurnoFijoDialog({
   const [horaInicio, setHoraInicio] = useState(turno.horaInicio);
   const [horaFin, setHoraFin] = useState(turno.horaFin);
   const [clienteNombre, setClienteNombre] = useState(turno.clienteNombre);
+  const [nota, setNota] = useState(turno.nota ?? '');
   const [whatsapp, setWhatsapp] = useState(turno.whatsapp ?? '');
   const [vigenciaDesde, setVigenciaDesde] = useState(turno.vigenciaDesde ?? '');
   const [vigenciaHasta, setVigenciaHasta] = useState(turno.vigenciaHasta ?? '');
@@ -42,7 +43,7 @@ export function EditarTurnoFijoDialog({
     const hi = normalizeHora(horaInicio);
     const hf = normalizeHora(horaFin);
     if (!hi || !hf) { toast.error('Hora inválida. Usá formato 24h, ej: 21:00'); return; }
-    const parsed = turnoFijoSchema.safeParse({ canchaId, clienteNombre, whatsapp, diaSemana, horaInicio: hi, horaFin: hf });
+    const parsed = turnoFijoSchema.safeParse({ canchaId, clienteNombre, whatsapp, diaSemana, horaInicio: hi, horaFin: hf, nota: nota.trim() });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     if (tieneAbono) {
       if (!vigenciaDesde || !vigenciaHasta) { toast.error('Completá el período del abono'); return; }
@@ -102,6 +103,11 @@ export function EditarTurnoFijoDialog({
                 ? <p className="text-xs text-muted-foreground">Se guardará como: {previewWhatsapp(whatsapp)}</p>
                 : <p className="text-xs text-destructive">Número inválido. Ingresá los 10 dígitos (ej: 11 3662 0274).</p>
             )}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="ef-nota">Nota (opcional)</Label>
+            <textarea id="ef-nota" value={nota} onChange={(e) => setNota(e.target.value)} rows={2} maxLength={500}
+              placeholder="Vacía para borrar la nota" className="w-full rounded-md border px-2 py-1.5 text-sm" />
           </div>
           <div className="space-y-1">
             <Label htmlFor="ef-cliente">Cliente</Label>

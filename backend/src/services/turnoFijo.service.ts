@@ -103,6 +103,7 @@ export const turnoFijoService = {
     vigenciaDesde?: string; vigenciaHasta?: string; montoAbono?: number; medioAbono?: 'EFECTIVO' | 'TRANSFERENCIA';
     /** Cuánto pagó ahora del abono. Sin él se asume el total; 0 = todavía no pagó nada. */
     montoPagado?: number;
+    nota?: string;
   }, adminId: string | null = null) {
     const cfg = await configService.get();
     const esFinde = input.diaSemana === 0 || input.diaSemana === 6;
@@ -114,7 +115,7 @@ export const turnoFijoService = {
     );
     if (choca) throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
 
-    const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, montoPagado, ...datosFijo } = input;
+    const { vigenciaDesde, vigenciaHasta, montoAbono, medioAbono, montoPagado, nota, ...datosFijo } = input;
     // El fijo guarda el TOTAL del abono; lo cobrado ahora puede ser menos (o nada) y el resto se
     // registra después con `registrarCobro`.
     const pagoInicial = pagoInicialAbono(montoAbono, montoPagado);
@@ -130,6 +131,7 @@ export const turnoFijoService = {
           vigenciaDesde: vigenciaDesde ? new Date(vigenciaDesde + 'T00:00:00.000Z') : null,
           vigenciaHasta: vigenciaHasta ? new Date(vigenciaHasta + 'T00:00:00.000Z') : null,
           montoAbono: montoAbono ?? null,
+          nota: nota?.trim() ? nota.trim() : null,
         },
       });
       // Lo que pagó en el alta se asienta en caja. Sin esto la plata no aparece: los turnos salen
@@ -170,6 +172,7 @@ export const turnoFijoService = {
       diaSemana: f.diaSemana, horaInicio: f.horaInicio, horaFin: f.horaFin,
       vigenciaDesde: ymd(f.vigenciaDesde), vigenciaHasta: ymd(f.vigenciaHasta),
       montoAbono: f.montoAbono == null ? null : Number(f.montoAbono),
+      nota: f.nota,
     };
     const yaPagado = f.montoAbono == null ? 0 : await cobroRepo.sumByTurnoFijo(id);
     const nuevo = aplicarEdicion(actual, cambios);
@@ -214,6 +217,7 @@ export const turnoFijoService = {
           vigenciaDesde: nuevo.vigenciaDesde ? new Date(nuevo.vigenciaDesde + 'T00:00:00.000Z') : null,
           vigenciaHasta: nuevo.vigenciaHasta ? new Date(nuevo.vigenciaHasta + 'T00:00:00.000Z') : null,
           montoAbono: nuevo.montoAbono,
+          nota: nuevo.nota?.trim() ? nuevo.nota.trim() : null,
         },
       });
       for (const r of obsoletas) await reservaRepo.updateEstado(r.id, 'CANCELADA', tx);
@@ -371,7 +375,7 @@ export const turnoFijoService = {
         estado: cond.estado, esContacto: false,
         monto: conAbono ? 0 : cond.monto,
         montoLista: conAbono ? precio : cond.montoLista,
-        suscripcionId: cond.suscripcionId, montoSena: null, notas: null, turnoFijoId: fijoId,
+        suscripcionId: cond.suscripcionId, montoSena: null, notas: fijo.nota ?? null, turnoFijoId: fijoId,
       }, tx);
     });
   },

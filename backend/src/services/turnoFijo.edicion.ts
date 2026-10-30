@@ -18,6 +18,8 @@ export interface FijoEditable {
   vigenciaDesde: string | null;
   vigenciaHasta: string | null;
   montoAbono: number | null;
+  /** Texto libre; '' o null = sin nota. */
+  nota: string | null;
 }
 
 export type CambiosFijo = Partial<Omit<FijoEditable, 'whatsapp'>> & { whatsapp?: string };

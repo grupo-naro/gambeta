@@ -38,6 +38,7 @@ export const crearTurnoFijoSchema = z.object({
     medioAbono: z.enum(['EFECTIVO', 'TRANSFERENCIA']).optional(),
     // Cuánto pagó en el alta. Sin él se asume que pagó el total del abono. 0 = todavía no pagó.
     montoPagado: z.coerce.number().min(0).max(99999999.99).optional(),
+    nota: z.string().trim().max(500).optional(),
   })
     // `cierreMin` y no comparación de texto: "00:00" es el FIN del día (1440). `agenda.service`
     // y `turnoFijo.service` ya calculan la duración con `cierreMin(horaFin)` justamente para el
@@ -71,6 +72,8 @@ export const editarTurnoFijoSchema = z.object({
     vigenciaDesde: fechaYmd.optional(),
     vigenciaHasta: fechaYmd.optional(),
     montoAbono: z.coerce.number().positive().max(99999999.99).optional(),
+    // Vacía ('') borra la nota.
+    nota: z.string().trim().max(500).optional(),
   }).refine((b) => Object.keys(b).length > 0, { message: 'No hay nada para editar' }),
   query: empty,
   params: z.object({ id: z.string().min(1) }),

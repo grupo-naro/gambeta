@@ -23,3 +23,14 @@ describe('editarTurnoFijoSchema', () => {
     expect('medioAbono' in parse({ clienteNombre: 'Ana', medioAbono: 'EFECTIVO' } as any).body).toBe(false);
   });
 });
+
+describe('nota del turno fijo', () => {
+  it('se puede editar la nota, y vaciarla con un texto vacío', () => {
+    expect(parse({ nota: 'Paga siempre en efectivo' }).body.nota).toBe('Paga siempre en efectivo');
+    expect(parse({ nota: '' }).body.nota).toBe('');
+  });
+  it('recorta espacios y rechaza una nota demasiado larga', () => {
+    expect(parse({ nota: '  hola  ' }).body.nota).toBe('hola');
+    expect(() => parse({ nota: 'x'.repeat(501) })).toThrow();
+  });
+});

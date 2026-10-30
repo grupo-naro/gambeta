@@ -69,6 +69,8 @@ export interface TurnoFijo {
   vigenciaDesde?: string | null;
   vigenciaHasta?: string | null;
   montoAbono?: number | null;
+  /** Nota libre del turno fijo (se copia a cada reserva que genera). */
+  nota?: string | null;
   /** Lo cobrado del abono hasta ahora (null si el fijo no tiene abono). Saldo = montoAbono - abonoPagado. */
   abonoPagado?: number | null;
 }

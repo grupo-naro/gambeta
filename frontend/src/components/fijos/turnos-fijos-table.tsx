@@ -98,7 +98,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
               <TableBody>
                 {fijos.map((t) => (
                   <TableRow key={t.id} onClick={() => setSeleccion(t)} className="cursor-pointer hover:bg-neutral-50">
-                    <TableCell className="font-medium">{t.clienteNombre}{abonoVencido(t) && <BadgeAbonoVencido />}{saldoAbono(t) != null && <BadgeDebeAbono saldo={saldoAbono(t)!} />}</TableCell>
+                    <TableCell className="font-medium">{t.clienteNombre}{abonoVencido(t) && <BadgeAbonoVencido />}{saldoAbono(t) != null && <BadgeDebeAbono saldo={saldoAbono(t)!} />}{t.nota && <span className="mt-0.5 block text-xs font-normal text-neutral-500">{t.nota}</span>}</TableCell>
                     <TableCell className="text-neutral-600">{t.cancha?.nombre ?? '—'}</TableCell>
                     <TableCell>{DIAS[t.diaSemana] ?? t.diaSemana}</TableCell>
                     <TableCell>{t.horaInicio}–{t.horaFin}</TableCell>
@@ -117,6 +117,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
                   <span className="block"><span className="text-xs text-neutral-500">Cancha</span> {t.cancha?.nombre ?? '—'}</span>
                   <span className="block"><span className="text-xs text-neutral-500">Día</span> {DIAS[t.diaSemana] ?? t.diaSemana}</span>
                   <span className="block"><span className="text-xs text-neutral-500">Horario</span> {t.horaInicio}–{t.horaFin}</span>
+                  {t.nota && <span className="block"><span className="text-xs text-neutral-500">Nota</span> {t.nota}</span>}
                 </span>
               </button>
             ))}
@@ -130,6 +131,7 @@ export function TurnosFijosTable({ fijos, canchas }: { fijos: TurnoFijo[]; canch
             <SheetHeader>
               <SheetTitle>{seleccion.clienteNombre}{abonoVencido(seleccion) && <BadgeAbonoVencido />}</SheetTitle>
               <p className="text-sm text-neutral-600">{seleccion.cancha?.nombre ?? '—'} · {DIAS[seleccion.diaSemana] ?? seleccion.diaSemana} {seleccion.horaInicio}–{seleccion.horaFin}</p>
+              {seleccion.nota && <p className="text-sm text-neutral-600">Nota: {seleccion.nota}</p>}
               {seleccion.montoAbono != null && (
                 <p className="text-sm text-neutral-600">
                   Abono {money(seleccion.montoAbono)} · pagado {money(Number(seleccion.abonoPagado ?? 0))}

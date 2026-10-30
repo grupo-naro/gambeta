@@ -137,6 +137,9 @@ model TurnoFijo {
   vigenciaDesde DateTime?            @db.Date
   vigenciaHasta DateTime?            @db.Date
   montoAbono    Decimal?             @db.Decimal(10, 2)
+  /// Nota libre del turno fijo ("paga siempre en efectivo", "trae su pelota"…). Se copia a las
+  /// notas de cada reserva que se materializa. null = sin nota.
+  nota          String?
   activo        Boolean              @default(true)
   creadoEn      DateTime             @default(now())
   excepciones   TurnoFijoExcepcion[]

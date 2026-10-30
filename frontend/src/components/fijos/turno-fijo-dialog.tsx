@@ -32,6 +32,7 @@ export function TurnoFijoDialog({
   const [horaInicio, setHoraInicio] = useState(inicial?.horaInicio ?? '');
   const [horaFin, setHoraFin] = useState(inicial?.horaFin ?? '');
   const [clienteNombre, setClienteNombre] = useState('');
+  const [nota, setNota] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const clienteEncontrado = useClienteAutocomplete(whatsapp, setClienteNombre);
   const [conAbono, setConAbono] = useState(false);
@@ -52,6 +53,7 @@ export function TurnoFijoDialog({
       setHoraInicio(inicial?.horaInicio ?? '');
       setHoraFin(inicial?.horaFin ?? '');
       setClienteNombre('');
+      setNota('');
       setWhatsapp('');
       setConAbono(false);
       setVigenciaDesde('');
@@ -68,7 +70,7 @@ export function TurnoFijoDialog({
     const hi = normalizeHora(horaInicio);
     const hf = normalizeHora(horaFin);
     if (!hi || !hf) { toast.error('Hora inválida. Usá formato 24h, ej: 21:00'); return; }
-    const parsed = turnoFijoSchema.safeParse({ canchaId, clienteNombre, whatsapp, diaSemana, horaInicio: hi, horaFin: hf });
+    const parsed = turnoFijoSchema.safeParse({ canchaId, clienteNombre, whatsapp, diaSemana, horaInicio: hi, horaFin: hf, nota: nota.trim() || undefined });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     if (conAbono) {
       if (!vigenciaDesde || !vigenciaHasta) { toast.error('Completá el período del abono'); return; }
@@ -137,6 +139,11 @@ export function TurnoFijoDialog({
             <Label htmlFor="tf-cliente">Cliente</Label>
             <Input id="tf-cliente" value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
             {clienteEncontrado && <p className="text-xs text-emerald-600">Cliente existente</p>}
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="tf-nota">Nota (opcional)</Label>
+            <textarea id="tf-nota" value={nota} onChange={(e) => setNota(e.target.value)} rows={2} maxLength={500}
+              placeholder="Ej: paga siempre en efectivo, trae su pelota…" className="w-full rounded-md border px-2 py-1.5 text-sm" />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={conAbono} onChange={(e) => setConAbono(e.target.checked)} />
