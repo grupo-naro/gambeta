@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import type { Bloqueo, Cancha } from '@/lib/types';
 import { bloqueoSchema } from '@/lib/validators';
 import { crearBloqueo, editarBloqueo } from '@/lib/bloqueos-actions';
+import { registrarCobroBloqueo } from '@/lib/cobros-actions';
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MOTIVOS = [
@@ -88,8 +89,8 @@ export function BloqueoDialog({
       vigenciaHasta: recurrente && vigenciaHasta ? vigenciaHasta : undefined,
       // El valor solo existe en eventos de una fecha.
       valor: !recurrente && valor ? Number(valor) : undefined,
-      montoPagado: !editando && !recurrente && valor && sena ? Number(sena) : undefined,
-      medioPago: !editando && !recurrente && valor && sena ? medioPago : undefined,
+      montoPagado: !recurrente && valor && sena ? Number(sena) : undefined,
+      medioPago: !recurrente && valor && sena ? medioPago : undefined,
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     if (bloqueo) {
@@ -100,8 +101,14 @@ export function BloqueoDialog({
           nota: d.nota ?? '',
           ...(recurrente ? { diaSemana: d.diaSemana, vigenciaDesde: d.vigenciaDesde ?? null, vigenciaHasta: d.vigenciaHasta ?? null } : { fecha: d.fecha, valor: d.valor ?? null }),
         });
-        if (r.ok) { toast.success('Bloqueo actualizado'); onOpenChange(false); }
-        else toast.error(r.error);
+        if (!r.ok) { toast.error(r.error); return; }
+        // La seña es un cobro más del evento: se registra después de guardar el valor.
+        if (d.montoPagado && d.medioPago) {
+          const c = await registrarCobroBloqueo(bloqueo.id, { monto: d.montoPagado, medio: d.medioPago });
+          if (!c.ok) { toast.error('Se guardó el bloqueo, pero la seña no: ' + c.error); onOpenChange(false); return; }
+        }
+        toast.success('Bloqueo actualizado');
+        onOpenChange(false);
       });
       return;
     }
@@ -183,8 +190,8 @@ export function BloqueoDialog({
                   <Input id="bl-valor" type="number" min="0" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="50000" />
                 </div>
                 <div className="space-y-1">
-                  {!editando && <Label htmlFor="bl-sena">Seña cobrada ahora</Label>}
-                  {!editando && <Input id="bl-sena" type="number" min="0" value={sena} onChange={(e) => setSena(e.target.value)} placeholder="25000" disabled={!valor} />}
+                  <Label htmlFor="bl-sena">Seña cobrada ahora</Label>
+                  <Input id="bl-sena" type="number" min="0" value={sena} onChange={(e) => setSena(e.target.value)} placeholder="25000" disabled={!valor} />
                 </div>
               </div>
               {valor && sena && (
