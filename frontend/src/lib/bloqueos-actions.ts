@@ -27,6 +27,14 @@ export async function crearBloqueo(i: BloqueoInput): Promise<Result> {
   return run(() => apiFetch('/bloqueos', { method: 'POST', body: JSON.stringify(i) }));
 }
 
+// Edición parcial. `valor: null` saca el precio; `vigenciaDesde/Hasta: null` quitan el límite; `nota: ''` borra la nota.
+export type BloqueoEdicion = { canchaId?: string; motivo?: string; diaSemana?: number; fecha?: string; horaInicio?: string; horaFin?: string; nota?: string;
+  vigenciaDesde?: string | null; vigenciaHasta?: string | null; valor?: number | null };
+
+export async function editarBloqueo(id: string, i: BloqueoEdicion): Promise<Result> {
+  return run(() => apiFetch(`/bloqueos/${id}`, { method: 'PATCH', body: JSON.stringify(i) }));
+}
+
 export async function eliminarBloqueo(id: string): Promise<Result> {
   return run(() => apiFetch(`/bloqueos/${id}`, { method: 'DELETE' }));
 }

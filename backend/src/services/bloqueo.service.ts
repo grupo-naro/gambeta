@@ -2,7 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
-import { dayOfWeekInTz, minutoDeJornada } from '../utils/tz.js';
+import { dayOfWeekInTz, minutoDeJornada, hhmmAMin, cierreMin } from '../utils/tz.js';
 import { getEnv } from '../config/env.js';
 import { configService } from './config.service.js';
 import { cobroRepo } from '../repositories/cobro.repo.js';
@@ -58,6 +58,70 @@ export const bloqueoService = {
     });
     sheetsSync.marcarSemanaSucia();
     return creado;
+  },
+  /**
+   * Edición parcial. El tipo (recurrente/puntual) no cambia. Si se toca el puesto (cancha, día,
+   * fecha, horas, período) se revalida el choque ignorando al propio bloqueo. El valor del evento
+   * no puede quedar por debajo de lo ya cobrado, ni sacarse si hay cobros.
+   */
+  async editar(id: string, c: { canchaId?: string; motivo?: 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO'; diaSemana?: number; fecha?: string; horaInicio?: string; horaFin?: string; nota?: string; vigenciaDesde?: string | null; vigenciaHasta?: string | null; valor?: number | null }) {
+    const b = await prisma.bloqueo.findUnique({ where: { id } });
+    if (!b) throw NotFound('Bloqueo', id);
+    const ymd = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+    const nuevo = {
+      canchaId: c.canchaId ?? b.canchaId,
+      diaSemana: b.recurrente ? (c.diaSemana ?? b.diaSemana) : null,
+      fecha: b.recurrente ? null : (c.fecha ?? ymd(b.fecha)),
+      horaInicio: c.horaInicio ?? b.horaInicio,
+      horaFin: c.horaFin ?? b.horaFin,
+      vigenciaDesde: b.recurrente ? (c.vigenciaDesde === undefined ? ymd(b.vigenciaDesde) : c.vigenciaDesde) : null,
+      vigenciaHasta: b.recurrente ? (c.vigenciaHasta === undefined ? ymd(b.vigenciaHasta) : c.vigenciaHasta) : null,
+    };
+    if (hhmmAMin(nuevo.horaInicio) >= cierreMin(nuevo.horaFin)) throw BusinessRule('La hora de inicio debe ser anterior al fin');
+    if (nuevo.vigenciaDesde && nuevo.vigenciaHasta && nuevo.vigenciaDesde > nuevo.vigenciaHasta) throw BusinessRule('El período está invertido');
+    if (!b.recurrente && (c.diaSemana != null || c.vigenciaDesde != null || c.vigenciaHasta != null)) throw BusinessRule('El día y el período solo aplican a bloqueos recurrentes');
+    if (b.recurrente && c.fecha != null) throw BusinessRule('La fecha solo aplica a bloqueos de una fecha');
+    if (nuevo.canchaId !== b.canchaId && !(await prisma.cancha.findUnique({ where: { id: nuevo.canchaId }, select: { id: true } }))) throw NotFound('Cancha', nuevo.canchaId);
+
+    let valor: number | null = b.valor == null ? null : Number(b.valor);
+    if (c.valor !== undefined) {
+      if (b.recurrente && c.valor !== null) throw BusinessRule('El valor solo aplica a bloqueos de una fecha (eventos)');
+      const cobrado = (await cobroRepo.sumByBloqueos([id])).get(id) ?? 0;
+      if (c.valor === null && cobrado > 0) throw BusinessRule('No se puede sacar el valor: el evento ya tiene cobros. Anulalos primero.');
+      if (c.valor !== null && c.valor < cobrado) throw BusinessRule(`El valor no puede ser menor a lo ya cobrado (${plata(cobrado)})`);
+      valor = c.valor;
+    }
+
+    const mueve = nuevo.canchaId !== b.canchaId || nuevo.horaInicio !== b.horaInicio || nuevo.horaFin !== b.horaFin
+      || nuevo.diaSemana !== b.diaSemana || nuevo.fecha !== ymd(b.fecha)
+      || nuevo.vigenciaDesde !== ymd(b.vigenciaDesde) || nuevo.vigenciaHasta !== ymd(b.vigenciaHasta);
+    if (mueve) {
+      const dia = b.recurrente ? nuevo.diaSemana! : dayOfWeekInTz(nuevo.fecha!, getEnv().TZ_NEGOCIO);
+      const cfg = await configService.get();
+      const apertura = dia === 0 || dia === 6 ? cfg.horaAperturaFinde : cfg.horaApertura;
+      const opts = b.recurrente
+        ? { diaSemana: nuevo.diaSemana!, vigencia: { desde: nuevo.vigenciaDesde ?? undefined, hasta: nuevo.vigenciaHasta ?? undefined }, excluirBloqueoId: id }
+        : { fecha: nuevo.fecha!, excluirBloqueoId: id };
+      if (await ocupacionService.conflictoAlCrear(nuevo.canchaId, opts, minutoDeJornada(nuevo.horaInicio, apertura), minutoDeJornada(nuevo.horaFin, apertura))) {
+        throw Conflict('Ese horario ya está ocupado (otra reserva, fijo o bloqueo)');
+      }
+    }
+
+    const actualizado = await prisma.bloqueo.update({
+      where: { id },
+      data: {
+        canchaId: nuevo.canchaId, motivo: c.motivo ?? b.motivo,
+        diaSemana: nuevo.diaSemana,
+        fecha: nuevo.fecha ? new Date(nuevo.fecha + 'T00:00:00.000Z') : null,
+        horaInicio: nuevo.horaInicio, horaFin: nuevo.horaFin,
+        nota: c.nota === undefined ? b.nota : (c.nota.trim() === '' ? null : c.nota),
+        vigenciaDesde: nuevo.vigenciaDesde ? new Date(nuevo.vigenciaDesde + 'T00:00:00.000Z') : null,
+        vigenciaHasta: nuevo.vigenciaHasta ? new Date(nuevo.vigenciaHasta + 'T00:00:00.000Z') : null,
+        valor,
+      },
+    });
+    sheetsSync.marcarSemanaSucia();
+    return actualizado;
   },
   async eliminar(id: string) {
     const b = await prisma.bloqueo.findUnique({ where: { id } });

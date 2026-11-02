@@ -31,7 +31,7 @@ export const ocupacionService = {
   },
 
   // rangos [ini,fin) (minutos) ocupados por fijos/bloqueos para esa cancha en esa fecha.
-  async rangosPlantilla(canchaId: string, fecha: string): Promise<RangoOcupado[]> {
+  async rangosPlantilla(canchaId: string, fecha: string, excluirBloqueoId?: string): Promise<RangoOcupado[]> {
     const tz = getEnv().TZ_NEGOCIO;
     const dia = dayOfWeekInTz(fecha, tz);
     const cfg = await configService.get();
@@ -49,7 +49,7 @@ export const ocupacionService = {
     for (const f of fijos) if (f.excepciones.length === 0 && fijoVigenteEn(f, fecha)) out.push({ ini: minutoDeJornada(f.horaInicio, apertura), fin: minutoDeJornada(f.horaFin, apertura), tipo: 'fijo' });
 
     const bloqueos = await prisma.bloqueo.findMany({
-      where: { canchaId: { in: canchas }, activo: true, OR: [{ recurrente: true, diaSemana: dia }, { recurrente: false, fecha: fechaDate }] },
+      where: { canchaId: { in: canchas }, activo: true, ...(excluirBloqueoId ? { id: { not: excluirBloqueoId } } : {}), OR: [{ recurrente: true, diaSemana: dia }, { recurrente: false, fecha: fechaDate }] },
       include: { excepciones: { where: { fecha: fechaDate } } },
     });
     // Un bloqueo RECURRENTE con período solo bloquea dentro de él (los puntuales ya tienen su fecha).
@@ -71,13 +71,13 @@ export const ocupacionService = {
   // horario no da 409. Sin "desde" el nuevo fijo empieza hoy, no en el pasado infinito.
   // `opts.excluirFijoId` es para EDITAR un fijo: él mismo (y los turnos que ya materializó) no
   // cuentan como choque, si no mover el horario 30 minutos chocaría consigo mismo.
-  async conflictoAlCrear(canchaId: string, opts: { diaSemana?: number; fecha?: string; vigencia?: { desde?: string; hasta?: string }; excluirFijoId?: string }, iniMin: number, finMin: number): Promise<boolean> {
+  async conflictoAlCrear(canchaId: string, opts: { diaSemana?: number; fecha?: string; vigencia?: { desde?: string; hasta?: string }; excluirFijoId?: string; excluirBloqueoId?: string }, iniMin: number, finMin: number): Promise<boolean> {
     const tz = getEnv().TZ_NEGOCIO;
     const cfg = await configService.get();
     const canchas = await ocupacionService.canchasRelacionadas(canchaId);
     // 1) contra otros fijos/bloqueos (mismo día o misma fecha)
     if (opts.fecha != null) {
-      const rangos = await ocupacionService.rangosPlantilla(canchaId, opts.fecha);
+      const rangos = await ocupacionService.rangosPlantilla(canchaId, opts.fecha, opts.excluirBloqueoId);
       if (rangos.some((x) => x.ini < finMin && iniMin < x.fin)) return true;
     } else if (opts.diaSemana != null) {
       const esFinde = opts.diaSemana === 0 || opts.diaSemana === 6;
@@ -88,7 +88,7 @@ export const ocupacionService = {
         { desde: f.vigenciaDesde ? f.vigenciaDesde.toISOString().slice(0, 10) : null, hasta: f.vigenciaHasta ? f.vigenciaHasta.toISOString().slice(0, 10) : null },
         nuevo,
       ));
-      const bloqsTodos = await prisma.bloqueo.findMany({ where: { canchaId: { in: canchas }, activo: true, recurrente: true, diaSemana: opts.diaSemana }, select: { horaInicio: true, horaFin: true, vigenciaDesde: true, vigenciaHasta: true } });
+      const bloqsTodos = await prisma.bloqueo.findMany({ where: { canchaId: { in: canchas }, activo: true, recurrente: true, diaSemana: opts.diaSemana, ...(opts.excluirBloqueoId ? { id: { not: opts.excluirBloqueoId } } : {}) }, select: { horaInicio: true, horaFin: true, vigenciaDesde: true, vigenciaHasta: true } });
       const bloqs = bloqsTodos.filter((b) => periodosSeSolapan(
         { desde: b.vigenciaDesde ? b.vigenciaDesde.toISOString().slice(0, 10) : null, hasta: b.vigenciaHasta ? b.vigenciaHasta.toISOString().slice(0, 10) : null },
         nuevo,

@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { HoraInput } from '@/components/ui/hora-input';
 import { normalizeHora } from '@/lib/hora';
 import { Label } from '@/components/ui/label';
-import type { Cancha } from '@/lib/types';
+import type { Bloqueo, Cancha } from '@/lib/types';
 import { bloqueoSchema } from '@/lib/validators';
-import { crearBloqueo } from '@/lib/bloqueos-actions';
+import { crearBloqueo, editarBloqueo } from '@/lib/bloqueos-actions';
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MOTIVOS = [
@@ -23,30 +23,35 @@ export function BloqueoDialog({
   open,
   onOpenChange,
   canchas,
+  bloqueo,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   canchas: Cancha[];
+  /** Si viene, el diálogo edita este bloqueo (el padre lo monta con key={id}, así el estado arranca con sus datos). */
+  bloqueo?: Bloqueo;
 }) {
-  const [canchaId, setCanchaId] = useState(canchas[0]?.id ?? '');
-  const [motivo, setMotivo] = useState('TORNEO');
-  const [tipo, setTipo] = useState<'puntual' | 'recurrente'>('puntual');
-  const [fecha, setFecha] = useState('');
-  const [diaSemana, setDiaSemana] = useState('1');
+  const editando = !!bloqueo;
+  const [canchaId, setCanchaId] = useState(bloqueo?.canchaId ?? canchas[0]?.id ?? '');
+  const [motivo, setMotivo] = useState<string>(bloqueo?.motivo ?? 'TORNEO');
+  const [tipo, setTipo] = useState<'puntual' | 'recurrente'>(bloqueo ? (bloqueo.recurrente ? 'recurrente' : 'puntual') : 'puntual');
+  const [fecha, setFecha] = useState(bloqueo?.fecha?.slice(0, 10) ?? '');
+  const [diaSemana, setDiaSemana] = useState(String(bloqueo?.diaSemana ?? 1));
   // Período del bloqueo recurrente ("todos los jueves desde X hasta Y"). Vacío = sin límite.
-  const [vigenciaDesde, setVigenciaDesde] = useState('');
-  const [vigenciaHasta, setVigenciaHasta] = useState('');
-  const [horaInicio, setHoraInicio] = useState('');
-  const [horaFin, setHoraFin] = useState('');
-  const [nota, setNota] = useState('');
+  const [vigenciaDesde, setVigenciaDesde] = useState(bloqueo?.vigenciaDesde ?? '');
+  const [vigenciaHasta, setVigenciaHasta] = useState(bloqueo?.vigenciaHasta ?? '');
+  const [horaInicio, setHoraInicio] = useState(bloqueo?.horaInicio ?? '');
+  const [horaFin, setHoraFin] = useState(bloqueo?.horaFin ?? '');
+  const [nota, setNota] = useState(bloqueo?.nota ?? '');
   // Evento con plata (cumpleaños): valor total y seña cobrada ahora. Vacío = bloqueo sin plata.
-  const [valor, setValor] = useState('');
+  const [valor, setValor] = useState(bloqueo?.valor != null ? String(bloqueo.valor) : '');
   const [sena, setSena] = useState('');
   const [medioPago, setMedioPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO');
   const [pending, start] = useTransition();
 
   function handleOpenChange(nextOpen: boolean) {
-    if (nextOpen) {
+    // En edición el estado ya viene cargado con el bloqueo: no se resetea.
+    if (nextOpen && !editando) {
       setCanchaId(canchas[0]?.id ?? '');
       setMotivo('TORNEO');
       setTipo('puntual');
@@ -83,10 +88,23 @@ export function BloqueoDialog({
       vigenciaHasta: recurrente && vigenciaHasta ? vigenciaHasta : undefined,
       // El valor solo existe en eventos de una fecha.
       valor: !recurrente && valor ? Number(valor) : undefined,
-      montoPagado: !recurrente && valor && sena ? Number(sena) : undefined,
-      medioPago: !recurrente && valor && sena ? medioPago : undefined,
+      montoPagado: !editando && !recurrente && valor && sena ? Number(sena) : undefined,
+      medioPago: !editando && !recurrente && valor && sena ? medioPago : undefined,
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    if (bloqueo) {
+      const d = parsed.data;
+      start(async () => {
+        const r = await editarBloqueo(bloqueo.id, {
+          canchaId: d.canchaId, motivo: d.motivo, horaInicio: d.horaInicio, horaFin: d.horaFin,
+          nota: d.nota ?? '',
+          ...(recurrente ? { diaSemana: d.diaSemana, vigenciaDesde: d.vigenciaDesde ?? null, vigenciaHasta: d.vigenciaHasta ?? null } : { fecha: d.fecha, valor: d.valor ?? null }),
+        });
+        if (r.ok) { toast.success('Bloqueo actualizado'); onOpenChange(false); }
+        else toast.error(r.error);
+      });
+      return;
+    }
     start(async () => {
       const r = await crearBloqueo(parsed.data);
       if (r.ok) { toast.success('Bloqueo creado'); onOpenChange(false); }
@@ -97,7 +115,7 @@ export function BloqueoDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Nuevo bloqueo</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{editando ? 'Editar bloqueo' : 'Nuevo bloqueo'}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
             <Label htmlFor="bl-cancha">Cancha</Label>
@@ -113,7 +131,7 @@ export function BloqueoDialog({
           </div>
           <div className="space-y-1">
             <Label htmlFor="bl-tipo">Tipo</Label>
-            <select id="bl-tipo" value={tipo} onChange={(e) => setTipo(e.target.value as 'puntual' | 'recurrente')} className="w-full rounded-md border px-2 py-1.5">
+            <select id="bl-tipo" disabled={editando} value={tipo} onChange={(e) => setTipo(e.target.value as 'puntual' | 'recurrente')} className="w-full rounded-md border px-2 py-1.5">
               <option value="puntual">Puntual (fecha específica)</option>
               <option value="recurrente">Recurrente (mismo día cada semana)</option>
             </select>
@@ -165,8 +183,8 @@ export function BloqueoDialog({
                   <Input id="bl-valor" type="number" min="0" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="50000" />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="bl-sena">Seña cobrada ahora</Label>
-                  <Input id="bl-sena" type="number" min="0" value={sena} onChange={(e) => setSena(e.target.value)} placeholder="25000" disabled={!valor} />
+                  {!editando && <Label htmlFor="bl-sena">Seña cobrada ahora</Label>}
+                  {!editando && <Input id="bl-sena" type="number" min="0" value={sena} onChange={(e) => setSena(e.target.value)} placeholder="25000" disabled={!valor} />}
                 </div>
               </div>
               {valor && sena && (
@@ -186,7 +204,7 @@ export function BloqueoDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={pending}>{pending ? 'Guardando…' : 'Crear bloqueo'}</Button>
+          <Button onClick={submit} disabled={pending}>{pending ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear bloqueo'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

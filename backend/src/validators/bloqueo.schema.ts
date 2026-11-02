@@ -34,6 +34,25 @@ export const crearBloqueoSchema = z.object({
     .refine((b) => b.montoPagado == null || b.valor == null || b.montoPagado <= b.valor, { message: 'La seña no puede superar el valor del evento', path: ['montoPagado'] }),
   query: empty, params: empty,
 });
+// Edición parcial: llega solo lo que cambió. Si el bloqueo es recurrente o puntual no se cambia.
+// `valor: null` saca el precio (solo si no tiene cobros); vigencia `null` quita el límite.
+export const editarBloqueoSchema = z.object({
+  body: z.object({
+    canchaId: z.string().min(1).optional(),
+    motivo: z.enum(['TORNEO', 'ENTRENAMIENTO', 'MANTENIMIENTO', 'OTRO']).optional(),
+    diaSemana: z.coerce.number().int().min(0).max(6).optional(),
+    fecha: fechaYmd.optional(),
+    horaInicio: hhmm.optional(),
+    horaFin: hhmm.optional(),
+    // Vacía ('') borra la nota.
+    nota: z.string().optional(),
+    vigenciaDesde: fechaYmd.nullable().optional(),
+    vigenciaHasta: fechaYmd.nullable().optional(),
+    valor: z.number().positive().max(99999999.99).nullable().optional(),
+  }).refine((b) => Object.keys(b).length > 0, { message: 'No hay nada para editar' }),
+  query: empty,
+  params: z.object({ id: z.string().min(1) }),
+});
 export const idBloqueoParamSchema = z.object({ body: z.unknown(), query: empty, params: z.object({ id: z.string().min(1) }) });
 export const excepcionBloqueoSchema = z.object({
   body: z.object({ fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),

@@ -3,7 +3,7 @@ import { authJwt } from '../middlewares/authJwt.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { validate } from '../middlewares/validate.js';
 import { bloqueoService } from '../services/bloqueo.service.js';
-import { crearBloqueoSchema, idBloqueoParamSchema, excepcionBloqueoSchema } from '../validators/bloqueo.schema.js';
+import { crearBloqueoSchema, editarBloqueoSchema, idBloqueoParamSchema, excepcionBloqueoSchema } from '../validators/bloqueo.schema.js';
 import { crearCobroSchema } from '../validators/cobro.schema.js';
 import { auditService } from '../services/audit.service.js';
 
@@ -16,6 +16,14 @@ bloqueoRoutes.post('/', authJwt, requireRole('ADMIN'), validate(crearBloqueoSche
     const b = await bloqueoService.crear(body, adminId);
     await auditService.log(req, { accion: 'CREAR', entidad: 'Bloqueo', entidadId: b.id, descripcion: 'Creó un bloqueo (' + body.motivo + ')' });
     res.status(201).json(b);
+  } catch (e) { next(e); }
+});
+bloqueoRoutes.patch('/:id', authJwt, requireRole('ADMIN'), validate(editarBloqueoSchema), async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const b = await bloqueoService.editar(id, (req as any).valid.body);
+    await auditService.log(req, { accion: 'EDITAR', entidad: 'Bloqueo', entidadId: id, descripcion: 'Editó un bloqueo' });
+    res.json(b);
   } catch (e) { next(e); }
 });
 // Cobros del evento (seña y saldo). Solo staff: es plata. Anular un cobro usa DELETE /cobros/:id.

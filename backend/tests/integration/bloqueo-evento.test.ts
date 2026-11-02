@@ -106,3 +106,78 @@ describe('bloqueos de evento con plata', () => {
     expect(cobros[0].origen).toBe('EVENTO');
   });
 });
+
+describe('editar bloqueos', () => {
+  const patch = (id: string, body: Record<string, unknown>) => auth(supertest(app).patch(`/bloqueos/${id}`)).send(body);
+
+  it('edita nota y horario', async () => {
+    const c = await crearCancha();
+    const b = await altaEvento(c.id);
+    const r = await patch(b.body.id, { nota: 'Cumple de Ana', horaInicio: '16:00', horaFin: '19:00' });
+    expect(r.status).toBe(200);
+    const db = await getPrisma().bloqueo.findUnique({ where: { id: b.body.id } });
+    expect(db?.nota).toBe('Cumple de Ana');
+    expect(db?.horaInicio).toBe('16:00');
+    expect(db?.horaFin).toBe('19:00');
+  });
+
+  it('le pone precio a un bloqueo ya creado y después se cobra', async () => {
+    const c = await crearCancha();
+    const b = await altaEvento(c.id);
+    expect((await patch(b.body.id, { valor: 40000 })).status).toBe(200);
+    const lista = await auth(supertest(app).get('/bloqueos'));
+    expect(lista.body[0].valor).toBe(40000);
+    expect(lista.body[0].saldo).toBe(40000);
+    const cobro = await auth(supertest(app).post(`/bloqueos/${b.body.id}/cobros`)).send({ monto: 10000, medio: 'EFECTIVO' });
+    expect(cobro.status).toBe(201);
+    expect(cobro.body.saldo).toBe(30000);
+  });
+
+  it('el valor no puede quedar por debajo de lo ya cobrado', async () => {
+    const c = await crearCancha();
+    const b = await altaEvento(c.id, { valor: 50000, montoPagado: 25000, medioPago: 'EFECTIVO' });
+    expect((await patch(b.body.id, { valor: 20000 })).status).toBe(422);
+    expect((await patch(b.body.id, { valor: 25000 })).status).toBe(200);
+  });
+
+  it('no se puede quitar el valor si ya hay cobros', async () => {
+    const c = await crearCancha();
+    const b = await altaEvento(c.id, { valor: 50000, montoPagado: 25000, medioPago: 'EFECTIVO' });
+    expect((await patch(b.body.id, { valor: null })).status).toBe(422);
+  });
+
+  it('se puede quitar el valor si no hay cobros', async () => {
+    const c = await crearCancha();
+    const b = await altaEvento(c.id, { valor: 50000 });
+    expect((await patch(b.body.id, { valor: null })).status).toBe(200);
+    expect((await getPrisma().bloqueo.findUnique({ where: { id: b.body.id } }))?.valor).toBeNull();
+  });
+
+  it('valor solo en bloqueos de una fecha', async () => {
+    const c = await crearCancha();
+    const r = await altaEvento(c.id, { recurrente: true, diaSemana: 3, fecha: undefined });
+    expect((await patch(r.body.id, { valor: 1000 })).status).toBe(422);
+  });
+
+  it('mover a un horario ocupado por otro bloqueo es 409; solaparse consigo mismo no', async () => {
+    const c = await crearCancha();
+    const a = await altaEvento(c.id, { horaInicio: '17:00', horaFin: '19:00' });
+    const seg = await altaEvento(c.id, { horaInicio: '20:00', horaFin: '22:00' }); expect(seg.status).toBe(201);
+    expect((await patch(a.body.id, { horaInicio: '17:30', horaFin: '19:30' })).status).toBe(200);
+    expect((await patch(a.body.id, { horaFin: '21:00' })).status).toBe(409);
+  });
+
+  it('los cobros siguen al bloqueo cuando se edita', async () => {
+    const c = await crearCancha();
+    const b = await altaEvento(c.id, { valor: 50000, montoPagado: 25000, medioPago: 'EFECTIVO' });
+    await patch(b.body.id, { fecha: '2030-05-11' });
+    expect(await getPrisma().cobro.count({ where: { bloqueoId: b.body.id } })).toBe(1);
+  });
+
+  it('404 si no existe y 400 si no hay nada para editar', async () => {
+    expect((await patch('nope', { nota: 'x' })).status).toBe(404);
+    const c = await crearCancha();
+    const b = await altaEvento(c.id);
+    expect((await patch(b.body.id, {})).status).toBe(400);
+  });
+});
