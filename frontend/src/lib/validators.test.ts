@@ -281,3 +281,10 @@ describe('turnoFijoSchema: nota', () => {
     expect(turnoFijoSchema.safeParse({ ...base, nota: 'x'.repeat(501) }).success).toBe(false);
   });
 });
+
+describe('bloqueoSchema: evento con plata', () => {
+  const ev = { canchaId: 'c', motivo: 'OTRO', recurrente: false, fecha: '2030-05-10', horaInicio: '15:00', horaFin: '18:00' };
+  it('acepta valor con seña', () => expect(bloqueoSchema.safeParse({ ...ev, valor: 50000, montoPagado: 25000, medioPago: 'EFECTIVO' }).success).toBe(true));
+  it('rechaza una seña mayor al valor', () => expect(bloqueoSchema.safeParse({ ...ev, valor: 50000, montoPagado: 60000, medioPago: 'EFECTIVO' }).success).toBe(false));
+  it('rechaza una seña sin valor', () => expect(bloqueoSchema.safeParse({ ...ev, montoPagado: 1000, medioPago: 'EFECTIVO' }).success).toBe(false));
+});

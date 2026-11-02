@@ -185,6 +185,9 @@ model Bloqueo {
   /// Período de un bloqueo RECURRENTE (inclusivo, null = sin límite). Fuera de él no bloquea.
   vigenciaDesde DateTime?          @db.Date
   vigenciaHasta DateTime?          @db.Date
+  /// Valor total de un evento puntual (cumpleaños, etc.). null = bloqueo sin plata.
+  valor         Decimal?           @db.Decimal(10, 2)
+  cobros        Cobro[]
   activo        Boolean            @default(true)
   creadoEn      DateTime           @default(now())
 
@@ -377,6 +380,9 @@ model Cobro {
   /// Al eliminar el fijo el abono se conserva en la caja: queda sin destino y con origen 'ABONO'
   /// (el CHECK cobro_destino_unico admite ese caso). La caja lo clasifica por `origen`.
   turnoFijo       TurnoFijo?   @relation(fields: [turnoFijoId], references: [id], onDelete: SetNull)
+  bloqueoId       String?
+  /// Al eliminar el bloqueo el cobro se conserva en la caja (origen 'EVENTO').
+  bloqueo         Bloqueo?     @relation(fields: [bloqueoId], references: [id], onDelete: SetNull)
   monto           Decimal      @db.Decimal(10, 2)
   medio           MedioPago
   origen          String       @default("MANUAL")
@@ -388,6 +394,7 @@ model Cobro {
   @@index([reservaId])
   @@index([suscripcionId])
   @@index([turnoFijoId])
+  @@index([bloqueoId])
 }
 
 enum EstadoCajaBuffet {

@@ -4,6 +4,7 @@ import { requireRole } from '../middlewares/requireRole.js';
 import { validate } from '../middlewares/validate.js';
 import { bloqueoService } from '../services/bloqueo.service.js';
 import { crearBloqueoSchema, idBloqueoParamSchema, excepcionBloqueoSchema } from '../validators/bloqueo.schema.js';
+import { crearCobroSchema } from '../validators/cobro.schema.js';
 import { auditService } from '../services/audit.service.js';
 
 export const bloqueoRoutes = Router();
@@ -11,9 +12,22 @@ bloqueoRoutes.get('/', authJwt, async (req, res, next) => { try { res.json(await
 bloqueoRoutes.post('/', authJwt, requireRole('ADMIN'), validate(crearBloqueoSchema), async (req, res, next) => {
   try {
     const body = (req as any).valid.body;
-    const b = await bloqueoService.crear(body);
+    const adminId = req.principal?.kind === 'admin' ? req.principal.adminId : null;
+    const b = await bloqueoService.crear(body, adminId);
     await auditService.log(req, { accion: 'CREAR', entidad: 'Bloqueo', entidadId: b.id, descripcion: 'Creó un bloqueo (' + body.motivo + ')' });
     res.status(201).json(b);
+  } catch (e) { next(e); }
+});
+// Cobros del evento (seña y saldo). Solo staff: es plata. Anular un cobro usa DELETE /cobros/:id.
+bloqueoRoutes.get('/:id/cobros', authJwt, validate(idBloqueoParamSchema), async (req, res, next) => {
+  try { res.json(await bloqueoService.listarCobros(String(req.params.id))); } catch (e) { next(e); }
+});
+bloqueoRoutes.post('/:id/cobros', authJwt, validate(crearCobroSchema), async (req, res, next) => {
+  try {
+    const adminId = req.principal?.kind === 'admin' ? req.principal.adminId : null;
+    const r = await bloqueoService.registrarCobro(String(req.params.id), (req as any).valid.body, adminId);
+    await auditService.log(req, { accion: 'CREAR', entidad: 'Cobro', entidadId: r.cobro.id, descripcion: `Registró un pago de $${r.cobro.monto} de un evento` });
+    res.status(201).json(r);
   } catch (e) { next(e); }
 });
 bloqueoRoutes.delete('/:id', authJwt, requireRole('ADMIN'), validate(idBloqueoParamSchema), async (req, res, next) => {

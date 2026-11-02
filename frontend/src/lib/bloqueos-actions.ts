@@ -11,6 +11,7 @@ async function run(fn: () => Promise<unknown>): Promise<Result> {
     revalidatePath('/bloqueos');
     revalidatePath('/calendario');
     revalidatePath('/hoy');
+    revalidatePath('/caja');
     return { ok: true };
   }
   catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
@@ -18,7 +19,9 @@ async function run(fn: () => Promise<unknown>): Promise<Result> {
 
 type BloqueoInput = { canchaId: string; motivo: string; recurrente: boolean; diaSemana?: number; fecha?: string; horaInicio: string; horaFin: string; nota?: string;
   // Período de un bloqueo recurrente ('YYYY-MM-DD', inclusivo). Cada extremo es opcional.
-  vigenciaDesde?: string; vigenciaHasta?: string };
+  vigenciaDesde?: string; vigenciaHasta?: string;
+  // Evento con plata: valor total y seña cobrada ahora.
+  valor?: number; montoPagado?: number; medioPago?: 'EFECTIVO' | 'TRANSFERENCIA' };
 
 export async function crearBloqueo(i: BloqueoInput): Promise<Result> {
   return run(() => apiFetch('/bloqueos', { method: 'POST', body: JSON.stringify(i) }));

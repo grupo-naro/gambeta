@@ -16,6 +16,17 @@ export const cobroRepo = {
       orderBy: { creadoEn: 'asc' },
       include: { registradoPor: { select: { nombre: true } } },
     }),
+  listByBloqueo: (bloqueoId: string) =>
+    prisma.cobro.findMany({
+      where: { bloqueoId },
+      orderBy: { creadoEn: 'asc' },
+      include: { registradoPor: { select: { nombre: true } } },
+    }),
+  sumByBloqueos: async (ids: string[]) => {
+    if (ids.length === 0) return new Map<string, number>();
+    const rows = await prisma.cobro.groupBy({ by: ['bloqueoId'], where: { bloqueoId: { in: ids } }, _sum: { monto: true } });
+    return new Map(rows.map((r) => [r.bloqueoId as string, Number(r._sum.monto ?? 0)]));
+  },
   sumByTurnoFijo: async (turnoFijoId: string) => {
     const r = await prisma.cobro.aggregate({ where: { turnoFijoId }, _sum: { monto: true } });
     return Number(r._sum.monto ?? 0);
@@ -41,6 +52,7 @@ export const cobroRepo = {
         reserva: { select: { cancha: { select: { id: true, nombre: true } }, cliente: { select: { nombre: true } } } },
         suscripcion: { select: { cliente: { select: { nombre: true } } } },
         turnoFijo: { select: { clienteNombre: true } },
+        bloqueo: { select: { nota: true, cancha: { select: { nombre: true } } } },
       },
     }),
 };

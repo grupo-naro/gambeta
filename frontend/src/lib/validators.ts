@@ -122,6 +122,12 @@ export const bloqueoSchema = z.object({
   // Período de un bloqueo recurrente (inclusivo, cada extremo opcional).
   vigenciaDesde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   vigenciaHasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  // Evento con plata (solo puntual): valor total y seña cobrada al agendar.
+  valor: z.number().positive('El valor debe ser mayor a 0').optional(),
+  montoPagado: z.number().positive('La seña debe ser mayor a 0').optional(),
+  medioPago: z.enum(['EFECTIVO', 'TRANSFERENCIA']).optional(),
 }).refine((b) => hhmmAMin(b.horaInicio) < cierreMin(b.horaFin), { message: 'Inicio debe ser antes del fin', path: ['horaFin'] })
+  .refine((b) => b.montoPagado == null || b.valor != null, { message: 'Para cobrar una seña indicá el valor del evento', path: ['montoPagado'] })
+  .refine((b) => b.montoPagado == null || b.valor == null || b.montoPagado <= b.valor, { message: 'La seña no puede superar el valor del evento', path: ['montoPagado'] })
   .refine((b) => (b.recurrente ? b.diaSemana != null : !!b.fecha), { message: 'Completá día (recurrente) o fecha (puntual)', path: ['recurrente'] })
   .refine((b) => !b.vigenciaDesde || !b.vigenciaHasta || b.vigenciaDesde <= b.vigenciaHasta, { message: 'El período está invertido: "Desde" es posterior a "Hasta"', path: ['vigenciaHasta'] });

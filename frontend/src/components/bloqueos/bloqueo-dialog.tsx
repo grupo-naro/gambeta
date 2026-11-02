@@ -39,6 +39,10 @@ export function BloqueoDialog({
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFin, setHoraFin] = useState('');
   const [nota, setNota] = useState('');
+  // Evento con plata (cumpleaños): valor total y seña cobrada ahora. Vacío = bloqueo sin plata.
+  const [valor, setValor] = useState('');
+  const [sena, setSena] = useState('');
+  const [medioPago, setMedioPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO');
   const [pending, start] = useTransition();
 
   function handleOpenChange(nextOpen: boolean) {
@@ -53,6 +57,9 @@ export function BloqueoDialog({
       setHoraInicio('');
       setHoraFin('');
       setNota('');
+      setValor('');
+      setSena('');
+      setMedioPago('EFECTIVO');
     }
     onOpenChange(nextOpen);
   }
@@ -74,6 +81,10 @@ export function BloqueoDialog({
       // Solo los recurrentes tienen período: el backend rechaza mandarlo en un puntual.
       vigenciaDesde: recurrente && vigenciaDesde ? vigenciaDesde : undefined,
       vigenciaHasta: recurrente && vigenciaHasta ? vigenciaHasta : undefined,
+      // El valor solo existe en eventos de una fecha.
+      valor: !recurrente && valor ? Number(valor) : undefined,
+      montoPagado: !recurrente && valor && sena ? Number(sena) : undefined,
+      medioPago: !recurrente && valor && sena ? medioPago : undefined,
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     start(async () => {
@@ -145,6 +156,30 @@ export function BloqueoDialog({
               <HoraInput id="bl-fin" value={horaFin} onChange={setHoraFin} />
             </div>
           </div>
+          {tipo === 'puntual' && (
+            <div className="space-y-3 rounded-lg border bg-neutral-50 p-3">
+              <p className="text-xs text-muted-foreground">Si es un evento que se cobra (ej. cumpleaños), cargá el valor y la seña. El resto se cobra ese día y todo entra en la caja.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="bl-valor">Valor del evento (opcional)</Label>
+                  <Input id="bl-valor" type="number" min="0" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="50000" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="bl-sena">Seña cobrada ahora</Label>
+                  <Input id="bl-sena" type="number" min="0" value={sena} onChange={(e) => setSena(e.target.value)} placeholder="25000" disabled={!valor} />
+                </div>
+              </div>
+              {valor && sena && (
+                <div className="space-y-1">
+                  <Label htmlFor="bl-medio">Medio de la seña</Label>
+                  <select id="bl-medio" value={medioPago} onChange={(e) => setMedioPago(e.target.value as 'EFECTIVO' | 'TRANSFERENCIA')} className="w-full rounded-md border px-2 py-1.5">
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
           <div className="space-y-1">
             <Label htmlFor="bl-nota">Nota (opcional)</Label>
             <Input id="bl-nota" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Descripción adicional" />

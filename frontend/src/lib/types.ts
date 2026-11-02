@@ -82,6 +82,10 @@ export interface Bloqueo {
   /** Período de un bloqueo recurrente ('YYYY-MM-DD', inclusivo; null = sin límite). */
   vigenciaDesde?: string | null;
   vigenciaHasta?: string | null;
+  /** Evento con plata (cumpleaños): valor total, cobrado y saldo. null = bloqueo sin valor. */
+  valor?: number | null;
+  pagado?: number | null;
+  saldo?: number | null;
 }
 
 export interface FijoAgenda {
@@ -102,9 +106,9 @@ export interface CobrosReserva { monto: number; pagado: number; saldo: number; c
 export interface CajaReporte {
   desde: string; hasta: string; total: number;
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
-  porConcepto: { turnos: number; cuotas: number; abonos: number };
+  porConcepto: { turnos: number; cuotas: number; abonos: number; eventos: number };
   porCancha: { canchaId: string; nombre: string; total: number }[];
-  cobros: { id: string; creadoEn: string; monto: number; medio: MedioPago; concepto: 'TURNO' | 'CUOTA' | 'ABONO'; cancha: string; cliente: string; registradoPor: string }[];
+  cobros: { id: string; creadoEn: string; monto: number; medio: MedioPago; concepto: 'TURNO' | 'CUOTA' | 'ABONO' | 'EVENTO'; cancha: string; cliente: string; registradoPor: string }[];
 }
 
 export interface SheetsInfo { configurado: boolean; url: string | null }

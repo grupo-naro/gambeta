@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CobrosReserva, MedioPago } from '@/lib/types';
 import { cobroSchema } from '@/lib/validators';
-import { getCobros, registrarCobro, anularCobro, getCobrosFijo, registrarCobroFijo } from '@/lib/cobros-actions';
+import { getCobros, registrarCobro, anularCobro, getCobrosFijo, registrarCobroFijo, getCobrosBloqueo, registrarCobroBloqueo } from '@/lib/cobros-actions';
 import { useConfirm } from '@/components/ui/confirm';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
@@ -17,12 +17,13 @@ const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
  * Cobros de una reserva o, si se pasa `fijoId`, del abono de un turno fijo: las dos cosas tienen
  * total / pagado / saldo y se cobran en partes, así que comparten pantalla.
  */
-export function CobrosDialog({ reservaId, fijoId, open, onOpenChange }: { reservaId?: string | null; fijoId?: string | null; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function CobrosDialog({ reservaId, fijoId, bloqueoId, open, onOpenChange }: { reservaId?: string | null; fijoId?: string | null; bloqueoId?: string | null; open: boolean; onOpenChange: (o: boolean) => void }) {
   const router = useRouter();
   const esFijo = !!fijoId;
-  const destinoId = fijoId ?? reservaId ?? null;
-  const cargar = esFijo ? getCobrosFijo : getCobros;
-  const cobrar = esFijo ? registrarCobroFijo : registrarCobro;
+  const esEvento = !!bloqueoId;
+  const destinoId = bloqueoId ?? fijoId ?? reservaId ?? null;
+  const cargar = esEvento ? getCobrosBloqueo : esFijo ? getCobrosFijo : getCobros;
+  const cobrar = esEvento ? registrarCobroBloqueo : esFijo ? registrarCobroFijo : registrarCobro;
   const [data, setData] = useState<CobrosReserva | null>(null);
   const [monto, setMonto] = useState('');
   const [medio, setMedio] = useState<MedioPago>('EFECTIVO');
@@ -61,7 +62,7 @@ export function CobrosDialog({ reservaId, fijoId, open, onOpenChange }: { reserv
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{esFijo ? 'Cobros del abono' : 'Cobros'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{esEvento ? 'Cobros del evento' : esFijo ? 'Cobros del abono' : 'Cobros'}</DialogTitle></DialogHeader>
         {data ? (
           <div className="space-y-3 text-sm">
             <div className="flex gap-4 rounded-lg bg-neutral-50 p-3">

@@ -6,7 +6,7 @@ import type { CobrosReserva, MedioPago } from './types';
 
 type Result = { ok: true } | { ok: false; error: string };
 async function run(fn: () => Promise<unknown>): Promise<Result> {
-  try { await fn(); revalidatePath('/reservas'); revalidatePath('/caja'); revalidatePath('/turnos-fijos'); return { ok: true }; }
+  try { await fn(); revalidatePath('/reservas'); revalidatePath('/caja'); revalidatePath('/turnos-fijos'); revalidatePath('/bloqueos'); return { ok: true }; }
   catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }
 
@@ -22,6 +22,13 @@ export async function getCobrosFijo(fijoId: string): Promise<CobrosReserva> {
 }
 export async function registrarCobroFijo(fijoId: string, input: { monto: number; medio: MedioPago }): Promise<Result> {
   return run(() => apiFetch(`/turnos-fijos/${fijoId}/cobros`, { method: 'POST', body: JSON.stringify(input) }));
+}
+// Cobros de un evento (bloqueo con valor): misma forma que los de una reserva.
+export async function getCobrosBloqueo(bloqueoId: string): Promise<CobrosReserva> {
+  return apiFetch<CobrosReserva>(`/bloqueos/${bloqueoId}/cobros`);
+}
+export async function registrarCobroBloqueo(bloqueoId: string, input: { monto: number; medio: MedioPago }): Promise<Result> {
+  return run(() => apiFetch(`/bloqueos/${bloqueoId}/cobros`, { method: 'POST', body: JSON.stringify(input) }));
 }
 export async function anularCobro(id: string): Promise<Result> {
   return run(() => apiFetch(`/cobros/${id}`, { method: 'DELETE' }));

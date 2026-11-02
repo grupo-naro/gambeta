@@ -10,6 +10,9 @@ import type { Bloqueo, Cancha } from '@/lib/types';
 import { BloqueoDialog } from './bloqueo-dialog';
 import { ExcepcionBloqueoDialog } from './excepcion-bloqueo-dialog';
 import { eliminarBloqueo } from '@/lib/bloqueos-actions';
+import { CobrosDialog } from '@/components/reservas/cobros-dialog';
+
+const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MOTIVO_LABEL: Record<string, string> = { TORNEO: 'Torneo', ENTRENAMIENTO: 'Entrenamiento', MANTENIMIENTO: 'Mantenimiento', OTRO: 'Otro' };
@@ -20,6 +23,7 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
   const [excepcionOpen, setExcepcionOpen] = useState(false);
   const [bloqueoExc, setBloqueoExc] = useState<Bloqueo | null>(null);
   function abrirExcepcion(b: Bloqueo) { setSeleccion(null); setBloqueoExc(b); setExcepcionOpen(true); }
+  const [cobrosId, setCobrosId] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const confirm = useConfirm();
 
@@ -35,6 +39,10 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
       return `Recurrente: ${DIAS[b.diaSemana ?? 0] ?? b.diaSemana}${periodo}`;
     }
     return `Puntual: ${b.fecha?.slice(0, 10) ?? '—'}`;
+  }
+  function plataLabel(b: Bloqueo) {
+    if (b.valor == null) return null;
+    return (b.saldo ?? 0) > 0 ? `${money(b.valor)} · DEBE ${money(b.saldo ?? 0)}` : `${money(b.valor)} · Pago`;
   }
   async function eliminar(b: Bloqueo) {
     if (await confirm({ title: '¿Eliminar el bloqueo?', description: `Vas a eliminar el bloqueo de ${b.cancha?.nombre ?? 'esta cancha'}. No se puede deshacer.`, confirmLabel: 'Eliminar', destructive: true })) {
@@ -63,7 +71,7 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
                 {bloqueos.map((b) => (
                   <TableRow key={b.id} onClick={() => setSeleccion(b)} className="cursor-pointer hover:bg-neutral-50">
                     <TableCell className="font-medium">{b.cancha?.nombre ?? '—'}</TableCell>
-                    <TableCell className="text-neutral-600">{MOTIVO_LABEL[b.motivo] ?? b.motivo}</TableCell>
+                    <TableCell className="text-neutral-600">{MOTIVO_LABEL[b.motivo] ?? b.motivo}{plataLabel(b) && <span className={`ml-2 text-xs font-medium ${(b.saldo ?? 0) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{plataLabel(b)}</span>}</TableCell>
                     <TableCell>{programaLabel(b)}</TableCell>
                     <TableCell>{b.horaInicio}–{b.horaFin}</TableCell>
                   </TableRow>
@@ -81,6 +89,7 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
                   <span className="block"><span className="text-xs text-neutral-500">Motivo</span> {MOTIVO_LABEL[b.motivo] ?? b.motivo}</span>
                   <span className="block"><span className="text-xs text-neutral-500">Programa</span> {programaLabel(b)}</span>
                   <span className="block"><span className="text-xs text-neutral-500">Horario</span> {b.horaInicio}–{b.horaFin}</span>
+                  {plataLabel(b) && <span className={`block font-medium ${(b.saldo ?? 0) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{plataLabel(b)}</span>}
                 </span>
               </button>
             ))}
@@ -95,6 +104,9 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
               <SheetTitle>{seleccion.cancha?.nombre ?? 'Bloqueo'}</SheetTitle>
               <p className="text-sm text-neutral-600">{MOTIVO_LABEL[seleccion.motivo] ?? seleccion.motivo} · {programaLabel(seleccion)} · {seleccion.horaInicio}–{seleccion.horaFin}</p>
             </SheetHeader>
+            {seleccion.valor != null && (
+              <Button className="h-11 w-full" disabled={pending} onClick={() => { setCobrosId(seleccion.id); setSeleccion(null); }}>Cobros del evento ({plataLabel(seleccion)})</Button>
+            )}
             {seleccion.recurrente && (
               <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => abrirExcepcion(seleccion)}>Liberar fecha</Button>
             )}
@@ -103,6 +115,7 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
         )}
       </Sheet>
 
+      <CobrosDialog bloqueoId={cobrosId} open={cobrosId !== null} onOpenChange={(o) => { if (!o) setCobrosId(null); }} />
       <ExcepcionBloqueoDialog key={bloqueoExc?.id ?? 'none'} open={excepcionOpen} onOpenChange={setExcepcionOpen} bloqueo={bloqueoExc} />
       <BloqueoDialog open={dialogOpen} onOpenChange={setDialogOpen} canchas={canchas} />
     </>

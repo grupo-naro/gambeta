@@ -17,13 +17,21 @@ export const crearBloqueoSchema = z.object({
     // Período de un bloqueo recurrente ("todos los jueves hasta el 12/12"). Inclusivo; cada extremo es opcional.
     vigenciaDesde: fechaYmd.optional(),
     vigenciaHasta: fechaYmd.optional(),
+    // Evento con plata (cumpleaños): valor total y, opcional, la seña cobrada al agendar.
+    valor: z.coerce.number().positive().max(99999999.99).optional(),
+    montoPagado: z.coerce.number().positive().max(99999999.99).optional(),
+    medioPago: z.enum(['EFECTIVO', 'TRANSFERENCIA']).optional(),
   })
     // `cierreMin` y no comparación de texto: "00:00" es el FIN del día (1440), así que un bloqueo
     // de 23:00 a medianoche es válido. Comparando strings, "23:00" < "00:00" daba falso.
     .refine((b) => hhmmAMin(b.horaInicio) < cierreMin(b.horaFin), { message: 'La hora de inicio debe ser anterior al fin', path: ['horaFin'] })
     .refine((b) => (b.recurrente ? b.diaSemana != null : b.fecha != null), { message: 'Recurrente necesita diaSemana; puntual necesita fecha', path: ['recurrente'] })
     .refine((b) => b.recurrente || (b.vigenciaDesde == null && b.vigenciaHasta == null), { message: 'El período solo aplica a bloqueos recurrentes', path: ['vigenciaDesde'] })
-    .refine((b) => !b.vigenciaDesde || !b.vigenciaHasta || b.vigenciaDesde <= b.vigenciaHasta, { message: 'El período está invertido', path: ['vigenciaHasta'] }),
+    .refine((b) => !b.vigenciaDesde || !b.vigenciaHasta || b.vigenciaDesde <= b.vigenciaHasta, { message: 'El período está invertido', path: ['vigenciaHasta'] })
+    .refine((b) => b.valor == null || !b.recurrente, { message: 'El valor solo aplica a bloqueos de una fecha (eventos)', path: ['valor'] })
+    .refine((b) => b.montoPagado == null || b.valor != null, { message: 'No se puede cobrar una seña sin valor del evento', path: ['montoPagado'] })
+    .refine((b) => b.montoPagado == null || b.medioPago != null, { message: 'Indicá el medio de pago de la seña', path: ['medioPago'] })
+    .refine((b) => b.montoPagado == null || b.valor == null || b.montoPagado <= b.valor, { message: 'La seña no puede superar el valor del evento', path: ['montoPagado'] }),
   query: empty, params: empty,
 });
 export const idBloqueoParamSchema = z.object({ body: z.unknown(), query: empty, params: z.object({ id: z.string().min(1) }) });
