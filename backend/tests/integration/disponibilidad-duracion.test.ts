@@ -31,7 +31,7 @@ describe('disponibilidad con duraciones', () => {
     const s17 = slots.find((s) => s.horaInicio === '17:00')!;
     expect(s17.duraciones).toEqual([
       { min: 60, horaFin: '18:00', precio: 30000 },
-      { min: 90, horaFin: '18:30', precio: 48000 },
+      { min: 90, horaFin: '18:30', precio: 45000 },
       { min: 120, horaFin: '19:00', precio: 66000 },
     ]);
   });
@@ -68,7 +68,7 @@ describe('grilla: contrato aditivo', () => {
     // Campo nuevo.
     expect(g.duraciones[cancha.id]['17:00']).toEqual([
       { min: 60, horaFin: '18:00', precio: 30000 },
-      { min: 90, horaFin: '18:30', precio: 48000 },
+      { min: 90, horaFin: '18:30', precio: 45000 },
       { min: 120, horaFin: '19:00', precio: 66000 },
     ]);
   });

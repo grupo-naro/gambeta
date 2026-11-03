@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
+import { hoyEnTz } from '../../src/utils/tz.js';
 
 let app: any; let token: string; let adminId: string;
 beforeAll(async () => { await setupTestDb(); const { buildApp } = await import('../../src/app.js'); app = buildApp(); });
@@ -87,7 +88,7 @@ describe('bloqueos de evento con plata', () => {
   it('la caja del día cuenta los cobros como eventos', async () => {
     const c = await crearCancha();
     await altaEvento(c.id, { valor: 50000, montoPagado: 25000, medioPago: 'EFECTIVO' });
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = hoyEnTz(process.env['TZ_NEGOCIO'] ?? 'America/Argentina/Buenos_Aires');
     const res = await auth(supertest(app).get(`/caja?desde=${hoy}&hasta=${hoy}`));
     expect(res.status).toBe(200);
     expect(res.body.porConcepto.eventos).toBe(25000);

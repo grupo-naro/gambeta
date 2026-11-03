@@ -25,10 +25,22 @@ describe('precioDeRango', () => {
   it('cruza el borde de las 18:00 → prorratea por tramo', () => {
     // 17:00-19:00 = 60 min base + 60 min pico
     expect(precioDeRango(padel, '2026-06-10', '17:00', 120, cfg)).toBe(66000);
-    // 17:00-18:30 = 60 min base + 30 min pico
-    expect(precioDeRango(padel, '2026-06-10', '17:00', 90, cfg)).toBe(48000);
-    // 17:30-18:30 = 30 min base + 30 min pico
-    expect(precioDeRango(padel, '2026-06-10', '17:30', 60, cfg)).toBe(33000);
+    // 17:30-19:00 = 30 min base + 60 min pico (entra una hora entera a la franja cara)
+    expect(precioDeRango(padel, '2026-06-10', '17:30', 90, cfg)).toBe(51000);
+  });
+
+  it('el sobrante de hasta 30 min que entra a la franja cara se cobra a tarifa barata', () => {
+    // 17:00-18:30: solo 30 min caen en pico → todo el turno a tarifa base (antes 48.000).
+    expect(precioDeRango(padel, '2026-06-10', '17:00', 90, cfg)).toBe(45000);
+    // 17:30-18:30: 30 min base + 30 min de sobrante → todo base (antes 33.000).
+    expect(precioDeRango(padel, '2026-06-10', '17:30', 60, cfg)).toBe(30000);
+    // También el fin de semana.
+    expect(precioDeRango(padel, '2026-06-13', '17:00', 90, cfg)).toBe(45000);
+  });
+
+  it('un turno que ARRANCA en la franja cara no se abarata', () => {
+    expect(precioDeRango(padel, '2026-06-10', '18:00', 60, cfg)).toBe(36000);
+    expect(precioDeRango(padel, '2026-06-10', '18:30', 60, cfg)).toBe(36000);
   });
 
   it('REGRESIÓN: una franja que termina a medianoche SÍ se aplica', () => {
@@ -78,10 +90,14 @@ describe('precio propio por duración', () => {
     expect(precioDeRango(conPropio, '2026-06-10', '19:00', 90, cfg)).toBe(45000);
   });
 
-  it('interpola entre los dos precios propios cuando cruza el borde', () => {
-    // 17:00–18:30: 60 min base + 30 min pico.
-    // tarifas horarias equivalentes: 24.000 y 30.000 → (60×24.000 + 30×30.000)/60 = 39.000
-    expect(precioDeRango(conPropio, '2026-06-10', '17:00', 90, cfg)).toBe(39000);
+  it('cruza el borde por solo 30 min: se cobra el precio propio de base (no interpola)', () => {
+    // 17:00–18:30: 30 min de sobrante en pico → precio de 1½ h en banda base = 36.000 (antes 39.000).
+    expect(precioDeRango(conPropio, '2026-06-10', '17:00', 90, cfg)).toBe(36000);
+  });
+
+  it('interpola entre los dos precios propios cuando entra más de 30 min a la franja cara', () => {
+    // 17:30–19:00: 30 min base + 60 min pico. Tarifas horarias 24.000 y 30.000 → (30×24.000 + 60×30.000)/60 = 42.000
+    expect(precioDeRango(conPropio, '2026-06-10', '17:30', 90, cfg)).toBe(42000);
   });
 
   it('una duración sin precio propio cae al proporcional', () => {

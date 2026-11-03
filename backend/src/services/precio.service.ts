@@ -85,10 +85,15 @@ function tarifasDe(cancha: CanchaPrecio, duracionMin: number): { base: number; p
   return { base: aTarifa(propio.b) ?? base, pico: aTarifa(propio.p) ?? pico };
 }
 
+/** Cuánto puede asomarse un turno a la franja cara sin que se le cobre como hora cara. */
+const SOBRANTE_PICO_MIN = 30;
+
 /**
  * Precio de una reserva de `duracionMin` minutos que arranca a `horaInicio` (HH:MM) el `fecha`
  * (YYYY-MM-DD). Prorratea: cobra a precio pico solo los minutos que caen dentro de la franja,
  * así una reserva de 17:00 a 19:00 sale 1 hora base + 1 hora pico y no una de las dos cosas.
+ * Excepción: si el turno arranca antes de la franja y solo se asoma hasta 30 min, todo va a base
+ * (17:00–18:30 con pico desde 18:00 sale como 1½ h de base).
  */
 export function precioDeRango(
   cancha: CanchaPrecio,
@@ -123,6 +128,10 @@ export function precioDeRango(
   const ini = minutoDeJornada(horaInicio, apertura);
   const fin = ini + duracionMin;
   const minutosPico = Math.max(0, Math.min(fin, hasta) - Math.max(ini, desde));
+  // Un turno que arranca ANTES de la franja cara y apenas se asoma (hasta 30 min) no paga esos
+  // minutos como hora cara: se cobra todo a tarifa base. Desde media hora y un minuto en adelante
+  // se prorratea como siempre.
+  if (ini < desde && minutosPico > 0 && minutosPico <= SOBRANTE_PICO_MIN) return Math.round((duracionMin * base) / 60);
   const minutosBase = duracionMin - minutosPico;
   return Math.round((minutosPico * pico + minutosBase * base) / 60);
 }
