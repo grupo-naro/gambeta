@@ -37,6 +37,12 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(!!inicial); // con `inicial` los horarios se piden al montar
   const [montoSena, setMontoSena] = useState('');
+  // Precio final acordado con el cliente. Vacío = precio de lista.
+  // Atado al turno elegido: si cambia la cancha, el día, la hora o la duración, vuelve al de lista.
+  const [acordado, setAcordado] = useState({ clave: '', valor: '' });
+  const claveTurno = `${canchaId}|${fecha}|${horaInicio}|${duracionMin}`;
+  const precioFinal = acordado.clave === claveTurno ? acordado.valor : '';
+  const setPrecioFinal = (valor: string) => setAcordado({ clave: claveTurno, valor });
   const [pending, start] = useTransition();
   const requestIdRef = useRef(0);
 
@@ -75,6 +81,7 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
     setSlots([]);
     setSlotsLoading(false);
     setMontoSena('');
+    setAcordado({ clave: '', valor: '' });
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -99,6 +106,9 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
     }
   }
 
+  // Precio de lista del turno elegido (según la duración), para mostrarlo y saber si lo cambiaron.
+  const precioLista = slots.find((s) => s.horaInicio === horaInicio)?.duraciones?.find((d) => d.min === duracionMin)?.precio;
+
   function submit() {
     const parsed = nuevaReservaSchema.safeParse({ canchaId, nombreCliente, whatsapp, fecha, horaInicio });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
@@ -107,8 +117,11 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
       const m = Number(montoSena);
       if (!m || m < def) { toast.error(`La seña no puede ser menor a $${def.toLocaleString('es-AR')}`); return; }
     }
+    const final = precioFinal.trim() === '' ? undefined : Number(precioFinal);
+    if (final !== undefined && (!Number.isFinite(final) || final < 0)) { toast.error('El precio final no puede ser negativo'); return; }
+    if (final !== undefined && cobro === 'sena' && Number(montoSena) > final) { toast.error('La seña no puede superar el precio final'); return; }
     start(async () => {
-      const r = await crearReserva({ canchaId, whatsapp, nombreCliente, fecha, horaInicio, duracionMin, cobroInicial: cobro, medioCobro, montoCobro: cobro === 'sena' ? Number(montoSena) : undefined });
+      const r = await crearReserva({ canchaId, whatsapp, nombreCliente, fecha, horaInicio, duracionMin, cobroInicial: cobro, medioCobro, montoCobro: cobro === 'sena' ? Number(montoSena) : undefined, montoFinal: final !== undefined && final !== precioLista ? final : undefined });
       if (r.ok) {
         if (r.cobroOmitido) {
           toast.success('Reserva creada', { description: 'Socio: turno bonificado, no se cobró nada.' });
@@ -166,6 +179,13 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
               </div>
             );
           })()}
+          {horaInicio && (
+            <div className="space-y-1">
+              <Label htmlFor="nueva-precio">Precio final (opcional)</Label>
+              <Input id="nueva-precio" type="number" min="0" value={precioFinal} onChange={(e) => setPrecioFinal(e.target.value)} placeholder={precioLista != null ? String(precioLista) : 'Precio de lista'} />
+              <p className="text-xs text-muted-foreground">{precioLista != null ? `Precio de lista: $${precioLista.toLocaleString('es-AR')}. ` : ''}Dejalo vacío para cobrar el de lista, o poné el que acordaste con el cliente.</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="nueva-whatsapp">WhatsApp</Label>

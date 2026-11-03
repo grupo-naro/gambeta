@@ -23,6 +23,8 @@ export const createReservaSchema = z.object({
     montoSena: z.number().nonnegative().optional(),
     metodoSena: z.enum(['MERCADO_PAGO', 'TRANSFERENCIA']).optional(),
     montoCobro: z.number().nonnegative().optional(),
+    // Precio final que el panel acuerda con el cliente (distinto al de lista). Solo staff.
+    montoFinal: z.number().nonnegative().max(99999999.99).optional(),
     nombreConfirmado: z.boolean().default(false),
     notas: z.string().optional(),
     // La manda sólo la web pública, con la etiqueta del link por el que llegó el cliente.

@@ -13,7 +13,7 @@ import { resolverCondiciones } from './reserva.condiciones.js';
 import { suscripcionService } from './suscripcion.service.js';
 import { clasificarOrigen } from './visita.service.js';
 import { jornadaWindowUtc, dayOfWeekInTz, hoyEnTz, sumarDias, minutoDeJornada, instanteDeJornada, hhmmDeMin } from '../utils/tz.js';
-import { BusinessRule, Conflict, NotFound } from '../utils/errors.js';
+import { BusinessRule, Conflict, Forbidden, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
 import { ymdEnTz } from './sheets/sheetsData.js';
@@ -85,6 +85,8 @@ export interface CreateReservaInput {
   nombreConfirmado?: boolean;
   notas?: string;
   origenEtiqueta?: string | null;
+  /** Precio final acordado, distinto al de lista (ej. 65.000 → 55.000). Solo lo respeta el staff. */
+  montoFinal?: number;
 }
 
 export const reservaService = {
@@ -169,6 +171,11 @@ export const reservaService = {
       senaPorDefecto: await senaService.montoParaCancha(cancha, precio),
       suscripcionId: suscripcion?.id ?? null,
     });
+    // Precio acordado a mano en el panel. Un socio ya viene saldado (monto 0): su bonificación gana.
+    if (input.montoFinal != null) {
+      if (!opts.porStaff) throw Forbidden('Solo el personal del panel puede cambiar el precio');
+      if (cond.suscripcionId == null) cond.monto = input.montoFinal;
+    }
     const { estado, montoSena } = cond;
 
     const reserva = await prisma.$transaction(async (tx) => {
