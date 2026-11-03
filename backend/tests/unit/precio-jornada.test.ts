@@ -27,14 +27,14 @@ describe('precio con jornada que cruza medianoche', () => {
     expect(precioDeRango(cancha, VIERNES, '10:00', 60, cfg)).toBe(30000);
   });
 
-  it('un turno de 90 minutos que arranca 23:30 se prorratea cruzando la medianoche', () => {
+  it('un turno de 90 minutos que arranca 23:30 cruza la medianoche', () => {
     // 23:30 a 01:00: los 90 minutos caen enteros dentro del pico (20:00 a 01:00).
     expect(precioDeRango(cancha, VIERNES, '23:30', 90, cfg)).toBe(60000);
   });
 
-  it('un turno que arranca antes del pico se prorratea', () => {
-    // 19:00 a 21:00: 60 min base + 60 min pico.
-    expect(precioDeRango(cancha, VIERNES, '19:00', 120, cfg)).toBe(70000);
+  it('un turno que arranca antes del pico se cobra entero a tarifa base', () => {
+    // 19:00 a 21:00 arranca en base (pico desde 20:00): 2 h de base, no 1 base + 1 pico (antes 70.000).
+    expect(precioDeRango(cancha, VIERNES, '19:00', 120, cfg)).toBe(60000);
   });
 });
 
@@ -51,8 +51,8 @@ describe('regresión: las configuraciones de hoy dan el mismo precio', () => {
     expect(precioDeRango(cancha, VIERNES, '17:00', 60, cfgHoy)).toBe(30000);
   });
 
-  it('prorrateo de 17:00 a 19:00: una hora base y una pico', () => {
-    expect(precioDeRango(cancha, VIERNES, '17:00', 120, cfgHoy)).toBe(70000);
+  it('17:00 a 19:00 arranca en base: dos horas a tarifa base', () => {
+    expect(precioDeRango(cancha, VIERNES, '17:00', 120, cfgHoy)).toBe(60000);
   });
 
   it('sin franja pico cargada, todo es precio base', () => {

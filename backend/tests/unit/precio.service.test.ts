@@ -22,17 +22,17 @@ describe('precioDeRango', () => {
     expect(precioDeRango(padel, '2026-06-10', '19:00', 120, cfg)).toBe(72000);
   });
 
-  it('cruza el borde de las 18:00 → prorratea por tramo', () => {
-    // 17:00-19:00 = 60 min base + 60 min pico
-    expect(precioDeRango(padel, '2026-06-10', '17:00', 120, cfg)).toBe(66000);
-    // 17:30-19:00 = 30 min base + 60 min pico (entra una hora entera a la franja cara)
-    expect(precioDeRango(padel, '2026-06-10', '17:30', 90, cfg)).toBe(51000);
+  it('el precio lo define la hora de INICIO: un turno que arranca antes de las 18:00 va todo a tarifa barata', () => {
+    // 17:00-19:00 arranca en banda base → 2 h de base (antes se prorrateaba: 66.000).
+    expect(precioDeRango(padel, '2026-06-10', '17:00', 120, cfg)).toBe(60000);
+    // 17:30-19:00 arranca en banda base → 1½ h de base (antes 51.000).
+    expect(precioDeRango(padel, '2026-06-10', '17:30', 90, cfg)).toBe(45000);
   });
 
-  it('el sobrante de hasta 30 min que entra a la franja cara se cobra a tarifa barata', () => {
-    // 17:00-18:30: solo 30 min caen en pico → todo el turno a tarifa base (antes 48.000).
+  it('un turno que cruza las 18:00 se cobra entero a tarifa barata si arrancó antes', () => {
+    // 17:00-18:30 → todo el turno a tarifa base (antes 48.000).
     expect(precioDeRango(padel, '2026-06-10', '17:00', 90, cfg)).toBe(45000);
-    // 17:30-18:30: 30 min base + 30 min de sobrante → todo base (antes 33.000).
+    // 17:30-18:30 → todo base (antes 33.000).
     expect(precioDeRango(padel, '2026-06-10', '17:30', 60, cfg)).toBe(30000);
     // También el fin de semana.
     expect(precioDeRango(padel, '2026-06-13', '17:00', 90, cfg)).toBe(45000);
@@ -91,13 +91,17 @@ describe('precio propio por duración', () => {
   });
 
   it('cruza el borde por solo 30 min: se cobra el precio propio de base (no interpola)', () => {
-    // 17:00–18:30: 30 min de sobrante en pico → precio de 1½ h en banda base = 36.000 (antes 39.000).
+    // 17:00–18:30 arranca en base → precio propio de 1½ h en banda base = 36.000 (antes 39.000).
     expect(precioDeRango(conPropio, '2026-06-10', '17:00', 90, cfg)).toBe(36000);
   });
 
-  it('interpola entre los dos precios propios cuando entra más de 30 min a la franja cara', () => {
-    // 17:30–19:00: 30 min base + 60 min pico. Tarifas horarias 24.000 y 30.000 → (30×24.000 + 60×30.000)/60 = 42.000
-    expect(precioDeRango(conPropio, '2026-06-10', '17:30', 90, cfg)).toBe(42000);
+  it('REGRESIÓN cliente: 1½ h cuesta 55.000 si arranca antes de las 18:00 y 65.000 si arranca desde las 18:00', () => {
+    const real = { precioHora: 40000, precioHoraPico: 50000, precio90: 55000, precio90Pico: 65000, precio120: 60000, precio120Pico: 75000 };
+    expect(precioDeRango(real, '2026-06-10', '17:30', 90, cfg)).toBe(55000); // antes: 61.667
+    expect(precioDeRango(real, '2026-06-10', '17:00', 90, cfg)).toBe(55000);
+    expect(precioDeRango(real, '2026-06-10', '18:00', 90, cfg)).toBe(65000);
+    expect(precioDeRango(real, '2026-06-10', '17:00', 120, cfg)).toBe(60000);
+    expect(precioDeRango(real, '2026-06-10', '18:00', 120, cfg)).toBe(75000);
   });
 
   it('una duración sin precio propio cae al proporcional', () => {
@@ -113,7 +117,7 @@ describe('precio propio por duración', () => {
   it('REGRESIÓN: sin campos nuevos el resultado es idéntico al de hoy', () => {
     const sinPropio = { precioHora: 30000, precioHoraPico: 36000 };
     expect(precioDeRango(sinPropio, '2026-06-10', '08:00', 90, cfg)).toBe(45000);
-    expect(precioDeRango(sinPropio, '2026-06-10', '17:00', 120, cfg)).toBe(66000);
+    expect(precioDeRango(sinPropio, '2026-06-10', '17:00', 120, cfg)).toBe(60000);
   });
 });
 
