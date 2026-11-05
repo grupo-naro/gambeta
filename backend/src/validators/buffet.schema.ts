@@ -35,6 +35,11 @@ export const reponerSchema = z.object({
   query: empty, params: idParam,
 });
 
+export const ajustarStockSchema = z.object({
+  body: z.object({ stock: z.number().int().nonnegative(), motivo: z.string().trim().max(200).optional() }),
+  query: empty, params: idParam,
+});
+
 export const cobrarSchema = z.object({
   body: z.object({
     uid: z.string().min(1),

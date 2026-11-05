@@ -32,6 +32,11 @@ export async function reponerStock(id: string, cantidad: number): Promise<Result
   return run(() => apiFetch(`/buffet/productos/${id}/reponer`, { method: 'POST', body: JSON.stringify({ cantidad }) }));
 }
 
+// Fija el stock total (sube o baja), a diferencia de reponer que solo suma.
+export async function ajustarStock(id: string, stock: number, motivo?: string): Promise<Result> {
+  return run(() => apiFetch(`/buffet/productos/${id}/ajustar-stock`, { method: 'POST', body: JSON.stringify({ stock, motivo: motivo || undefined }) }));
+}
+
 export async function setPinBuffet(mostradorId: string, pin: string): Promise<Result> {
   return run(() => apiFetch('/buffet/pin', { method: 'PUT', body: JSON.stringify({ mostradorId, pin }) }));
 }

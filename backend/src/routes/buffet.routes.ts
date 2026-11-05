@@ -12,7 +12,7 @@ import { buffetConciliacionService } from '../services/buffetConciliacion.servic
 import { mostradorService } from '../services/mostrador.service.js';
 import { buffetCuentaService, esCanchaDePadel } from '../services/buffetCuenta.service.js';
 import { canchaRepo } from '../repositories/cancha.repo.js';
-import { crearProductoSchema, actualizarProductoSchema, reponerSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema, abrirCuentaSchema, cuentaIdSchema, fijarCantidadSchema, rendirCuentaSchema, listarCuentasAdminSchema } from '../validators/buffet.schema.js';
+import { crearProductoSchema, actualizarProductoSchema, reponerSchema, ajustarStockSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema, abrirCuentaSchema, cuentaIdSchema, fijarCantidadSchema, rendirCuentaSchema, listarCuentasAdminSchema } from '../validators/buffet.schema.js';
 import { idParamSchema } from '../validators/reserva.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
 import { Forbidden, NotFound, Unauthorized } from '../utils/errors.js';
@@ -176,6 +176,14 @@ buffetRoutes.post('/productos/:id/reponer', authJwt, requireRole('ADMIN'), valid
   try {
     const adminId = (req as any).principal.adminId as string;
     res.json(await buffetProductoService.reponer((req as any).valid.params.id, (req as any).valid.body.cantidad, adminId));
+  } catch (e) { next(e); }
+});
+
+buffetRoutes.post('/productos/:id/ajustar-stock', authJwt, requireRole('ADMIN'), validate(ajustarStockSchema), async (req, res, next) => {
+  try {
+    const adminId = (req as any).principal.adminId as string;
+    const { stock, motivo } = (req as any).valid.body;
+    res.json(await buffetProductoService.ajustarStock((req as any).valid.params.id, stock, motivo, adminId));
   } catch (e) { next(e); }
 });
 

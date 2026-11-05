@@ -102,4 +102,19 @@ export const buffetProductoService = {
     });
     return toDTO(upd);
   },
+
+  /**
+   * Fija el stock general en un total exacto (sube o baja): para corregir un conteo, una rotura o
+   * un error de carga. `reponer` solo suma. Deja rastro con el antes y el después.
+   */
+  async ajustarStock(id: string, stock: number, motivo: string | undefined, adminId: string): Promise<ProductoDTO> {
+    const actual = await prisma.productoBuffet.findUnique({ where: { id } });
+    if (!actual) throw NotFound('ProductoBuffet', id);
+    const upd = await prisma.productoBuffet.update({ where: { id }, data: { stock } });
+    await auditService.record(adminId, {
+      accion: 'AJUSTAR_STOCK', entidad: 'ProductoBuffet', entidadId: id,
+      descripcion: `Ajustó el stock de ${actual.nombre} (${actual.stock} → ${upd.stock})${motivo ? ': ' + motivo : ''}`,
+    });
+    return toDTO(upd);
+  },
 };

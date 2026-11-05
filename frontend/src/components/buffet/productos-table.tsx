@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import type { ProductoBuffet } from '@/lib/types';
 import { estaBajo } from '@/lib/stock-buffet';
 import { ProductoDialog } from './producto-dialog';
-import { reponerStock } from '@/lib/buffet-admin-actions';
+import { reponerStock, ajustarStock } from '@/lib/buffet-admin-actions';
 
 const money = (n: number | string) => '$' + Number(n || 0).toLocaleString('es-AR');
 
@@ -19,11 +19,14 @@ export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
   const [editing, setEditing] = useState<ProductoBuffet | null>(null);
   const [seleccion, setSeleccion] = useState<ProductoBuffet | null>(null);
   const [cantidad, setCantidad] = useState('');
+  // Ajuste: el total que debería haber (arranca en el stock actual) y por qué se corrige.
+  const [totalAjuste, setTotalAjuste] = useState('');
+  const [motivoAjuste, setMotivoAjuste] = useState('');
   const [pending, start] = useTransition();
 
   function nuevo() { setEditing(null); setDialogOpen(true); }
   function editar(p: ProductoBuffet) { setSeleccion(null); setEditing(p); setDialogOpen(true); }
-  function abrir(p: ProductoBuffet) { setCantidad(''); setSeleccion(p); }
+  function abrir(p: ProductoBuffet) { setCantidad(''); setTotalAjuste(String(p.stock)); setMotivoAjuste(''); setSeleccion(p); }
 
   function reponer() {
     if (!seleccion) return;
@@ -32,6 +35,18 @@ export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
     start(async () => {
       const r = await reponerStock(seleccion.id, n);
       if (r.ok) { toast.success('Stock repuesto'); setSeleccion(null); }
+      else toast.error(r.error);
+    });
+  }
+
+  function ajustar() {
+    if (!seleccion) return;
+    const n = Number(totalAjuste);
+    if (totalAjuste.trim() === '' || !Number.isInteger(n) || n < 0) { toast.error('Ingresá un total entero, 0 o más'); return; }
+    if (n === seleccion.stock) { toast.error('El total es igual al stock actual'); return; }
+    start(async () => {
+      const r = await ajustarStock(seleccion.id, n, motivoAjuste.trim());
+      if (r.ok) { toast.success(`Stock ajustado a ${n}`); setSeleccion(null); }
       else toast.error(r.error);
     });
   }
@@ -113,6 +128,15 @@ export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
                   <Input id="pb-cantidad" type="number" min="1" value={cantidad} onChange={(e) => setCantidad(e.target.value)} placeholder="Cantidad" />
                   <Button variant="outline" disabled={pending} onClick={reponer}>Reponer</Button>
                 </div>
+              </div>
+              <div className="space-y-1 border-t pt-3">
+                <Label htmlFor="pb-total">Ajustar stock (total)</Label>
+                <div className="flex gap-2">
+                  <Input id="pb-total" type="number" min="0" value={totalAjuste} onChange={(e) => setTotalAjuste(e.target.value)} placeholder="Total real" />
+                  <Button variant="outline" disabled={pending} onClick={ajustar}>Ajustar</Button>
+                </div>
+                <Input value={motivoAjuste} onChange={(e) => setMotivoAjuste(e.target.value)} placeholder="Motivo (opcional): conteo, rotura…" />
+                <p className="text-xs text-muted-foreground">Deja el stock en ese número exacto. Queda registrado quién lo cambió y de cuánto a cuánto.</p>
               </div>
             </div>
           </SheetContent>

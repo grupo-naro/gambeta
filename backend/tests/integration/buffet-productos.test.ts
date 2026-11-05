@@ -95,6 +95,40 @@ describe('buffet: catalogo de productos', () => {
     expect(r.status).toBe(404);
   });
 
+  it('ajustar fija el stock total (sube o baja) y deja rastro con el antes y el después', async () => {
+    const c = await auth(supertest(app).post('/buffet/productos')).send({ nombre: 'Coca', precio: 1500, stock: 10 });
+    const baja = await auth(supertest(app).post(`/buffet/productos/${c.body.id}/ajustar-stock`)).send({ stock: 7, motivo: 'Conteo' });
+    expect(baja.status).toBe(200);
+    expect(baja.body.stock).toBe(7);
+    const sube = await auth(supertest(app).post(`/buffet/productos/${c.body.id}/ajustar-stock`)).send({ stock: 25 });
+    expect(sube.body.stock).toBe(25);
+    expect((await getPrisma().productoBuffet.findUnique({ where: { id: c.body.id } }))?.stock).toBe(25);
+
+    const logs = await getPrisma().auditLog.findMany({ orderBy: { creadoEn: 'asc' } });
+    expect(logs).toHaveLength(2);
+    expect(logs[0].accion).toBe('AJUSTAR_STOCK');
+    expect(logs[0].descripcion).toMatch(/10 → 7/);
+    expect(logs[0].descripcion).toMatch(/Conteo/);
+  });
+
+  it('ajustar a 0 es válido; negativo o decimal es 400', async () => {
+    const c = await auth(supertest(app).post('/buffet/productos')).send({ nombre: 'Coca', precio: 1500, stock: 3 });
+    expect((await auth(supertest(app).post(`/buffet/productos/${c.body.id}/ajustar-stock`)).send({ stock: 0 })).status).toBe(200);
+    expect((await auth(supertest(app).post(`/buffet/productos/${c.body.id}/ajustar-stock`)).send({ stock: -1 })).status).toBe(400);
+    expect((await auth(supertest(app).post(`/buffet/productos/${c.body.id}/ajustar-stock`)).send({ stock: 1.5 })).status).toBe(400);
+  });
+
+  it('ajustar un producto inexistente es 404', async () => {
+    expect((await auth(supertest(app).post('/buffet/productos/noexiste/ajustar-stock')).send({ stock: 5 })).status).toBe(404);
+  });
+
+  it('un RECEPCIONISTA no puede ajustar el stock (403)', async () => {
+    const c = await auth(supertest(app).post('/buffet/productos')).send({ nombre: 'Coca', precio: 1500, stock: 3 });
+    const recep = signAdminToken({ adminId, email: 'r@b.com', rol: 'RECEPCIONISTA' });
+    const r = await supertest(app).post(`/buffet/productos/${c.body.id}/ajustar-stock`).set('authorization', `Bearer ${recep}`).send({ stock: 1 });
+    expect(r.status).toBe(403);
+  });
+
   it('un RECEPCIONISTA recibe 403 al crear un producto; un ADMIN sigue pudiendo (2xx)', async () => {
     const recepToken = signAdminToken({ adminId, email: 'r@b.com', rol: 'RECEPCIONISTA' });
     const r = await supertest(app).post('/buffet/productos').set('authorization', `Bearer ${recepToken}`)
