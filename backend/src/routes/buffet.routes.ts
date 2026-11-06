@@ -11,6 +11,7 @@ import { buffetEntregaService } from '../services/buffetEntrega.service.js';
 import { buffetConciliacionService } from '../services/buffetConciliacion.service.js';
 import { mostradorService } from '../services/mostrador.service.js';
 import { buffetCuentaService, esCanchaDePadel } from '../services/buffetCuenta.service.js';
+import { buffetSecundarioService } from '../services/buffetSecundario.service.js';
 import { canchaRepo } from '../repositories/cancha.repo.js';
 import { crearProductoSchema, actualizarProductoSchema, reponerSchema, ajustarStockSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema, abrirCuentaSchema, cuentaIdSchema, fijarCantidadSchema, rendirCuentaSchema, listarCuentasAdminSchema } from '../validators/buffet.schema.js';
 import { idParamSchema } from '../validators/reserva.schema.js';
@@ -163,6 +164,14 @@ buffetRoutes.post('/pin/verificar', authBuffet, loginLimiter, validate(verificar
 // --- Admin (JWT) ---
 buffetRoutes.get('/admin/cuentas', authJwt, requireRole('ADMIN'), validate(listarCuentasAdminSchema), async (req, res, next) => {
   try { res.json(await buffetCuentaService.listarParaAdmin((req as any).valid.query.estado)); } catch (e) { next(e); }
+});
+
+// Resumen diario del secundario para el admin: con cuánto arrancó, cuánto vendió y cuánto sobró.
+buffetRoutes.get('/secundario/diario', authJwt, requireRole('ADMIN'), async (req, res, next) => {
+  try {
+    const dias = Number(req.query.dias);
+    res.json(await buffetSecundarioService.resumenDiario({ dias: Number.isFinite(dias) && dias > 0 ? dias : undefined }));
+  } catch (e) { next(e); }
 });
 
 buffetRoutes.get('/cajas', authJwt, requireRole('ADMIN'), async (_req, res, next) => {

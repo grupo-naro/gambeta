@@ -4,6 +4,7 @@ const PAGINAS = [
   { clave: 'catalogo', href: '/buffet', label: 'Catálogo' },
   { clave: 'cierres', href: '/buffet/cierres', label: 'Cierres' },
   { clave: 'conciliaciones', href: '/buffet/conciliaciones', label: 'Faltantes' },
+  { clave: 'secundario', href: '/buffet/secundario', label: 'Secundario' },
   { clave: 'entregas', href: '/buffet/entregas', label: 'Entregas' },
   { clave: 'cuentas', href: '/buffet/cuentas', label: 'Cuentas' },
 ] as const;

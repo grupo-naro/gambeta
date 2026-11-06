@@ -169,6 +169,16 @@ export interface ResumenConciliacion {
   productoId: string; nombre: string; cierres: number;
   entregado: number; vendido: number; contado: number; diferencia: number;
 }
+/** Un día del mostrador secundario: con cuánto arrancó, cuánto vendió y cuánto sobró. */
+export interface LineaDiaSecundario {
+  productoId: string; nombre: string;
+  arranco: number; entregado: number; devuelto: number; vendido: number; quedo: number;
+}
+export interface DiaSecundario {
+  fecha: string;
+  lineas: LineaDiaSecundario[];
+  totales: { arranco: number; entregado: number; devuelto: number; vendido: number; quedo: number };
+}
 export interface EntregaPanel {
   id: string; creadaEn: string; conciliada: boolean;
   lineas: { productoId: string; nombre: string; cantidad: number }[];
