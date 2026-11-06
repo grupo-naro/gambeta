@@ -1,5 +1,6 @@
 import { prisma } from '../db/prisma.js';
 import { BusinessRule, Forbidden, NotFound } from '../utils/errors.js';
+import { esViolacionStockAsignadoNegativo } from './buffetStock.js';
 
 const SECUNDARIO = 'mostrador-secundario';
 
@@ -47,6 +48,46 @@ export const buffetEntregaService = {
       }
       return { entregaId: entrega.id };
     });
+  },
+
+  /**
+   * Le saca al secundario parte de su cupo (lo que ya tiene asignado y quiere devolver al principal).
+   *
+   * No mueve stock: el general es el total y no cambia. Solo baja el cupo, y esas unidades quedan
+   * libres para asignarse de nuevo. Es una acción manual del principal; nada se devuelve solo.
+   * Todo o nada. Queda en el historial como un movimiento con cantidades negativas.
+   */
+  async devolver(input: EntregarInput): Promise<{ entregaId: string }> {
+    if (input.desdeMostradorId !== 'mostrador-principal') {
+      throw Forbidden('Solo el mostrador principal puede devolver stock');
+    }
+    if (!input.items.length) throw BusinessRule('No hay productos para devolver');
+    for (const it of input.items) {
+      if (!Number.isInteger(it.cantidad) || it.cantidad < 1) throw BusinessRule('Cantidad inválida');
+    }
+
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const mov = await tx.entregaMostrador.create({ data: { mostradorId: SECUNDARIO } });
+        for (const it of input.items) {
+          const p = await tx.productoBuffet.findUnique({ where: { id: it.productoId } });
+          if (!p) throw NotFound('ProductoBuffet', it.productoId);
+          const clave = { mostradorId_productoId: { mostradorId: SECUNDARIO, productoId: p.id } };
+          const asig = await tx.stockMostrador.findUnique({ where: clave });
+          const tiene = asig?.cantidad ?? 0;
+          if (tiene < it.cantidad) {
+            throw BusinessRule(`El secundario no tiene tantas unidades de ${p.nombre}: tiene ${tiene} y querés devolver ${it.cantidad}`);
+          }
+          await tx.stockMostrador.update({ where: clave, data: { cantidad: { decrement: it.cantidad } } });
+          await tx.entregaMostradorLinea.create({ data: { entregaId: mov.id, productoId: p.id, cantidad: -it.cantidad } });
+        }
+        return { entregaId: mov.id };
+      });
+    } catch (e) {
+      // El secundario vendió justo en el medio y el cupo no alcanzó: lo frena el CHECK de la base.
+      if (esViolacionStockAsignadoNegativo(e)) throw BusinessRule('El secundario vendió mientras tanto y ya no tiene tantas unidades');
+      throw e;
+    }
   },
 
   async stockAsignado(mostradorId: string) {

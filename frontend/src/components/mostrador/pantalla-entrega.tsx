@@ -1,13 +1,16 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { entregarStock } from '@/lib/buffet-actions';
+import { entregarStock, devolverStock } from '@/lib/buffet-actions';
 import { asignadoPorProducto } from '@/lib/mostrador-stock';
 import type { ProductoCobro, StockAsignado } from '@/lib/types';
 
 export function PantallaEntrega({ productos, asignado }: { productos: ProductoCobro[]; asignado: StockAsignado[] }) {
   const router = useRouter();
   const yaTiene = asignadoPorProducto(asignado);
+  // Entregar le suma cupo al secundario; devolver se lo baja (lo que ya tiene vuelve al principal).
+  const [modo, setModo] = useState<'entregar' | 'devolver'>('entregar');
+  const devolviendo = modo === 'devolver';
   const [cant, setCant] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -25,10 +28,14 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
     setCant((c) => ({ ...c, [id]: n }));
   }
 
+  function cambiarModo(m: 'entregar' | 'devolver') {
+    setModo(m); setCant({}); setError(''); setConfirmacion(null);
+  }
+
   function entregar() {
     if (items.length === 0) { setError('Cargá al menos un producto'); return; }
     setError(''); setEnviando(true); setConfirmacion(null);
-    void entregarStock(items).then((r) => {
+    void (devolviendo ? devolverStock(items) : entregarStock(items)).then((r) => {
       setEnviando(false);
       if (r.ok) {
         // La confirmación explícita queda en pantalla mientras dura el refresh: sin esto el
@@ -45,23 +52,32 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
       }
       // La entrega es todo o nada: el servicio la hace en una transacción. Si falla, no se
       // movió nada, y decirlo evita que el operador entregue dos veces por las dudas.
-      else setError(`${r.error} — no se entregó nada.`);
+      else setError(`${r.error} — no se ${devolviendo ? 'devolvió' : 'entregó'} nada.`);
     });
   }
 
   return (
     <main className="flex min-h-screen flex-col gap-4 p-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Entregar al secundario</h1>
+        <h1 className="text-xl font-bold">{devolviendo ? 'Devolver del secundario' : 'Entregar al secundario'}</h1>
         <a href="/mostrador" className="rounded-lg border px-3 py-1 text-sm font-medium">Volver</a>
       </header>
+
+      <div className="grid grid-cols-2 gap-2">
+        {(['entregar', 'devolver'] as const).map((m) => (
+          <button key={m} type="button" onClick={() => cambiarModo(m)}
+            className={`h-12 rounded-xl border-2 text-lg font-semibold ${modo === m ? 'border-emerald-600 bg-emerald-50' : 'border-neutral-300'}`}>
+            {m === 'entregar' ? 'Entregar' : 'Devolver'}
+          </button>
+        ))}
+      </div>
 
       <p aria-live="polite" className={error ? 'text-lg font-semibold text-red-600' : 'sr-only'}>{error}</p>
 
       {confirmacion && (
         <div aria-live="polite" className="rounded-2xl border border-emerald-600 bg-emerald-50 p-3">
           <p className="font-semibold text-emerald-800">
-            {refrescando ? 'Entregado, actualizando la pantalla…' : 'Entregado.'}
+            {refrescando ? `${devolviendo ? 'Devuelto' : 'Entregado'}, actualizando la pantalla…` : `${devolviendo ? 'Devuelto' : 'Entregado'}.`}
           </p>
           <ul className="mt-1 text-sm text-emerald-800">
             {confirmacion.map((c) => (
@@ -72,24 +88,27 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
       )}
 
       <ul className="divide-y rounded-2xl border bg-white">
-        {productos.map((p) => (
+        {(devolviendo ? productos.filter((p) => (yaTiene[p.id] ?? 0) > 0) : productos).map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-3 p-3">
             <div className="min-w-0">
               <p className="font-semibold">{p.nombre}</p>
               <p className="text-sm text-neutral-600">
-                Hay {p.stock} · ya tiene {yaTiene[p.id] ?? 0}
+                {devolviendo ? `Tiene ${yaTiene[p.id] ?? 0}` : `Hay ${p.stock} · ya tiene ${yaTiene[p.id] ?? 0}`}
               </p>
             </div>
             <input
               inputMode="numeric"
               aria-label={`Cantidad de ${p.nombre}`}
               value={cant[p.id] ?? ''}
-              onChange={(e) => setear(p.id, e.target.value, p.stock)}
+              onChange={(e) => setear(p.id, e.target.value, devolviendo ? (yaTiene[p.id] ?? 0) : p.stock)}
               placeholder="0"
               className="w-20 rounded-xl border p-2 text-center text-lg"
             />
           </li>
         ))}
+        {devolviendo && productos.every((p) => (yaTiene[p.id] ?? 0) === 0) && (
+          <li className="p-4 text-center text-neutral-500">El secundario no tiene nada para devolver.</li>
+        )}
       </ul>
 
       <button
@@ -98,7 +117,7 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
         disabled={enviando || items.length === 0}
         className="rounded-2xl bg-emerald-600 py-4 text-lg font-bold text-white disabled:opacity-50"
       >
-        {enviando ? 'Entregando…' : `Entregar ${items.length} producto(s)`}
+        {enviando ? (devolviendo ? 'Devolviendo…' : 'Entregando…') : `${devolviendo ? 'Devolver' : 'Entregar'} ${items.length} producto(s)`}
       </button>
     </main>
   );

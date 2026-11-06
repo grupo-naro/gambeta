@@ -61,6 +61,13 @@ export async function entregarStock(items: { productoId: string; cantidad: numbe
   }));
 }
 
+// Le baja al secundario parte de su cupo (lo devuelve al principal). Manual: nada vuelve solo.
+export async function devolverStock(items: { productoId: string; cantidad: number }[]): Promise<Resultado<{ entregaId: string }>> {
+  return conSesion(() => buffetFetch<{ entregaId: string }>('/buffet/devoluciones', {
+    method: 'POST', body: JSON.stringify({ items }),
+  }));
+}
+
 export async function conciliarCaja(
   cajaId: string,
   conteos: { productoId: string; contado: number }[],

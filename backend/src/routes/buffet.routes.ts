@@ -102,6 +102,14 @@ buffetRoutes.post('/entregas', authMostrador, validate(entregarSchema), async (r
   } catch (e) { next(e); }
 });
 
+// Devolver al principal lo que el secundario ya tiene. Manual: nada se devuelve al cerrar la caja.
+buffetRoutes.post('/devoluciones', authMostrador, validate(entregarSchema), async (req, res, next) => {
+  try {
+    const { items } = (req as any).valid.body;
+    res.json(await buffetEntregaService.devolver({ desdeMostradorId: (req as any).mostrador.id, items }));
+  } catch (e) { next(e); }
+});
+
 buffetRoutes.get('/stock-asignado', authMostrador, validate(stockAsignadoSchema), async (req, res, next) => {
   try {
     const propio = (req as any).mostrador.id as string;
