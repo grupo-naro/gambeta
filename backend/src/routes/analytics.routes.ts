@@ -15,18 +15,21 @@ function serializeBigInt(rows: any[]) {
 }
 
 // Parsea ?desde&hasta (YYYY-MM-DD) a ventana UTC; default últimos 30 días.
-function rango(req: any): { desde: Date; hasta: Date } {
+function rango(req: any): { desde: Date; hasta: Date; desdeYmd: string; hastaYmd: string } {
   const tz = getEnv().TZ_NEGOCIO;
   const re = /^\d{4}-\d{2}-\d{2}$/;
   const hoy = new Date().toLocaleDateString('en-CA', { timeZone: tz });
   const q = req.query || {};
   const hastaYmd = re.test(q.hasta) ? q.hasta : hoy;
   const desdeYmd = re.test(q.desde) ? q.desde : new Date(Date.now() - 29 * 86400000).toLocaleDateString('en-CA', { timeZone: tz });
-  return { desde: dayWindowUtc(desdeYmd, tz).start, hasta: dayWindowUtc(hastaYmd, tz).end };
+  return { desde: dayWindowUtc(desdeYmd, tz).start, hasta: dayWindowUtc(hastaYmd, tz).end, desdeYmd, hastaYmd };
 }
 
 analyticsRoutes.get('/ingresos', async (req, res, next) => {
   try { const { desde, hasta } = rango(req); res.json(await analyticsService.ingresos(desde, hasta)); } catch (e) { next(e); }
+});
+analyticsRoutes.get('/reservas', async (req, res, next) => {
+  try { const { desde, hasta, desdeYmd, hastaYmd } = rango(req); res.json(await analyticsService.reservas(desde, hasta, { desdeYmd, hastaYmd })); } catch (e) { next(e); }
 });
 analyticsRoutes.get('/ingresos-por-dia', async (req, res, next) => {
   try { const { desde, hasta } = rango(req); res.json(await analyticsService.ingresosPorDia(desde, hasta)); } catch (e) { next(e); }

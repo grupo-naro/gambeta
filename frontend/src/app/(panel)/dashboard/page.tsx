@@ -1,7 +1,7 @@
 import { DollarSign, CalendarDays, Trophy, Eye, Users } from 'lucide-react';
 import { requireAdmin } from '@/lib/require-admin';
 import { apiFetch } from '@/lib/api';
-import type { Reserva, Cancha, Config, IngresoDia, OcupacionCelda, HorarioPico, Origenes } from '@/lib/types';
+import type { Cancha, Config, IngresoDia, OcupacionCelda, HorarioPico, Origenes, ReservasResumen } from '@/lib/types';
 import { hoyAR, addDias } from '@/lib/fecha';
 import { resolverAperturaCierreUnificados } from '@/lib/hora';
 import { MetricCard } from '@/components/dashboard/metric-card';
@@ -9,6 +9,7 @@ import { HorariosChart } from '@/components/dashboard/horarios-chart';
 import { IngresosChart } from '@/components/dashboard/ingresos-chart';
 import { OcupacionHeatmap } from '@/components/dashboard/ocupacion-heatmap';
 import { PeriodoSelector } from '@/components/dashboard/periodo-selector';
+import { ReservasDetalle } from '@/components/dashboard/reservas-detalle';
 import { OrigenesChart } from '@/components/dashboard/origenes-chart';
 import { OrigenesTabla } from '@/components/dashboard/origenes-tabla';
 
@@ -20,14 +21,19 @@ const PERIODOS: Record<string, number> = { hoy: 0, '7': 6, '30': 29 };
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await requireAdmin();
   const sp = await searchParams;
-  const periodo = sp.periodo && sp.periodo in PERIODOS ? sp.periodo : '30';
+  const periodo = sp.periodo && (sp.periodo in PERIODOS || sp.periodo === 'mes' || sp.periodo === 'semana') ? sp.periodo : '30';
   const hasta = hoyAR();
-  const desde = addDias(hasta, -PERIODOS[periodo]);
+  // "Este mes" arranca el día 1 (YYYY-MM-01); los demás son los últimos N días hasta hoy.
+  // "Esta semana" arranca el lunes; "Este mes", el día 1; los demás son los últimos N días hasta hoy.
+  const diaSemana = new Date(hasta + 'T00:00:00Z').getUTCDay(); // 0 = domingo
+  const desde = periodo === 'mes' ? `${hasta.slice(0, 8)}01`
+    : periodo === 'semana' ? addDias(hasta, -((diaSemana + 6) % 7))
+    : addDias(hasta, -PERIODOS[periodo]);
   const qs = `desde=${desde}&hasta=${hasta}`;
 
   const [ingresos, reservas, canchasTop, canchas, horarios, ingresosDia, ocupacion, config, origenes] = await Promise.all([
     safe(apiFetch<{ total: number }>(`/analytics/ingresos?${qs}`), { total: 0 }),
-    safe(apiFetch<Reserva[]>(`/reservas?${qs}`), []),
+    safe(apiFetch<ReservasResumen>(`/analytics/reservas?${qs}`), { total: 0, proximas: 0, canceladas: 0, esperandoSena: 0, porDeporte: { futbol: 0, padel: 0 }, porOrigen: { sueltas: 0, abonos: 0, socios: 0 } }),
     safe(apiFetch<{ canchaId: string; reservas: number }[]>(`/analytics/canchas-top?${qs}`), []),
     safe(apiFetch<Cancha[]>('/canchas'), []),
     safe(apiFetch<HorarioPico[]>(`/analytics/horarios-pico?${qs}`), []),
@@ -54,9 +60,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard title="Ingresos del período" value={money(ingresos.total)} hint="Reservas confirmadas/completadas" Icon={DollarSign} />
-        <MetricCard title="Reservas del período" value={String(reservas.length)} Icon={CalendarDays} />
+        <MetricCard title="Reservas del período" value={String(reservas.total)} hint="Turnos ya usados (terminó su horario)" Icon={CalendarDays} />
         <MetricCard title="Cancha más reservada" value={topNombre} Icon={Trophy} />
       </div>
+      <ReservasDetalle r={reservas} />
       <IngresosChart data={ingresosData} />
       <div className="grid gap-4 lg:grid-cols-2">
         <HorariosChart data={horariosData} />

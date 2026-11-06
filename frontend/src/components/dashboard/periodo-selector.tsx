@@ -5,7 +5,9 @@ import { cn } from '@/lib/utils';
 const OPCIONES: { v: string; label: string }[] = [
   { v: 'hoy', label: 'Hoy' },
   { v: '7', label: '7 días' },
+  { v: 'semana', label: 'Esta semana' },
   { v: '30', label: '30 días' },
+  { v: 'mes', label: 'Este mes' },
 ];
 
 export function PeriodoSelector({ periodo }: { periodo: string }) {

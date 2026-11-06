@@ -75,6 +75,18 @@ export interface TurnoFijo {
   abonoPagado?: number | null;
 }
 export type MotivoBloqueo = 'TORNEO' | 'ENTRENAMIENTO' | 'MANTENIMIENTO' | 'OTRO';
+/** Reservas reales del período (confirmadas y completadas) y su desglose. */
+export interface ReservasResumen {
+  /** Turnos que ya se usaron (terminaron): confirmados/completados + abonos que pasaron. */
+  total: number;
+  /** Confirmadas cuyo turno todavía no terminó. */
+  proximas: number;
+  canceladas: number;
+  esperandoSena: number;
+  porDeporte: { futbol: number; padel: number };
+  porOrigen: { sueltas: number; abonos: number; socios: number };
+}
+
 export interface Bloqueo {
   id: string; canchaId: string; motivo: MotivoBloqueo; recurrente: boolean;
   diaSemana: number | null; fecha: string | null; horaInicio: string; horaFin: string; nota: string | null;
