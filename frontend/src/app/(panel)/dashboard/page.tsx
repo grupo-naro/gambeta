@@ -10,6 +10,8 @@ import { IngresosChart } from '@/components/dashboard/ingresos-chart';
 import { OcupacionHeatmap } from '@/components/dashboard/ocupacion-heatmap';
 import { PeriodoSelector } from '@/components/dashboard/periodo-selector';
 import { ReservasDetalle } from '@/components/dashboard/reservas-detalle';
+import { DashboardBloqueado } from '@/components/dashboard/dashboard-bloqueado';
+import { BotonOjo } from '@/components/dashboard/boton-ojo';
 import { OrigenesChart } from '@/components/dashboard/origenes-chart';
 import { OrigenesTabla } from '@/components/dashboard/origenes-tabla';
 
@@ -21,6 +23,10 @@ const PERIODOS: Record<string, number> = { hoy: 0, '7': 6, '30': 29 };
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await requireAdmin();
   const sp = await searchParams;
+  // Con PIN y sin desbloquear no se pide ningún dato: el backend los rechazaría igual, y así la
+  // pantalla muestra el candado en vez de ceros.
+  const lock = await safe(apiFetch<{ configurado: boolean; desbloqueado: boolean }>('/config/dashboard-pin/estado'), { configurado: false, desbloqueado: true });
+  if (lock.configurado && !lock.desbloqueado) return <DashboardBloqueado />;
   const periodo = sp.periodo && (sp.periodo in PERIODOS || sp.periodo === 'mes' || sp.periodo === 'semana') ? sp.periodo : '30';
   const hasta = hoyAR();
   // "Este mes" arranca el día 1 (YYYY-MM-01); los demás son los últimos N días hasta hoy.
@@ -56,7 +62,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="mt-1 text-sm text-neutral-600">Resumen del complejo.</p>
         </div>
-        <PeriodoSelector periodo={periodo} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PeriodoSelector periodo={periodo} />
+          <BotonOjo configurado={lock.configurado} />
+        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard title="Ingresos del período" value={money(ingresos.total)} hint="Reservas confirmadas/completadas" Icon={DollarSign} />

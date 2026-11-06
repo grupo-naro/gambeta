@@ -2,11 +2,20 @@ import { Router } from 'express';
 import { authJwt } from '../middlewares/authJwt.js';
 import { requireRole } from '../middlewares/requireRole.js';
 import { analyticsService } from '../services/analytics.service.js';
+import { dashboardPinService } from '../services/dashboardPin.service.js';
 import { getEnv } from '../config/env.js';
 import { dayWindowUtc } from '../utils/tz.js';
 
 export const analyticsRoutes = Router();
 analyticsRoutes.use(authJwt, requireRole('ADMIN'));
+// Con PIN del dashboard configurado, los números solo salen si el admin lo ingresó (ver dashboardPin.service).
+analyticsRoutes.use(async (req, _res, next) => {
+  try {
+    const adminId = req.principal?.kind === 'admin' ? req.principal.adminId : '';
+    await dashboardPinService.exigirDesbloqueo(req.header('x-dashboard-unlock') || undefined, adminId);
+    next();
+  } catch (e) { next(e); }
+});
 
 function serializeBigInt(rows: any[]) {
   return rows.map((r) =>

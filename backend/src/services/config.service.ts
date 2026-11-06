@@ -4,7 +4,7 @@ import { hhmmAMin, minutoDeJornada, cierreDeJornada } from '../utils/tz.js';
 
 export const configService = {
   async get() {
-    const { buffetPinHash, ...rest } = await configRepo.getOrCreate();
+    const { buffetPinHash, dashboardPinHash, ...rest } = await configRepo.getOrCreate();
     return rest;
   },
   async update(patch: Record<string, unknown>) {
@@ -23,7 +23,7 @@ export const configService = {
     const pfd = (patch.picoFindeDesde ?? current.picoFindeDesde) as string;
     const pfh = (patch.picoFindeHasta ?? current.picoFindeHasta) as string;
     if (pfd && pfh && minutoDeJornada(pfd, apF) >= cierreDeJornada(pfh, apF)) throw BusinessRule('La franja pico (finde) es inválida');
-    const { buffetPinHash, ...rest } = await configRepo.update(patch);
+    const { buffetPinHash, dashboardPinHash, ...rest } = await configRepo.update(patch);
     return rest;
   },
 };

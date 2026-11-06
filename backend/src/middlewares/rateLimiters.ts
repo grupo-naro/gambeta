@@ -25,3 +25,14 @@ export const generalLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Demasiadas solicitudes, esperá un momento' },
 });
+
+// Intentos de PIN del dashboard: un PIN de 4 a 8 dígitos se adivina rápido sin tope. Por admin e IP.
+export const pinDashboardLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? '')}|${(req as any).principal?.adminId ?? ''}`,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: { code: 'DEMASIADOS_INTENTOS', message: 'Demasiados intentos de PIN, probá más tarde' } },
+});

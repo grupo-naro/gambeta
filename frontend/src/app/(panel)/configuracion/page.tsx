@@ -6,6 +6,7 @@ import { getSheetsInfo } from '@/lib/sheets-actions';
 import { getCuentaMp } from '@/lib/mercadopago-actions';
 import { PlanillaGoogle } from '@/components/config/planilla-google';
 import { CuentaMercadoPago } from '@/components/config/cuenta-mercadopago';
+import { PinDashboard } from '@/components/config/pin-dashboard';
 
 export default async function ConfiguracionPage({
   searchParams,
@@ -15,7 +16,10 @@ export default async function ConfiguracionPage({
   await requireAdmin();
   const sp = await searchParams;
   const resultado = sp.mp === 'ok' || sp.mp === 'error' ? sp.mp : undefined;
-  const [config, sheets, cuentaMp] = await Promise.all([apiFetch<Config>('/config'), getSheetsInfo(), getCuentaMp()]);
+  const [config, sheets, cuentaMp, pinDashboard] = await Promise.all([
+    apiFetch<Config>('/config'), getSheetsInfo(), getCuentaMp(),
+    apiFetch<{ configurado: boolean }>('/config/dashboard-pin/estado').catch(() => ({ configurado: false })),
+  ]);
   return (
     <div className="space-y-6">
       <div>
@@ -23,6 +27,7 @@ export default async function ConfiguracionPage({
         <p className="mt-1 text-sm text-neutral-600">Horarios, contacto y datos de pago del complejo.</p>
       </div>
       <ConfigForm config={config} />
+      <PinDashboard configurado={pinDashboard.configurado} />
       <CuentaMercadoPago cuenta={cuentaMp} resultado={resultado} />
       <PlanillaGoogle info={sheets} />
     </div>

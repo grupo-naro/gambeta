@@ -45,3 +45,17 @@ export const updateConfigSchema = z.object({
   query: empty,
   params: empty,
 });
+
+const pinDashboard = z.string().regex(/^\d{4,8}$/, 'El PIN tiene entre 4 y 8 dígitos');
+export const fijarPinDashboardSchema = z.object({
+  body: z.object({ pin: pinDashboard, pinActual: z.string().min(1).optional() }),
+  query: z.looseObject({}), params: z.looseObject({}),
+});
+export const verificarPinDashboardSchema = z.object({
+  body: z.object({ pin: z.string().min(1).max(32) }),
+  query: z.looseObject({}), params: z.looseObject({}),
+});
+export const quitarPinDashboardSchema = z.object({
+  body: z.object({ pinActual: z.string().min(1).max(32) }),
+  query: z.looseObject({}), params: z.looseObject({}),
+});

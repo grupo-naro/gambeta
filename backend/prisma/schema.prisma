@@ -349,6 +349,8 @@ model Configuracion {
   alias2              String   @default("")
   titular2            String   @default("")
   buffetPinHash       String   @default("")
+  /// PIN para ver los números del dashboard (hash bcrypt). Vacío = el dashboard está abierto.
+  dashboardPinHash    String   @default("")
   /// Cuántos días adelante puede reservar el público. El staff no tiene techo.
   /// La ventana es móvil e inclusiva: hoy .. hoy + este valor.
   diasAnticipacionMax Int      @default(7)
