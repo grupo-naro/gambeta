@@ -103,7 +103,7 @@ function PagoPendienteContenido() {
         </p>
       ) : rechazado ? (
         <p className="text-neutral-400">
-          A veces el sistema de seguridad de Mercado Pago rechaza un pago aunque la tarjeta esté bien. No es un problema tuyo ni de tu tarjeta.
+          A veces el sistema de seguridad de Mercado Pago rechaza un pago aunque haya fondos y los datos estén bien.
           {puedeTransferir ? ' Podés confirmar tu turno pagando la seña por transferencia.' : ''}
         </p>
       ) : (
