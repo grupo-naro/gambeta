@@ -28,8 +28,11 @@ async function calcularResumen(cajaId: string): Promise<{ lineas: LineaConciliac
 
   // Entregas todavía sin rendir de ESE mostrador, no un rango de fechas: el principal suele
   // entregar antes de que el secundario abra la caja, y por fecha esa entrega quedaría afuera.
+  // Solo hasta el cierre de ESTA caja: lo que el principal entregó después pertenece al turno
+  // siguiente. Sin ese tope, contar un cierre viejo se tragaba la mercadería nueva del secundario
+  // (la marcaba como rendida y le ponía el asignado en cero).
   const entregas = await prisma.entregaMostradorLinea.findMany({
-    where: { entrega: { mostradorId: caja.mostradorId, conciliadaEnCajaId: null } },
+    where: { entrega: { mostradorId: caja.mostradorId, conciliadaEnCajaId: null, ...(caja.cerradaEn ? { creadaEn: { lte: caja.cerradaEn } } : {}) } },
     include: { producto: { select: { nombre: true } }, entrega: { select: { id: true } } },
   });
   const ventas = await prisma.ventaBuffet.findMany({
@@ -93,6 +96,9 @@ export const buffetConciliacionService = {
 
     const out = [];
     for (const c of cajas) {
+      // Un cierre sin nada para contar (ni entregas, ni ventas, ni impagas) no necesita conteo: la
+      // pantalla ni siquiera permite confirmarlo, así que quedaría pendiente para siempre.
+      if ((await calcularResumen(c.id)).lineas.length === 0) continue;
       const { _sum } = await prisma.ticketBuffet.aggregate({
         where: { cajaId: c.id }, _sum: { total: true },
       });
@@ -175,11 +181,16 @@ export const buffetConciliacionService = {
           if (contado > 0) {
             await tx.productoBuffet.update({ where: { id: l.productoId }, data: { stock: { increment: contado } } });
           }
-          // El asignado queda en cero: el secundario arranca cada día limpio.
-          await tx.stockMostrador.updateMany({
-            where: { mostradorId: caja.mostradorId, productoId: l.productoId },
-            data: { cantidad: 0 },
-          });
+          // Se descuenta del asignado lo que este cierre tenía pendiente (lo esperado), no todo: si
+          // ya hay mercadería entregada para el turno siguiente, tiene que seguir asignada. Con un
+          // solo cierre pendiente el asignado es justo lo esperado y queda en cero, como siempre.
+          const asig = await tx.stockMostrador.findUnique({ where: { mostradorId_productoId: { mostradorId: caja.mostradorId, productoId: l.productoId } } });
+          if (asig) {
+            await tx.stockMostrador.update({
+              where: { mostradorId_productoId: { mostradorId: caja.mostradorId, productoId: l.productoId } },
+              data: { cantidad: Math.max(0, asig.cantidad - l.esperado) },
+            });
+          }
           lineas.push({ ...l, contado, diferencia });
         }
         return { lineas };
