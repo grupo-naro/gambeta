@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { CajaBuffetEstado, ProductoCobro, MedioPago, ConciliacionPendiente, StockAsignado } from '@/lib/types';
 import { abrirCaja, cerrarCaja, cobrar, buscarPorCodigo, salirDelMostrador } from '@/lib/buffet-actions';
-import { asignadoPorProducto } from '@/lib/mostrador-stock';
+import { asignadoPorProducto, productosDelMostrador } from '@/lib/mostrador-stock';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
@@ -61,6 +61,8 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
   const vuelto = calcularVuelto(Number(pagoTxt), total);
   const esSecundario = mostrador.tipo === 'SECUNDARIO';
   const yaTiene = asignadoPorProducto(asignado);
+  // El secundario solo ve lo que tiene asignado; el principal, todo el catálogo.
+  const visibles = productosDelMostrador(productos, mostrador.tipo, asignado);
   // No alcanza con "no tiene filas": vender todo deja filas en cantidad 0 (el backend no las borra).
   const totalAsignado = asignado.reduce((a, f) => a + f.cantidad, 0);
 
@@ -252,7 +254,7 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
           placeholder="Buscar producto…" aria-label="Buscar producto"
           className="w-full rounded-2xl border-2 border-neutral-300 p-3 text-xl" />
         <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border-2 border-neutral-200 bg-white">
-          {filtrarProductos(productos, query).map((p) => {
+          {filtrarProductos(visibles, query).map((p) => {
             const tiene = yaTiene[p.id] ?? 0;
             const sinAsignado = esSecundario && tiene === 0;
             return (
@@ -269,7 +271,7 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
               </button>
             );
           })}
-          {filtrarProductos(productos, query).length === 0 && (
+          {filtrarProductos(visibles, query).length === 0 && !(esSecundario && totalAsignado === 0) && (
             <p className="p-4 text-center text-neutral-500">Sin resultados</p>
           )}
           {esSecundario && totalAsignado === 0 && (

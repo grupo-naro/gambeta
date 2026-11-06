@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { asignadoPorProducto, diferencia } from './mostrador-stock';
+import { asignadoPorProducto, diferencia, productosDelMostrador } from './mostrador-stock';
 
 describe('asignadoPorProducto', () => {
   it('indexa las filas por producto', () => {
@@ -33,5 +33,26 @@ describe('diferencia', () => {
 
   it('sobrante da positivo', () => {
     expect(diferencia(6, 8)).toBe(2);
+  });
+});
+
+describe('productosDelMostrador', () => {
+  const productos = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  const asignado = [{ productoId: 'a', cantidad: 5 }, { productoId: 'b', cantidad: 0 }];
+
+  it('el principal ve todo el catálogo', () => {
+    expect(productosDelMostrador(productos, 'PRINCIPAL', [])).toEqual(productos);
+  });
+
+  it('el secundario ve solo lo que tiene asignado (más de 0)', () => {
+    expect(productosDelMostrador(productos, 'SECUNDARIO', asignado)).toEqual([{ id: 'a' }]);
+  });
+
+  it('el secundario sin nada asignado no ve productos', () => {
+    expect(productosDelMostrador(productos, 'SECUNDARIO', [])).toEqual([]);
+  });
+
+  it('conserva los productos pedidos aunque no tenga asignado (los de una cuenta abierta)', () => {
+    expect(productosDelMostrador(productos, 'SECUNDARIO', asignado, ['c'])).toEqual([{ id: 'a' }, { id: 'c' }]);
   });
 });
