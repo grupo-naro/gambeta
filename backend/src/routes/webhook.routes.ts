@@ -28,7 +28,16 @@ webhookRoutes.post('/mercadopago', async (req, res, next) => {
     }
 
     const pago = await mercadoPagoService.obtenerPago(dataId!);
-    if (pago.status !== 'approved') { res.sendStatus(200); return; }
+    if (pago.status !== 'approved') {
+      // Un rechazo no cambia la reserva, pero tiene que quedar registrado con su motivo: es la única
+      // forma de saber si MP está rechazando clientes (antifraude, fondos, datos) y por qué.
+      logger.warn(
+        { reservaId: pago.externalReference, mpPaymentId: pago.id, status: pago.status, statusDetail: pago.statusDetail, monto: pago.montoAprobado },
+        'webhook MP: pago no aprobado',
+      );
+      res.sendStatus(200);
+      return;
+    }
     if (!pago.externalReference) { res.sendStatus(200); return; }
 
     const reserva = await reservaRepo.findById(pago.externalReference);

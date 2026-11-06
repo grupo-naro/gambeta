@@ -62,7 +62,7 @@ export const mercadoPagoService = {
     return { preferenceId: result.id, checkoutUrl };
   },
 
-  async obtenerPago(paymentId: string): Promise<{ id: string; status: string; externalReference: string | null; montoAprobado: number }> {
+  async obtenerPago(paymentId: string): Promise<{ id: string; status: string; statusDetail?: string | null; externalReference: string | null; montoAprobado: number }> {
     // El pago pertenece a la cuenta del vendedor: con otro token no se puede consultar y el
     // webhook quedaría ciego.
     const payment = new Payment(await client());
@@ -70,6 +70,9 @@ export const mercadoPagoService = {
     return {
       id: String(p.id),
       status: String(p.status),
+      // El motivo del rechazo (ej. `cc_rejected_high_risk` = antifraude de MP). Sin esto, un pago
+      // rechazado no deja ningún rastro de por qué.
+      statusDetail: p.status_detail ?? null,
       externalReference: p.external_reference ?? null,
       montoAprobado: Number(p.transaction_amount ?? 0),
     };

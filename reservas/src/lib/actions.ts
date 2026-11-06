@@ -2,7 +2,7 @@
 import { cookies } from 'next/headers';
 import { apiReservas } from './api';
 import { COOKIE_ORIGEN, etiquetaDeReserva } from './origen';
-import type { Deporte, Grilla, MetodoSena, MetodosPago, PreferenciaPago, ReservaCreada, Resultado } from './types';
+import type { Deporte, EstadoPagoReserva, Grilla, MetodoSena, MetodosPago, PreferenciaPago, ReservaCreada, Resultado } from './types';
 
 // Default del backend cuando `SENA_TIMEOUT_MINUTOS` no está seteado (ver `src/config/env.ts`).
 // Se usa acá si el backend es viejo y no manda `senaTimeoutMinutos` en absoluto.
@@ -82,6 +82,19 @@ export async function crearReserva(input: { canchaId: string; fecha: string; hor
     });
     return { ok: true, data };
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : 'Error' }; }
+}
+
+/**
+ * Cuánto es la seña y si la reserva todavía espera el pago. Devuelve null ante cualquier error: la
+ * pantalla de pago fallido sigue sirviendo sin esto (solo que no puede ofrecer la transferencia).
+ */
+export async function getEstadoPago(reservaId: string): Promise<EstadoPagoReserva | null> {
+  try {
+    return await apiReservas<EstadoPagoReserva>(`/pagos/reserva/${encodeURIComponent(reservaId)}`);
+  } catch (e) {
+    console.error('[pago] no se pudo consultar el estado de la reserva', { reservaId, error: e instanceof Error ? e.message : e });
+    return null;
+  }
 }
 
 export async function crearPreferenciaPago(reservaId: string): Promise<Resultado<PreferenciaPago>> {

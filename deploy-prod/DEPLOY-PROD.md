@@ -97,7 +97,9 @@ se excluye con `--omit=dev`).
 
 ### 7. Mercado Pago
 
-Apuntar el webhook a `https://api.gambeteandopadelyfutbol.ar/webhooks`.
+Apuntar el webhook (evento **Pagos**) a `https://api.gambeteandopadelyfutbol.ar/webhooks/mercadopago`. Cada link de pago ya lleva esa URL, pero si el webhook se carga también en el panel de Mercado Pago tiene que ser exactamente esa: sin `/mercadopago` da 404.
+
+Si un cliente dice que "Mercado Pago le da error", mirar el log del backend: cada pago que MP rechaza queda como `webhook MP: pago no aprobado` con su `statusDetail` (por ejemplo `cc_rejected_high_risk` es el antifraude de MP). Si el sitio no pudo generar el link, queda `[pago] no se pudo crear la preferencia`.
 
 ### 8. WhatsApp (avisos de seña confirmada y recordatorio)
 

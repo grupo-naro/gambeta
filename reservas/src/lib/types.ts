@@ -23,6 +23,15 @@ export interface ReservaCreada { id: string; montoSena: number | null; suscripci
 
 export interface PreferenciaPago { checkoutUrl: string }
 
+/** Estado de pago de una reserva, para ofrecer transferencia si Mercado Pago rechaza el pago. */
+export interface EstadoPagoReserva {
+  estado: 'ESPERANDO_SENA' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA';
+  canchaNombre: string;
+  fechaInicio: string;
+  montoSena: number | null;
+  venceEn: string;
+}
+
 export type MetodoSena = 'MERCADO_PAGO' | 'TRANSFERENCIA';
 
 /** Qué le podemos ofrecer al cliente y con qué datos, resuelto en el server. */

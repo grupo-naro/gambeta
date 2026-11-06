@@ -3,7 +3,8 @@ import { validate } from '../middlewares/validate.js';
 import { authAny } from '../middlewares/authAny.js';
 import { authJwt } from '../middlewares/authJwt.js';
 import { requireRole } from '../middlewares/requireRole.js';
-import { crearPreferenciaSchema, callbackMpSchema } from '../validators/pago.schema.js';
+import { crearPreferenciaSchema, callbackMpSchema, reservaPagoSchema } from '../validators/pago.schema.js';
+import { getEnv } from '../config/env.js';
 import { reservaService } from '../services/reserva.service.js';
 import { mercadoPagoService } from '../services/mercadoPago.service.js';
 import { mercadoPagoOauthService } from '../services/mercadoPagoOauth.service.js';
@@ -25,6 +26,21 @@ pagoRoutes.post('/mercadopago/preferencia', authAny, validate(crearPreferenciaSc
     });
     await pagoRepo.setPreferencia(reserva.id, preferenceId);
     res.json({ checkoutUrl });
+  } catch (e) { next(e); }
+});
+
+// Lo mínimo que el sitio público necesita si Mercado Pago rechaza el pago: cuánto es la seña, hasta
+// cuándo se guarda el horario y si la reserva sigue esperando. Sin nombre ni teléfono a propósito.
+pagoRoutes.get('/reserva/:id', authAny, validate(reservaPagoSchema), async (req, res, next) => {
+  try {
+    const reserva = await reservaService.get(String((req as any).valid.params.id));
+    res.json({
+      estado: reserva.estado,
+      canchaNombre: reserva.cancha.nombre,
+      fechaInicio: reserva.fechaInicio.toISOString(),
+      montoSena: reserva.montoSena == null ? null : Number(reserva.montoSena),
+      venceEn: new Date(reserva.creadoEn.getTime() + getEnv().SENA_TIMEOUT_MINUTOS * 60000).toISOString(),
+    });
   } catch (e) { next(e); }
 });
 
