@@ -23,8 +23,25 @@ async function client(): Promise<MercadoPagoConfig> {
   return new MercadoPagoConfig({ accessToken: await mercadoPagoOauthService.tokenDeAcceso() });
 }
 
+/**
+ * Categoría del ítem para Mercado Pago (`items.category_id`). Es uno de los ids de su lista
+ * (https://api.mercadopago.com/item_categories): `services` = "General services", que es lo que
+ * es una reserva de cancha. Se manda porque su motor antifraude la usa para validar el pago.
+ */
+const CATEGORIA_ITEM = 'services';
+
+/** "Seña de reserva de Pádel 1 para el jue 12/11 a las 20:00" (hora de Argentina). Máx. 256 caracteres. */
+function descripcionDeSena(canchaNombre: string, fechaInicio?: Date): string {
+  const base = `Seña de reserva de ${canchaNombre}`;
+  if (!fechaInicio) return base.slice(0, 256);
+  const tz = getEnv().TZ_NEGOCIO;
+  const dia = new Intl.DateTimeFormat('es-AR', { timeZone: tz, weekday: 'short', day: '2-digit', month: '2-digit' }).format(fechaInicio);
+  const hora = new Intl.DateTimeFormat('es-AR', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(fechaInicio);
+  return `${base} para el ${dia} a las ${hora}`.slice(0, 256);
+}
+
 export const mercadoPagoService = {
-  async crearPreferencia(reserva: { id: string; montoSena: number; canchaNombre: string }): Promise<{ preferenceId: string; checkoutUrl: string }> {
+  async crearPreferencia(reserva: { id: string; montoSena: number; canchaNombre: string; fechaInicio?: Date }): Promise<{ preferenceId: string; checkoutUrl: string }> {
     const env = getEnv();
     // Las tres son obligatorias. BACKEND_PUBLIC_URL no se validaba: sin ella, notification_url
     // quedaba en "/webhooks/mercadopago" y Mercado Pago rechazaba la preferencia con un error
@@ -35,7 +52,14 @@ export const mercadoPagoService = {
     const result = await preference.create({
       body: {
         items: [
-          { id: reserva.id, title: `Seña reserva - ${reserva.canchaNombre}`, quantity: 1, unit_price: reserva.montoSena, currency_id: 'ARS' },
+          {
+            id: reserva.id,
+            title: `Seña reserva - ${reserva.canchaNombre}`,
+            // Datos que Mercado Pago pide para validar el pago y bajar los rechazos del antifraude.
+            description: descripcionDeSena(reserva.canchaNombre, reserva.fechaInicio),
+            category_id: CATEGORIA_ITEM,
+            quantity: 1, unit_price: reserva.montoSena, currency_id: 'ARS',
+          },
         ],
         back_urls: {
           success: `${reservasUrl}/reservar/pago/exito?external_reference=${reserva.id}`,

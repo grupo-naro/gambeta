@@ -23,6 +23,7 @@ pagoRoutes.post('/mercadopago/preferencia', authAny, validate(crearPreferenciaSc
       id: reserva.id,
       montoSena: Number(reserva.montoSena),
       canchaNombre: reserva.cancha.nombre,
+      fechaInicio: reserva.fechaInicio,
     });
     await pagoRepo.setPreferencia(reserva.id, preferenceId);
     res.json({ checkoutUrl });

@@ -160,6 +160,31 @@ describe('rutas de la cuenta de Mercado Pago', () => {
     expect(authPago).toBe('Bearer APP_USR-token-del-vendedor');
   });
 
+  it('la preferencia manda categoría y descripción del ítem (datos que usa el antifraude de MP)', async () => {
+    await cuentaVinculada(100);
+    const fetchMock = mockFetchMp();
+    // 2030-05-10 20:00 en Argentina (UTC-3) = 23:00 UTC.
+    await mercadoPagoService.crearPreferencia({ id: 'r1', montoSena: 5000, canchaNombre: 'Pádel 1', fechaInicio: new Date('2030-05-10T23:00:00.000Z') });
+
+    const llamada = fetchMock.mock.calls.find(([url]) => String(url).includes('/checkout/preferences'))!;
+    const item = JSON.parse(String((llamada[1] as any).body)).items[0];
+    expect(item.category_id).toBe('services');
+    expect(item.description).toContain('Pádel 1');
+    expect(item.description).toContain('20:00');
+    expect(item.description).toContain('10-05');
+    expect(item.description.length).toBeLessThanOrEqual(256);
+  });
+
+  it('sin fecha, la descripción igual existe (no rompe a quien no la pasa)', async () => {
+    await cuentaVinculada(100);
+    const fetchMock = mockFetchMp();
+    await mercadoPagoService.crearPreferencia({ id: 'r1', montoSena: 5000, canchaNombre: 'Cancha 1' });
+    const llamada = fetchMock.mock.calls.find(([url]) => String(url).includes('/checkout/preferences'))!;
+    const item = JSON.parse(String((llamada[1] as any).body)).items[0];
+    expect(item.category_id).toBe('services');
+    expect(item.description).toContain('Cancha 1');
+  });
+
   it('cuando Mercado Pago devuelve los dos checkout, manda al de producción y no al de sandbox', async () => {
     // Bug real detectado en la primera prueba con la cuenta ya vinculada: el código elegía
     // `sandbox_init_point ?? init_point`, así que con credenciales de producción mandaba a
