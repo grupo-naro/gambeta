@@ -282,7 +282,9 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
         </div>
       </section>
 
-      <footer className="flex gap-3">
+      {/* Pegado al borde inferior de la pantalla: con varios productos la página scrollea y Cobrar
+          quedaba abajo de todo. -mx/-mb compensan el padding de <main> para que ocupe todo el ancho. */}
+      <footer className="sticky bottom-0 z-10 -mx-4 -mb-4 flex gap-3 border-t bg-white px-4 pb-4 pt-3">
         <button type="button" disabled={ocupado || items.length === 0} onMouseDown={(e) => e.preventDefault()} onClick={vaciar}
           className="h-16 flex-1 rounded-2xl border-2 border-neutral-300 bg-white text-xl font-semibold active:scale-95 disabled:opacity-40">
           Vaciar
