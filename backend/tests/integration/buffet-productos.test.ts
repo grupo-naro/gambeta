@@ -95,6 +95,13 @@ describe('buffet: catalogo de productos', () => {
     expect(r.status).toBe(404);
   });
 
+  it('la lista informa el stock total y cuánto de ese total tiene asignado el secundario', async () => {
+    const c = await auth(supertest(app).post('/buffet/productos')).send({ nombre: 'Coca', precio: 1500, stock: 50 });
+    await getPrisma().stockMostrador.create({ data: { mostradorId: 'mostrador-secundario', productoId: c.body.id, cantidad: 12 } });
+    const r = await auth(supertest(app).get('/buffet/productos'));
+    expect(r.body[0]).toMatchObject({ stock: 50, asignado: 12 });
+  });
+
   it('ajustar fija el stock total (sube o baja) y deja rastro con el antes y el después', async () => {
     const c = await auth(supertest(app).post('/buffet/productos')).send({ nombre: 'Coca', precio: 1500, stock: 10 });
     const baja = await auth(supertest(app).post(`/buffet/productos/${c.body.id}/ajustar-stock`)).send({ stock: 7, motivo: 'Conteo' });

@@ -158,17 +158,18 @@ describe('cuentas y cierre de caja', () => {
     await buffetCajaService.cerrar(PRINCIPAL);
   });
 
-  it('una cuenta impaga cuenta como vendida en la conciliación del secundario', async () => {
+  it('una cuenta impaga queda descontada del cupo del secundario y del total', async () => {
     await buffetEntregaService.entregar({ desdeMostradorId: PRINCIPAL, items: [{ productoId: cocaId, cantidad: 10 }] });
-    const caja = await buffetCajaService.abrir(SECUNDARIO);
+    const totalAntes = (await getPrisma().productoBuffet.findUniqueOrThrow({ where: { id: cocaId } })).stock;
+    await buffetCajaService.abrir(SECUNDARIO);
     const c = await buffetCuentaService.abrir(SECUNDARIO, canchaId);
     await buffetCuentaService.fijarCantidad(SECUNDARIO, c.id, cocaId, 2);
     await buffetCuentaService.darPorImpaga(SECUNDARIO, c.id);
     await buffetCajaService.cerrar(SECUNDARIO);
 
-    const r = await buffetConciliacionService.conciliar({ cajaId: caja.id, porMostradorId: PRINCIPAL, conteos: [{ productoId: cocaId, contado: 8 }] });
-    const linea = r.lineas.find((l: any) => l.productoId === cocaId)!;
-    expect(linea).toMatchObject({ entregado: 10, vendido: 2, esperado: 8, contado: 8, diferencia: 0 });
+    const asig = await getPrisma().stockMostrador.findUniqueOrThrow({ where: { mostradorId_productoId: { mostradorId: SECUNDARIO, productoId: cocaId } } });
+    expect(asig.cantidad).toBe(8);
+    expect((await getPrisma().productoBuffet.findUniqueOrThrow({ where: { id: cocaId } })).stock).toBe(totalAntes - 2);
   });
 });
 

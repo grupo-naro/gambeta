@@ -34,19 +34,41 @@ const general = async () =>
   (await getPrisma().productoBuffet.findUniqueOrThrow({ where: { id: productoId } })).stock;
 
 describe('entrega del principal al secundario', () => {
-  it('mueve el stock: baja el general y sube el asignado', async () => {
+  it('asigna un cupo al secundario SIN tocar el stock general (el general es el total)', async () => {
     await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 12 }] });
-    expect(await general()).toBe(8);
+    expect(await general()).toBe(20);
     expect(await asignado()).toBe(12);
   });
 
-  it('no inventa unidades: dos entregas suman', async () => {
+  it('dos entregas suman al cupo y el general no cambia', async () => {
     await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 5 }] });
     await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 3 }] });
-    expect(await general()).toBe(12);
+    expect(await general()).toBe(20);
     expect(await asignado()).toBe(8);
-    // El total sigue siendo 20: nada se creó ni se perdió.
-    expect((await general()) + (await asignado())).toBe(20);
+  });
+
+  it('no se puede asignar más de lo que está libre (total menos lo ya asignado)', async () => {
+    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 15 }] });
+    await expect(
+      buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 6 }] }),
+    ).rejects.toThrow(/5 sin asignar/);
+    expect(await asignado()).toBe(15);
+  });
+
+  it('lo que el secundario no vende se queda con él y la entrega siguiente se suma (40, vende 30, +30 = 40)', async () => {
+    await getPrisma().productoBuffet.update({ where: { id: productoId }, data: { stock: 100 } });
+    const { buffetCajaService } = await import('../../src/services/buffetCaja.service.js');
+    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 40 }] });
+    await buffetCajaService.abrir('mostrador-secundario');
+    await buffetCajaService.cobrar({ mostradorId: 'mostrador-secundario', uid: 'u-ej', medioPago: 'EFECTIVO', montoPagado: 999999, items: [{ productoId, cantidad: 30 }] });
+    await buffetCajaService.cerrar('mostrador-secundario');
+    // Le sobraron 10: siguen asignados al secundario y el total bajó solo por lo vendido.
+    expect(await asignado()).toBe(10);
+    expect(await general()).toBe(70);
+    // Al otro día le dan 30 más y arranca con 40.
+    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 30 }] });
+    expect(await asignado()).toBe(40);
+    expect(await general()).toBe(70);
   });
 
   it('no se puede entregar más de lo que hay en el general', async () => {
@@ -132,7 +154,7 @@ describe('rutas HTTP: POST /buffet/entregas y GET /buffet/stock-asignado', () =>
     const rEntrega = await key(supertest(app).post('/buffet/entregas')).set('x-mostrador', tokenPrincipal).send({ items: [{ productoId, cantidad: 7 }] });
     expect(rEntrega.status).toBe(200);
     expect(rEntrega.body.entregaId).toBeTruthy();
-    expect(await general()).toBe(13);
+    expect(await general()).toBe(20);
 
     const tokenSecundario = await tokenDe('2222');
     const rStock = await key(supertest(app).get('/buffet/stock-asignado')).set('x-mostrador', tokenSecundario);

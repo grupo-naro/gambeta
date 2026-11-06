@@ -23,7 +23,7 @@ const vender = (mostradorId: string, uid: string, cantidad: number) =>
   buffetCajaService.cobrar({ mostradorId, uid, medioPago: 'EFECTIVO', montoPagado: 999999, items: [{ productoId, cantidad }] });
 
 describe('venta del secundario', () => {
-  it('descuenta del asignado y NO del general', async () => {
+  it('descuenta del cupo asignado Y del total general', async () => {
     await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 10 }] });
     await buffetCajaService.abrir('mostrador-secundario');
     const generalAntes = await general(); // 10
@@ -31,9 +31,8 @@ describe('venta del secundario', () => {
     await vender('mostrador-secundario', 'uid-1', 3);
 
     expect(await asignado()).toBe(7);
-    // Esas 3 unidades ya habían salido del general al entregarlas: descontarlas otra vez
-    // sería contarlas dos veces.
-    expect(await general()).toBe(generalAntes);
+    // Entregar no movió el general; vender sí: el total baja por lo vendido.
+    expect(await general()).toBe(generalAntes - 3);
   });
 
   it('vender sin stock asignado se rechaza y dice qué falta', async () => {

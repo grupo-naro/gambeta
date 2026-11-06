@@ -106,13 +106,13 @@ describe('cuentas por cancha: consumos y stock', () => {
     expect(await stock(cocaId)).toBe(10);
   });
 
-  it('el secundario descuenta de lo asignado y no del stock general', async () => {
+  it('el secundario descuenta de su cupo y también del total general', async () => {
     await buffetEntregaService.entregar({ desdeMostradorId: PRINCIPAL, items: [{ productoId: cocaId, cantidad: 5 }] });
     const generalAntes = await stock(cocaId);
     const c = await buffetCuentaService.abrir(SECUNDARIO, canchaId);
     await buffetCuentaService.fijarCantidad(SECUNDARIO, c.id, cocaId, 2);
     expect(await asignado(cocaId)).toBe(3);
-    expect(await stock(cocaId)).toBe(generalAntes);
+    expect(await stock(cocaId)).toBe(generalAntes - 2);
   });
 
   it('una cantidad negativa se rechaza', async () => {

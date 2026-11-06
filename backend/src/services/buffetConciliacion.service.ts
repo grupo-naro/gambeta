@@ -4,6 +4,12 @@ import { cajaAbierta } from './buffetCaja.service.js';
 
 const PRINCIPAL = 'mostrador-principal';
 
+/**
+ * El stock asignado al secundario ya no se cuenta ni se devuelve al cierre: es un cupo que baja al
+ * vender. El código del conteo (y su historial) se conserva, apagado, por si hace falta volver.
+ */
+const SIN_CONTEO_DE_CIERRE = true;
+
 export interface LineaConciliacion {
   productoId: string; nombre: string;
   entregado: number; vendido: number; esperado: number;
@@ -88,6 +94,9 @@ export const buffetConciliacionService = {
    * ya se descontaron al venderlas.
    */
   async pendientes(): Promise<{ cajaId: string; mostradorNombre: string; cerradaEn: string; totalMonto: number }[]> {
+    // Ya no hay conteo de cierre: lo que no vende el secundario sigue asignado a él. Para ver cuánto
+    // vendió alcanza con el cierre de su caja. Se conserva el endpoint (devuelve vacío) y el historial.
+    if (SIN_CONTEO_DE_CIERRE) return [];
     const cajas = await prisma.cajaBuffet.findMany({
       where: { estado: 'CERRADA', mostradorId: { not: PRINCIPAL }, conteos: { none: {} } },
       include: { mostrador: { select: { nombre: true } } },
@@ -122,6 +131,7 @@ export const buffetConciliacionService = {
    * que es lo que pasó en la realidad.
    */
   async conciliar(input: { cajaId: string; porMostradorId: string; conteos: { productoId: string; contado: number }[] }) {
+    if (SIN_CONTEO_DE_CIERRE) throw BusinessRule('El conteo de cierre ya no se usa: lo que no se vende queda asignado al secundario');
     // Lo carga el principal, no el secundario: si quien pudo haberse llevado la mercadería es
     // también quien declara cuánto quedó, el control no controla nada.
     if (input.porMostradorId !== PRINCIPAL) throw Forbidden('El conteo lo carga el mostrador principal');

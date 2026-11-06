@@ -1,278 +1,56 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { buffetCajaService } from '../../src/services/buffetCaja.service.js';
 import { buffetEntregaService } from '../../src/services/buffetEntrega.service.js';
 import { buffetConciliacionService } from '../../src/services/buffetConciliacion.service.js';
-import { hashPassword } from '../../src/utils/password.js';
-import { AppError } from '../../src/utils/errors.js';
 
-let app: any;
-beforeAll(async () => {
-  await setupTestDb();
-  const { buildApp } = await import('../../src/app.js');
-  app = buildApp();
-});
+beforeAll(async () => { await setupTestDb(); });
 afterAll(teardownTestDb);
 
 let productoId: string;
 beforeEach(async () => {
   await resetTables();
-  productoId = (await getPrisma().productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 20 } })).id;
-  // PINs para los tests que pasan por HTTP (login -> token -> x-mostrador), igual que en
-  // buffet-entrega.test.ts y buffet-identidad.test.ts.
-  await getPrisma().mostrador.update({ where: { id: 'mostrador-principal' }, data: { pinHash: await hashPassword('1111') } });
-  await getPrisma().mostrador.update({ where: { id: 'mostrador-secundario' }, data: { pinHash: await hashPassword('2222') } });
+  productoId = (await getPrisma().productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 100 } })).id;
 });
-
-const key = (r: any) => r.set('x-buffet-key', process.env.BUFFET_API_KEY!);
-const tokenDe = async (pin: string) => (await key(supertest(app).post('/buffet/pin/verificar')).send({ pin })).body.token as string;
 
 const general = async () => (await getPrisma().productoBuffet.findUniqueOrThrow({ where: { id: productoId } })).stock;
 const asignado = async () =>
-  (await getPrisma().stockMostrador.findUnique({
-    where: { mostradorId_productoId: { mostradorId: 'mostrador-secundario', productoId } },
-  }))?.cantidad ?? 0;
+  (await getPrisma().stockMostrador.findUnique({ where: { mostradorId_productoId: { mostradorId: 'mostrador-secundario', productoId } } }))?.cantidad ?? 0;
 
-/**
- * Entrega 10, vende `vendidas`, y cierra la caja del secundario. Devuelve el id de la caja.
- *
- * Ojo al orden: la entrega ocurre ANTES de abrir la caja, que es como pasa en la vida real
- * (el principal deja la mercadería y después el otro abre). Si el "entregado" se calculara por
- * rango de fechas contra la apertura, esta entrega quedaría afuera y todos estos tests darían
- * entregado 0.
- */
-async function turnoDelSecundario(vendidas: number): Promise<string> {
-  await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 10 }] });
+// Se entregan 40, se venden 30 y se cierra la caja del secundario.
+async function turno(): Promise<string> {
+  await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 40 }] });
   const caja = await buffetCajaService.abrir('mostrador-secundario');
-  if (vendidas > 0) {
-    await buffetCajaService.cobrar({
-      mostradorId: 'mostrador-secundario', uid: 'uid-conc', medioPago: 'EFECTIVO',
-      montoPagado: 999999, items: [{ productoId, cantidad: vendidas }],
-    });
-  }
+  await buffetCajaService.cobrar({ mostradorId: 'mostrador-secundario', uid: 'uid-c', medioPago: 'EFECTIVO', montoPagado: 999999, items: [{ productoId, cantidad: 30 }] });
   await buffetCajaService.cerrar('mostrador-secundario');
   return caja.id;
 }
 
-describe('conciliación del cierre', () => {
-  it('calcula esperado = entregado - vendido', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    const lineas = await buffetConciliacionService.pendiente(cajaId);
-    expect(lineas).toHaveLength(1);
-    expect(lineas[0]).toMatchObject({ entregado: 10, vendido: 4, esperado: 6 });
+describe('cierre del secundario sin conteo', () => {
+  it('cerrar la caja no devuelve ni borra nada: lo que sobró sigue asignado', async () => {
+    await turno();
+    expect(await asignado()).toBe(10);
+    expect(await general()).toBe(70);
   });
 
-  it('sin faltante: la diferencia es cero y vuelven 6 al general', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    const generalAntes = await general(); // 10
-    const r = await buffetConciliacionService.conciliar({
-      cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 6 }],
-    });
-    expect(r.lineas[0].diferencia).toBe(0);
-    expect(await general()).toBe(generalAntes + 6);
-    expect(await asignado()).toBe(0);
+  it('no hay cierres pendientes de conteo', async () => {
+    await turno();
+    expect(await buffetConciliacionService.pendientes()).toEqual([]);
   });
 
-  it('CON faltante: vuelve lo CONTADO, no lo esperado', async () => {
-    // El corazón del diseño. Se esperaban 6 y hay 4: faltan 2. Si volvieran las 6, el stock
-    // general del complejo empezaría a mentir un poco más cada día.
-    const cajaId = await turnoDelSecundario(4);
-    const generalAntes = await general(); // 10
-    const r = await buffetConciliacionService.conciliar({
-      cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 4 }],
-    });
-    expect(r.lineas[0].diferencia).toBe(-2);
-    expect(await general()).toBe(generalAntes + 4);
-    expect(await asignado()).toBe(0);
-  });
-
-  it('contar de más se permite y se muestra como diferencia positiva', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    const generalAntes = await general();
-    const r = await buffetConciliacionService.conciliar({
-      cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 8 }],
-    });
-    expect(r.lineas[0].diferencia).toBe(2);
-    expect(await general()).toBe(generalAntes + 8);
-  });
-
-  it('el secundario NO puede conciliar su propia caja', async () => {
-    const cajaId = await turnoDelSecundario(4);
+  it('conciliar está apagado: el conteo de cierre ya no se usa', async () => {
+    const cajaId = await turno();
     await expect(
-      buffetConciliacionService.conciliar({ cajaId, porMostradorId: 'mostrador-secundario', conteos: [{ productoId, contado: 6 }] }),
-    ).rejects.toThrow(/mostrador principal/);
+      buffetConciliacionService.conciliar({ cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 10 }] }),
+    ).rejects.toThrow(/ya no se usa/);
+    expect(await asignado()).toBe(10);
+    expect(await general()).toBe(70);
   });
 
-  it('no se puede conciliar una caja todavía abierta', async () => {
-    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 10 }] });
-    const caja = await buffetCajaService.abrir('mostrador-secundario');
-    await expect(
-      buffetConciliacionService.conciliar({ cajaId: caja.id, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 10 }] }),
-    ).rejects.toThrow(/todavía está abierta/);
-  });
-
-  it('conciliar dos veces la misma caja se rechaza', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    await buffetConciliacionService.conciliar({ cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 6 }] });
-    await expect(
-      buffetConciliacionService.conciliar({ cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 6 }] }),
-    ).rejects.toThrow(/ya fue conciliada/);
-    // Y el stock no se devolvió dos veces.
-    expect(await general()).toBe(16);
-  });
-
-  it('cuenta también la entrega hecha en medio del turno', async () => {
-    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 10 }] });
-    const caja = await buffetCajaService.abrir('mostrador-secundario');
-    // Se le acabó a mitad de turno y el principal le repone.
-    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 5 }] });
-    await buffetCajaService.cerrar('mostrador-secundario');
-
-    const lineas = await buffetConciliacionService.pendiente(caja.id);
-    expect(lineas[0]).toMatchObject({ entregado: 15, vendido: 0, esperado: 15 });
-  });
-
-  it('las entregas de un cierre no se cuentan en el siguiente', async () => {
-    const primera = await turnoDelSecundario(4);
-    await buffetConciliacionService.conciliar({ cajaId: primera, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 6 }] });
-
-    // Segundo turno: solo se le entregan 3.
-    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 3 }] });
-    const segunda = await buffetCajaService.abrir('mostrador-secundario');
-    await buffetCajaService.cerrar('mostrador-secundario');
-
-    const lineas = await buffetConciliacionService.pendiente(segunda.id);
-    expect(lineas[0]).toMatchObject({ entregado: 3, vendido: 0, esperado: 3 });
-  });
-
-  it('el faltante queda guardado, no solo mostrado', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    await buffetConciliacionService.conciliar({ cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 4 }] });
-    const filas = await getPrisma().conteoCierreLinea.findMany({ where: { cajaId } });
-    expect(filas).toHaveLength(1);
-    expect(filas[0]).toMatchObject({ entregado: 10, vendido: 4, esperado: 6, contado: 4, diferencia: -2 });
-  });
-
-  it('conciliar una caja del PRINCIPAL se rechaza: sobre esa caja no hay nada que devolver, se inventaría stock', async () => {
-    // Sin el guard: `calcularResumen` no encuentra entregas (el principal no recibe entregas)
-    // pero sí ventas, así que cada línea da `esperado` negativo, y el loop de `conciliar` le
-    // suma al stock general las unidades "contadas" aunque nunca hayan salido de ahí — la única
-    // ruta de la rama que puede crear unidades de la nada.
-    await buffetCajaService.abrir('mostrador-principal');
-    await buffetCajaService.cobrar({
-      mostradorId: 'mostrador-principal', uid: 'uid-principal', medioPago: 'EFECTIVO',
-      montoPagado: 999999, items: [{ productoId, cantidad: 3 }],
-    });
-    const cierre = await buffetCajaService.cerrar('mostrador-principal');
-    const generalAntes = await general(); // 17 (20 - 3 vendidas)
-
-    await expect(
-      buffetConciliacionService.conciliar({ cajaId: cierre.id, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 3 }] }),
-    ).rejects.toThrow(/secundario/);
-
-    // Nada volvió, porque nada había salido del general para "devolver" en primer lugar.
-    expect(await general()).toBe(generalAntes);
-    const filas = await getPrisma().conteoCierreLinea.findMany({ where: { cajaId: cierre.id } });
-    expect(filas).toHaveLength(0);
-  });
-
-  it('conciliar un cierre viejo mientras el secundario tiene otra caja ABIERTA se rechaza', async () => {
-    // Secuencia realista y secuencial (sin concurrencia): caja1 cerrada sin conciliar -> el
-    // secundario abre caja2 -> el principal le entrega más "para el turno en curso". Si se
-    // conciliara caja1 en este momento, `calcularResumen` leería TAMBIÉN las entregas de caja2
-    // (son "sin rendir de ese mostrador", no de esa caja puntual) y el loop pondría
-    // `StockMostrador.cantidad = 0`: el secundario se queda sin stock asignado a mitad de turno.
-    const caja1 = await turnoDelSecundario(4); // cerrada, sin conciliar
-    await buffetEntregaService.entregar({ desdeMostradorId: 'mostrador-principal', items: [{ productoId, cantidad: 10 }] });
-    await buffetCajaService.abrir('mostrador-secundario'); // caja2, en curso
-
-    await expect(
-      buffetConciliacionService.conciliar({ cajaId: caja1, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 6 }] }),
-    ).rejects.toThrow(/caja abierta/);
-
-    // El stock que el secundario tiene asignado no se tocó: quedaban 6 sin rendir de caja1 (10
-    // entregadas - 4 vendidas) más las 10 nuevas para caja2.
-    expect(await asignado()).toBe(16);
-    // Y caja1 sigue sin conciliar: no quedó a mitad de camino.
-    const filas = await getPrisma().conteoCierreLinea.findMany({ where: { cajaId: caja1 } });
-    expect(filas).toHaveLength(0);
-  });
-
-  it('dos conciliaciones concurrentes de la misma caja: la perdedora da Conflict (409), no un P2002 crudo', async () => {
-    // El count() previo ve "0 ya conciliado" en las dos llamadas porque ambas corren antes de
-    // que cualquiera haya insertado — el pre-chequeo no alcanza a evitar la carrera. Quien la
-    // resuelve de verdad es el índice único (cajaId, productoId): sin el catch de P2002 en
-    // conciliar(), la transacción perdedora dejaría escapar el error crudo de Prisma y
-    // errorHandler lo convertiría en un 500 genérico en vez del 409 de negocio.
-    const cajaId = await turnoDelSecundario(4);
-    const [r1, r2] = await Promise.allSettled([
-      buffetConciliacionService.conciliar({ cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 6 }] }),
-      buffetConciliacionService.conciliar({ cajaId, porMostradorId: 'mostrador-principal', conteos: [{ productoId, contado: 6 }] }),
-    ]);
-    const exitosas = [r1, r2].filter((r) => r.status === 'fulfilled');
-    const rechazadas = [r1, r2].filter((r) => r.status === 'rejected');
-    expect(exitosas).toHaveLength(1);
-    expect(rechazadas).toHaveLength(1);
-
-    const err = (rechazadas[0] as PromiseRejectedResult).reason;
-    expect(err).toBeInstanceOf(AppError);
-    expect((err as AppError).status).toBe(409);
-    expect((err as AppError).message).toMatch(/ya fue conciliada/);
-  });
-});
-
-describe('rutas HTTP: GET y POST /buffet/cajas/:id/conciliacion', () => {
-  it('sin x-mostrador, GET responde 401: la ruta exige el token, no solo la buffet key', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    const r = await key(supertest(app).get(`/buffet/cajas/${cajaId}/conciliacion`));
-    expect(r.status).toBe(401);
-  });
-
-  it('sin x-mostrador, POST también responde 401', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    const r = await key(supertest(app).post(`/buffet/cajas/${cajaId}/conciliacion`)).send({ conteos: [{ productoId, contado: 6 }] });
-    expect(r.status).toBe(401);
-  });
-
-  it('el principal concilia por HTTP: GET devuelve el pendiente y POST lo cierra', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    const tokenPrincipal = await tokenDe('1111');
-
-    const rGet = await key(supertest(app).get(`/buffet/cajas/${cajaId}/conciliacion`)).set('x-mostrador', tokenPrincipal);
-    expect(rGet.status).toBe(200);
-    expect(rGet.body[0]).toMatchObject({ productoId, entregado: 10, vendido: 4, esperado: 6 });
-
-    const rPost = await key(supertest(app).post(`/buffet/cajas/${cajaId}/conciliacion`))
-      .set('x-mostrador', tokenPrincipal)
-      .send({ conteos: [{ productoId, contado: 6 }] });
-    expect(rPost.status).toBe(200);
-    expect(rPost.body.lineas[0]).toMatchObject({ productoId, contado: 6, diferencia: 0 });
-    expect(await general()).toBe(16);
-  });
-
-  it('el secundario recibe 403 al intentar conciliar por HTTP: solo el principal carga el conteo', async () => {
-    const cajaId = await turnoDelSecundario(4);
-    const tokenSecundario = await tokenDe('2222');
-    const r = await key(supertest(app).post(`/buffet/cajas/${cajaId}/conciliacion`))
-      .set('x-mostrador', tokenSecundario)
-      .send({ conteos: [{ productoId, contado: 6 }] });
-    expect(r.status).toBe(403);
-  });
-
-  it('el secundario recibe 403 al pedir el GET de conciliación, incluso de una caja del PRINCIPAL', async () => {
-    // El diseño es explícito: la conciliación la ven el principal y el administrador, el
-    // secundario no. Y sin chequeo de pertenencia, antes de este fix el secundario podía pedir
-    // el resumen de CUALQUIER caja -- acá, justamente, la del otro puesto.
-    await buffetCajaService.abrir('mostrador-principal');
-    await buffetCajaService.cobrar({
-      mostradorId: 'mostrador-principal', uid: 'uid-get-ajena', medioPago: 'EFECTIVO',
-      montoPagado: 999999, items: [{ productoId, cantidad: 1 }],
-    });
-    const cierre = await buffetCajaService.cerrar('mostrador-principal');
-    const tokenSecundario = await tokenDe('2222');
-
-    const r = await key(supertest(app).get(`/buffet/cajas/${cierre.id}/conciliacion`)).set('x-mostrador', tokenSecundario);
-    expect(r.status).toBe(403);
+  it('el cierre del secundario informa cuánto vendió', async () => {
+    await turno();
+    const cierres = await buffetCajaService.listCierres('mostrador-secundario');
+    expect(cierres).toHaveLength(1);
+    expect(cierres[0].porProducto[0]).toMatchObject({ unidades: 30, monto: 60000 });
   });
 });

@@ -85,85 +85,19 @@ describe('stock que ven las pantallas', () => {
   });
 });
 
-describe('cajas que esperan conteo', () => {
-  /** Entrega 10, el secundario abre, vende `vendidas` y cierra. Devuelve el id de la caja. */
-  async function turnoDelSecundario(vendidas: number): Promise<string> {
+describe('el cierre del secundario ya no se cuenta', () => {
+  it('no hay cierres pendientes de conteo, aunque el secundario haya vendido y cerrado', async () => {
     const principal = await tokenDe('1111');
-    await comoMostrador(supertest(app).post('/buffet/entregas'), principal)
-      .send({ items: [{ productoId, cantidad: 10 }] });
-
+    await comoMostrador(supertest(app).post('/buffet/entregas'), principal).send({ items: [{ productoId, cantidad: 10 }] });
     const secundario = await tokenDe('2222');
-    const caja = await comoMostrador(supertest(app).post('/buffet/caja/abrir'), secundario);
-    if (vendidas > 0) {
-      await comoMostrador(supertest(app).post('/buffet/cobrar'), secundario).send({
-        uid: `uid-${Date.now()}-${Math.random()}`, medioPago: 'EFECTIVO', montoPagado: 999999,
-        items: [{ productoId, cantidad: vendidas }],
-      });
-    }
+    await comoMostrador(supertest(app).post('/buffet/caja/abrir'), secundario);
+    await comoMostrador(supertest(app).post('/buffet/cobrar'), secundario).send({
+      uid: 'uid-cierre', medioPago: 'EFECTIVO', montoPagado: 999999, items: [{ productoId, cantidad: 3 }],
+    });
     await comoMostrador(supertest(app).post('/buffet/caja/cerrar'), secundario);
-    return caja.body.id;
-  }
-
-  it('lista la caja cerrada del secundario, con su total', async () => {
-    const cajaId = await turnoDelSecundario(3);
-    const principal = await tokenDe('1111');
 
     const r = await comoMostrador(supertest(app).get('/buffet/conciliaciones/pendientes'), principal);
     expect(r.status).toBe(200);
-    expect(r.body).toHaveLength(1);
-    expect(r.body[0].cajaId).toBe(cajaId);
-    expect(r.body[0].mostradorNombre).toBeTruthy();
-    expect(r.body[0].totalMonto).toBe(6000);
-    expect(r.body[0].cerradaEn).toBeTruthy();
-  });
-
-  it('deja de listarla una vez conciliada', async () => {
-    const cajaId = await turnoDelSecundario(3);
-    const principal = await tokenDe('1111');
-    await comoMostrador(supertest(app).post(`/buffet/cajas/${cajaId}/conciliacion`), principal)
-      .send({ conteos: [{ productoId, contado: 7 }] });
-
-    const r = await comoMostrador(supertest(app).get('/buffet/conciliaciones/pendientes'), principal);
-    expect(r.body).toHaveLength(0);
-  });
-
-  it('una caja ya conciliada: el GET de conciliación da 409, no cifras inventadas del turno siguiente', async () => {
-    // Guard real, no heurística: si se infiriera "ya conciliada" de un síntoma como esperado < 0,
-    // una entrega nueva del mismo producto después de conciliar podría compensar el vendido viejo
-    // y dar todas las líneas en cero, colando el turno siguiente como si fuera el cierre viejo.
-    const cajaId = await turnoDelSecundario(3);
-    const principal = await tokenDe('1111');
-    await comoMostrador(supertest(app).post(`/buffet/cajas/${cajaId}/conciliacion`), principal)
-      .send({ conteos: [{ productoId, contado: 7 }] });
-
-    const r = await comoMostrador(supertest(app).get(`/buffet/cajas/${cajaId}/conciliacion`), principal);
-    expect(r.status).toBe(409);
-    expect(r.body.error.message).toMatch(/ya fue conciliada/);
-  });
-
-  it('no lista cajas todavia abiertas', async () => {
-    const principal = await tokenDe('1111');
-    await comoMostrador(supertest(app).post('/buffet/entregas'), principal)
-      .send({ items: [{ productoId, cantidad: 10 }] });
-    const secundario = await tokenDe('2222');
-    await comoMostrador(supertest(app).post('/buffet/caja/abrir'), secundario);
-
-    const r = await comoMostrador(supertest(app).get('/buffet/conciliaciones/pendientes'), principal);
-    expect(r.body).toHaveLength(0);
-  });
-
-  it('NO lista las cajas del propio principal', async () => {
-    // Conciliar una caja del principal falla siempre: esas unidades ya salieron del general al
-    // venderlas, asi que el conteo inventaria stock. Ofrecerla seria ofrecer un boton roto.
-    const principal = await tokenDe('1111');
-    await comoMostrador(supertest(app).post('/buffet/caja/abrir'), principal);
-    await comoMostrador(supertest(app).post('/buffet/cobrar'), principal).send({
-      uid: 'uid-del-principal', medioPago: 'EFECTIVO', montoPagado: 999999,
-      items: [{ productoId, cantidad: 2 }],
-    });
-    await comoMostrador(supertest(app).post('/buffet/caja/cerrar'), principal);
-
-    const r = await comoMostrador(supertest(app).get('/buffet/conciliaciones/pendientes'), principal);
     expect(r.body).toHaveLength(0);
   });
 

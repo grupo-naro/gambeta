@@ -5,24 +5,23 @@ const prod = (stock: number, asignado: number, stockMinimo: number) =>
   ({ stock, asignado, stockMinimo, activo: true }) as Parameters<typeof estaBajo>[0];
 
 describe('stockTotal', () => {
-  it('suma el general y lo que esta en el secundario', () => {
-    expect(stockTotal(prod(5, 15, 6))).toBe(20);
+  it('es el stock total: lo asignado al secundario ya está incluido y no se suma', () => {
+    expect(stockTotal(prod(20, 15, 6))).toBe(20);
   });
 
-  it('sin nada asignado es el general', () => {
+  it('sin nada asignado es el mismo número', () => {
     expect(stockTotal(prod(5, 0, 6))).toBe(5);
   });
 });
 
 describe('estaBajo', () => {
-  it('NO avisa si el total alcanza aunque el general este por debajo', () => {
-    // El caso que motivó todo: 20 unidades en el complejo, 15 en el otro mostrador.
-    // Avisar acá seria pedir que compres algo que ya compraste.
-    expect(estaBajo(prod(5, 15, 6))).toBe(false);
+  it('NO avisa si el total alcanza, aunque casi todo esté asignado al secundario', () => {
+    // 20 unidades en el complejo, 15 en el cupo del otro mostrador: ya se compraron.
+    expect(estaBajo(prod(20, 15, 6))).toBe(false);
   });
 
   it('avisa cuando el total esta en el minimo', () => {
-    expect(estaBajo(prod(2, 4, 6))).toBe(true);
+    expect(estaBajo(prod(6, 4, 6))).toBe(true);
   });
 
   it('avisa cuando no queda nada en ningun lado', () => {

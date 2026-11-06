@@ -2,13 +2,11 @@
 type ConStock = { stock: number; asignado: number; stockMinimo: number; activo: boolean };
 
 /**
- * Todo lo que hay en el complejo: el general más lo que está en el secundario.
- *
- * `stock` es el general, y las unidades entregadas al secundario SALIERON de ahí, así que mirar
- * solo ese campo cuenta de menos.
+ * Todo lo que hay en el complejo. `stock` ya es el total: lo asignado al secundario es un cupo
+ * DENTRO de ese número (entregar no descuenta, vender sí), así que no se le suma.
  */
 export function stockTotal(p: ConStock): number {
-  return p.stock + p.asignado;
+  return p.stock;
 }
 
 /**

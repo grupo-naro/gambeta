@@ -30,11 +30,11 @@ export function calcularPago(medioPago: MedioPago, montoPagado: number, total: n
 }
 
 /**
- * Saca `cantidad` unidades del stock que le corresponde al mostrador.
+ * Saca `cantidad` unidades del stock cuando el mostrador vende.
  *
- * El principal vende contra el stock general; el secundario, contra lo que se le asignó.
- * Descontar del general una venta del secundario contaría dos veces la misma unidad: ya había
- * salido del general cuando se la entregaron.
+ * El stock general es el TOTAL del complejo y baja cuando se vende, venda quien venda. Lo asignado
+ * al secundario es solo un cupo dentro de ese total (cuánto se le dio): entregar no mueve stock,
+ * vender sí, así que la venta del secundario baja su cupo Y el total.
  */
 export async function descontarStock(
   tx: Prisma.TransactionClient,
@@ -47,9 +47,8 @@ export async function descontarStock(
     const asignado = await tx.stockMostrador.findUnique({ where: clave });
     if (!asignado || asignado.cantidad < cantidad) throw BusinessRule(mensajeSinStockAsignado(producto.nombre));
     await tx.stockMostrador.update({ where: clave, data: { cantidad: { decrement: cantidad } } });
-  } else {
-    await tx.productoBuffet.update({ where: { id: producto.id }, data: { stock: { decrement: cantidad } } });
   }
+  await tx.productoBuffet.update({ where: { id: producto.id }, data: { stock: { decrement: cantidad } } });
 }
 
 /** Devuelve `cantidad` unidades a donde `descontarStock` las sacó. */
@@ -64,7 +63,6 @@ export async function devolverStock(
       where: { mostradorId_productoId: { mostradorId: mostrador.id, productoId } },
       data: { cantidad: { increment: cantidad } },
     });
-  } else {
-    await tx.productoBuffet.update({ where: { id: productoId }, data: { stock: { increment: cantidad } } });
   }
+  await tx.productoBuffet.update({ where: { id: productoId }, data: { stock: { increment: cantidad } } });
 }

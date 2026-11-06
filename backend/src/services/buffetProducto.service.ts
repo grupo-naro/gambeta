@@ -12,6 +12,8 @@ export interface ProductoDTO {
   enBotonera: boolean;
   orden: number;
   activo: boolean;
+  /** Cupo del secundario: unidades del `stock` total que están asignadas a él. */
+  asignado?: number;
 }
 
 const toDTO = (p: {
@@ -28,19 +30,28 @@ export const buffetProductoService = {
     return rows.map(toDTO);
   },
 
+  /** Cupo asignado al secundario por producto (lo que el total tiene "reservado" para él). */
+  async asignados(): Promise<Map<string, number>> {
+    const filas = await prisma.stockMostrador.groupBy({ by: ['productoId'], _sum: { cantidad: true } });
+    return new Map(filas.map((f) => [f.productoId, f._sum.cantidad ?? 0]));
+  },
+
   async listActivos(): Promise<{ id: string; nombre: string; precio: number; stock: number }[]> {
     const rows = await prisma.productoBuffet.findMany({
       where: { activo: true },
       orderBy: { nombre: 'asc' },
     });
-    // `stock` es el general (el del principal). La pantalla de entrega lo necesita para no
-    // ofrecer repartir lo que no hay; la de venta lo ignora.
-    return rows.map((p) => ({ id: p.id, nombre: p.nombre, precio: Number(p.precio), stock: p.stock }));
+    // `stock` es lo que se puede asignar: el total menos lo que ya tiene asignado el secundario. La
+    // pantalla de entrega lo necesita para no ofrecer repartir lo que no hay; la de venta lo ignora.
+    const asignados = await buffetProductoService.asignados();
+    return rows.map((p) => ({ id: p.id, nombre: p.nombre, precio: Number(p.precio), stock: Math.max(0, p.stock - (asignados.get(p.id) ?? 0)) }));
   },
 
   async list(): Promise<ProductoDTO[]> {
     const rows = await prisma.productoBuffet.findMany({ orderBy: [{ activo: 'desc' }, { nombre: 'asc' }] });
-    return rows.map(toDTO);
+    const asignados = await buffetProductoService.asignados();
+    // `stock` es el total del complejo; `asignado` es cuánto de ese total tiene reservado el secundario.
+    return rows.map((p) => ({ ...toDTO(p), asignado: asignados.get(p.id) ?? 0 }));
   },
 
   async crear(input: {
