@@ -413,6 +413,80 @@ export const reservaService = {
     return cancelado;
   },
 
+  /**
+   * Precio de la reserva si durara `duracionMin`, con la tarifa de su cancha y su horario de inicio.
+   * Es lo que el panel sugiere al alargar o acortar un turno; el staff puede cambiarlo a mano.
+   */
+  async precioSugerido(id: string, duracionMin: number): Promise<number> {
+    const r = await reservaService.get(id);
+    const tz = getEnv().TZ_NEGOCIO;
+    const cfg = await configService.get();
+    const hhmm = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(r.fechaInicio);
+    return precioDeRango(r.cancha, ymdEnTz(r.fechaInicio), hhmm, duracionMin, cfg);
+  },
+
+  /**
+   * Edita una reserva suelta: duración (alargar o acortar), monto total y nota.
+   *
+   * - Alargar o acortar mueve solo la hora de FIN; la hora de inicio no cambia (para eso está
+   *   reprogramar). Si no se manda el monto, se recalcula con la tarifa de la cancha.
+   * - El monto no puede quedar por debajo de lo ya cobrado: lo cobrado no se toca (si hay que
+   *   bajarlo, primero se anula un cobro).
+   * - Alargar contra otra reserva, un turno fijo o un bloqueo se rechaza (409), igual que al crear.
+   * - Se puede editar un turno que ya pasó (el caso típico: se quedaron media hora más y se carga
+   *   después). Una cancelada no.
+   * - Una reserva que viene de un turno fijo solo admite nota: su monto y su duración son los del fijo.
+   */
+  async editar(id: string, input: { duracionMin?: number; monto?: number; notas?: string }) {
+    const r = await reservaService.get(id);
+    if (r.estado === 'CANCELADA') throw Conflict('No se puede editar una reserva CANCELADA');
+
+    const durActual = (r.fechaFin.getTime() - r.fechaInicio.getTime()) / 60000;
+    const cambiaDuracion = input.duracionMin != null && input.duracionMin !== durActual;
+    if (r.turnoFijoId && (cambiaDuracion || input.monto != null)) {
+      throw BusinessRule('Este turno viene de un turno fijo: el monto y la duración se editan en el turno fijo');
+    }
+
+    let nuevaFin = r.fechaFin;
+    let monto: number | undefined = input.monto;
+    if (cambiaDuracion) {
+      const tz = getEnv().TZ_NEGOCIO;
+      const cfg = await configService.get();
+      const fecha = ymdEnTz(r.fechaInicio);
+      const hhmm = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(r.fechaInicio);
+      const dow = dayOfWeekInTz(fecha, tz);
+      const apertura = dow === 0 || dow === 6 ? cfg.horaAperturaFinde : cfg.horaApertura;
+      const iniMin = minutoDeJornada(hhmm, apertura);
+      nuevaFin = new Date(r.fechaInicio.getTime() + input.duracionMin! * 60000);
+
+      // Contra turnos fijos y bloqueos (las reservas las frena la base al guardar, abajo).
+      const motivo = await ocupacionService.conflictoReserva(r.canchaId, fecha, iniMin, iniMin + input.duracionMin!);
+      if (motivo === 'fijo') throw Conflict('Ese horario está tomado por un turno fijo');
+      if (motivo === 'bloqueo') throw Conflict('Ese horario está bloqueado');
+
+      if (monto == null) monto = precioDeRango(r.cancha, fecha, hhmm, input.duracionMin!, cfg);
+    }
+
+    if (monto != null) {
+      const cobrado = await cobroRepo.sumByReserva(id);
+      if (monto < cobrado) {
+        throw BusinessRule(`El monto no puede ser menor a lo ya cobrado ($${cobrado.toLocaleString('es-AR')}). Si hay que bajarlo, anulá primero un cobro.`);
+      }
+    }
+
+    const data: Prisma.ReservaUpdateInput = {};
+    if (monto != null) data.monto = monto;
+    if (input.notas !== undefined) data.notas = input.notas.trim() === '' ? null : input.notas.trim();
+
+    await prisma.$transaction(async (tx) => {
+      // El choque con otra reserva lo detecta la restricción de exclusión (409), no un "chequear y guardar".
+      if (cambiaDuracion) await reservaRepo.reprogramar(id, r.fechaInicio, nuevaFin, tx);
+      if (Object.keys(data).length > 0) await tx.reserva.update({ where: { id }, data });
+    });
+    sheetsSync.marcarSucio(ymdEnTz(r.fechaInicio));
+    return reservaService.get(id);
+  },
+
   async reprogramar(id: string, by: { adminId?: string }, input: { fecha: string; horaInicio: string; canchaId?: string }) {
     // NOTA: el monto NO se recalcula al reprogramar (mantiene precio/seña original), tampoco al cambiar de cancha.
     const r = await reservaService.get(id);

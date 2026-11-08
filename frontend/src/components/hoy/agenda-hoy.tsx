@@ -10,6 +10,7 @@ import { TurnoCard } from './turno-card';
 import { FijoCard } from './fijo-card';
 import { BloqueoCard } from './bloqueo-card';
 import { AccionReservaSheet } from '@/components/reservas/accion-reserva-sheet';
+import { EditarReservaDialog } from '@/components/reservas/editar-reserva-dialog';
 import { materializarFijo } from '@/lib/fijos-actions';
 import { addDias, esHoy, fmtFechaLarga, hoyAR } from '@/lib/fecha';
 import { colorDeCancha, nombreCancha } from '@/lib/calendario';
@@ -23,6 +24,7 @@ export function AgendaHoy({ agenda, canchas, fecha, totalCobrado, porMedio, sena
   const [seleccion, setSeleccion] = useState<Reserva | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reprogramarId, setReprogramarId] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Reserva | null>(null);
   const [pending, start] = useTransition();
   const [canchaFiltro, setCanchaFiltro] = useState<string | null>(null);
   const [q, setQ] = useState('');
@@ -131,7 +133,8 @@ export function AgendaHoy({ agenda, canchas, fecha, totalCobrado, porMedio, sena
         </div>
       )}
 
-      <AccionReservaSheet reserva={seleccion} open={sheetOpen} onOpenChange={(o) => { setSheetOpen(o); if (!o) { setSeleccion(null); router.refresh(); } }} onReprogramar={(id) => setReprogramarId(id)} />
+      <AccionReservaSheet reserva={seleccion} open={sheetOpen} onOpenChange={(o) => { setSheetOpen(o); if (!o) { setSeleccion(null); router.refresh(); } }} onReprogramar={(id) => setReprogramarId(id)} onEditar={(r) => setEditando(r)} />
+      {editando && <EditarReservaDialog key={editando.id} reserva={editando} open onOpenChange={(o) => { if (!o) { setEditando(null); router.refresh(); } }} />}
       <ReprogramarDialog id={reprogramarId} open={reprogramarId !== null} onOpenChange={(o) => { if (!o) { setReprogramarId(null); router.refresh(); } }} />
     </div>
   );

@@ -13,6 +13,8 @@ import {
   listReservaSchema,
   aprobarSenaSchema,
   reprogramarSchema,
+  editarReservaSchema,
+  precioSugeridoSchema,
   misReservasSchema,
   idParamSchema,
   buscarReservaSchema,
@@ -34,8 +36,16 @@ reservaRoutes.post('/', authAny, validate(createReservaSchema), async (req, res,
     if (porStaff && body.cobroInicial === 'sena') {
       const cancha = await canchaService.get(body.canchaId);
       defaultSena = await senaService.montoParaCancha(cancha, Number(cancha.precioHora));
-      const monto = body.montoCobro ?? defaultSena;
-      if (monto < defaultSena) throw BusinessRule('La seña no puede ser menor a la seña de la cancha');
+      if (body.montoFinal != null) {
+        // Precio acordado a mano (una clase, un precio especial): la seña mínima de la cancha ya no
+        // aplica —el staff decide— pero no puede pasarse del precio.
+        defaultSena = Math.min(defaultSena, body.montoFinal);
+        const monto = body.montoCobro ?? defaultSena;
+        if (monto > body.montoFinal) throw BusinessRule('La seña no puede superar el precio final');
+      } else {
+        const monto = body.montoCobro ?? defaultSena;
+        if (monto < defaultSena) throw BusinessRule('La seña no puede ser menor a la seña de la cancha');
+      }
     }
 
     const r = await reservaService.crear(body, { porStaff });
@@ -99,6 +109,23 @@ reservaRoutes.get('/:id', authJwt, validate(idParamSchema), async (req, res, nex
   } catch (e) {
     next(e);
   }
+});
+
+// Editar una reserva suelta (duración, monto, nota). Staff: administrador o recepcionista, con sesión.
+reservaRoutes.patch('/:id/editar', authJwt, validate(editarReservaSchema), async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const r = await reservaService.editar(id, (req as any).valid.body);
+    await auditService.log(req, { accion: 'EDITAR', entidad: 'Reserva', entidadId: id, descripcion: 'Editó una reserva (duración, monto o nota)' });
+    res.json(r);
+  } catch (e) { next(e); }
+});
+
+reservaRoutes.get('/:id/precio-sugerido', authJwt, validate(precioSugeridoSchema), async (req, res, next) => {
+  try {
+    const q = (req as any).valid;
+    res.json({ monto: await reservaService.precioSugerido(String(q.params.id), q.query.duracionMin) });
+  } catch (e) { next(e); }
 });
 
 reservaRoutes.patch('/:id/aprobar-sena', authAny, validate(aprobarSenaSchema), async (req, res, next) => {

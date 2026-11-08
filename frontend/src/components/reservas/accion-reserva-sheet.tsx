@@ -21,11 +21,14 @@ export function AccionReservaSheet({
   open,
   onOpenChange,
   onReprogramar,
+  onEditar,
 }: {
   reserva: Reserva | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onReprogramar: (id: string) => void;
+  /** Abre la edición (duración, monto, nota). El padre monta el diálogo porque esta hoja se cierra antes. */
+  onEditar?: (r: Reserva) => void;
 }) {
   const router = useRouter();
   const [data, setData] = useState<CobrosReserva | null>(null);
@@ -80,6 +83,7 @@ export function AccionReservaSheet({
         <SheetHeader>
           <SheetTitle>{reserva.cliente?.nombre ?? 'Turno'}</SheetTitle>
           <p className="text-sm text-neutral-600">{reserva.cancha?.nombre} · {fmtHora(reserva.fechaInicio)} a {fmtHora(reserva.fechaFin)}</p>
+          {reserva.notas && <p className="text-sm italic text-neutral-500">{reserva.notas}</p>}
         </SheetHeader>
 
         {!data ? (
@@ -148,6 +152,12 @@ export function AccionReservaSheet({
                   </li>
                 ))}
               </ul>
+            )}
+
+            {onEditar && reserva.estado !== 'CANCELADA' && (
+              <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => { handleOpenChange(false); onEditar(reserva); }}>
+                Editar (duración, monto, nota)
+              </Button>
             )}
 
             {(reserva.estado === 'CONFIRMADA' || reserva.estado === 'ESPERANDO_SENA') && (

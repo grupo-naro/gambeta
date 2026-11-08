@@ -7,6 +7,7 @@ import { fmtFechaHora } from '@/lib/fecha';
 import type { Reserva, FijoAgenda, Bloqueo } from '@/lib/types';
 import { AccionReservaSheet } from '@/components/reservas/accion-reserva-sheet';
 import { ReprogramarDialog } from './reprogramar-dialog';
+import { EditarReservaDialog } from './editar-reserva-dialog';
 
 const money = (n: number | null) => (n == null ? '—' : '$' + Number(n).toLocaleString('es-AR'));
 
@@ -14,6 +15,7 @@ export function ReservasTable({ reservas, fijos, bloqueos }: { reservas: Reserva
   const router = useRouter();
   const [seleccion, setSeleccion] = useState<Reserva | null>(null);
   const [reprogramarId, setReprogramarId] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Reserva | null>(null);
 
   if (reservas.length === 0) return (
     <>
@@ -85,7 +87,9 @@ export function ReservasTable({ reservas, fijos, bloqueos }: { reservas: Reserva
         open={seleccion !== null}
         onOpenChange={(o) => { if (!o) setSeleccion(null); }}
         onReprogramar={(id) => setReprogramarId(id)}
+        onEditar={(r) => setEditando(r)}
       />
+      {editando && <EditarReservaDialog key={editando.id} reserva={editando} open onOpenChange={(o) => { if (!o) { setEditando(null); router.refresh(); } }} />}
       <ReprogramarDialog
         id={reprogramarId}
         open={reprogramarId !== null}

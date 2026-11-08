@@ -37,6 +37,8 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(!!inicial); // con `inicial` los horarios se piden al montar
   const [montoSena, setMontoSena] = useState('');
+  // Nota libre de la reserva (ej. "Clase de pádel").
+  const [notas, setNotas] = useState('');
   // Precio final acordado con el cliente. Vacío = precio de lista.
   // Atado al turno elegido: si cambia la cancha, el día, la hora o la duración, vuelve al de lista.
   const [acordado, setAcordado] = useState({ clave: '', valor: '' });
@@ -81,6 +83,7 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
     setSlots([]);
     setSlotsLoading(false);
     setMontoSena('');
+    setNotas('');
     setAcordado({ clave: '', valor: '' });
   }
 
@@ -112,16 +115,25 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
   function submit() {
     const parsed = nuevaReservaSchema.safeParse({ canchaId, nombreCliente, whatsapp, fecha, horaInicio });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
-    if (cobro === 'sena') {
-      const def = senaDefault(canchaSel);
-      const m = Number(montoSena);
-      if (!m || m < def) { toast.error(`La seña no puede ser menor a $${def.toLocaleString('es-AR')}`); return; }
-    }
     const final = precioFinal.trim() === '' ? undefined : Number(precioFinal);
     if (final !== undefined && (!Number.isFinite(final) || final < 0)) { toast.error('El precio final no puede ser negativo'); return; }
-    if (final !== undefined && cobro === 'sena' && Number(montoSena) > final) { toast.error('La seña no puede superar el precio final'); return; }
+    // Con un precio propio distinto al de lista (una clase, un precio especial) la seña mínima de la
+    // cancha ya no aplica: el staff decide cuánto, de 0 hasta el precio. Con el precio de lista, sí.
+    const precioPropio = final !== undefined && final !== precioLista;
+    let montoCobro: number | undefined;
+    if (cobro === 'sena') {
+      montoCobro = Number(montoSena);
+      if (precioPropio) {
+        // La seña viene precargada con la de la cancha: si es más que el precio, se baja al precio.
+        if (!Number.isFinite(montoCobro) || montoCobro < 0) { toast.error('La seña no es válida'); return; }
+        montoCobro = Math.min(montoCobro, final);
+      } else {
+        const def = senaDefault(canchaSel);
+        if (!montoCobro || montoCobro < def) { toast.error(`La seña no puede ser menor a $${def.toLocaleString('es-AR')}`); return; }
+      }
+    }
     start(async () => {
-      const r = await crearReserva({ canchaId, whatsapp, nombreCliente, fecha, horaInicio, duracionMin, cobroInicial: cobro, medioCobro, montoCobro: cobro === 'sena' ? Number(montoSena) : undefined, montoFinal: final !== undefined && final !== precioLista ? final : undefined });
+      const r = await crearReserva({ canchaId, whatsapp, nombreCliente, fecha, horaInicio, duracionMin, cobroInicial: cobro, medioCobro, montoCobro, montoFinal: precioPropio ? final : undefined, notas: notas.trim() || undefined });
       if (r.ok) {
         if (r.cobroOmitido) {
           toast.success('Reserva creada', { description: 'Socio: turno bonificado, no se cobró nada.' });
@@ -186,6 +198,10 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
               <p className="text-xs text-muted-foreground">{precioLista != null ? `Precio de lista: $${precioLista.toLocaleString('es-AR')}. ` : ''}Dejalo vacío para cobrar el de lista, o poné el que acordaste con el cliente.</p>
             </div>
           )}
+          <div className="space-y-1">
+            <Label htmlFor="nueva-nota">Nota (opcional)</Label>
+            <Input id="nueva-nota" value={notas} maxLength={500} onChange={(e) => setNotas(e.target.value)} placeholder="Ej: Clase de pádel" />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="nueva-whatsapp">WhatsApp</Label>
@@ -224,8 +240,12 @@ export function NuevaReservaDialog({ canchas, senaMontoFijo, controlado, inicial
           {cobro === 'sena' && (
             <div className="space-y-1">
               <Label htmlFor="nueva-monto-sena">Monto de la seña</Label>
-              <Input id="nueva-monto-sena" type="number" min={senaDefault(canchaSel)} value={montoSena} onChange={(e) => setMontoSena(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Mínimo (seña de la cancha): ${senaDefault(canchaSel).toLocaleString('es-AR')}</p>
+              <Input id="nueva-monto-sena" type="number" min={precioFinal.trim() !== '' && Number(precioFinal) !== precioLista ? 0 : senaDefault(canchaSel)} value={montoSena} onChange={(e) => setMontoSena(e.target.value)} />
+              <p className="text-xs text-muted-foreground">
+                {precioFinal.trim() !== '' && Number(precioFinal) !== precioLista
+                  ? 'Con precio propio, la seña puede ser menor a la de la cancha, pero no mayor al precio.'
+                  : `Mínimo (seña de la cancha): $${senaDefault(canchaSel).toLocaleString('es-AR')}`}
+              </p>
             </div>
           )}
         </div>

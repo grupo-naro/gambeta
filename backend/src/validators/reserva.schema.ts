@@ -37,6 +37,24 @@ export const createReservaSchema = z.object({
   params: empty,
 });
 
+// Edición de una reserva suelta: alargar/acortar (de a 30 min), monto total y nota. Llega solo lo que cambió.
+export const editarReservaSchema = z.object({
+  body: z.object({
+    duracionMin: z.number().int().min(30).max(240).refine((n) => n % 30 === 0, 'La duración va de a 30 minutos').optional(),
+    monto: z.number().nonnegative().max(99999999.99).optional(),
+    // Vacía ('') borra la nota.
+    notas: z.string().max(500).optional(),
+  }).refine((b) => Object.keys(b).length > 0, { message: 'No hay nada para editar' }),
+  query: empty,
+  params: z.object({ id: z.string().min(1) }),
+});
+
+export const precioSugeridoSchema = z.object({
+  body: z.unknown(),
+  query: z.object({ duracionMin: z.coerce.number().int().min(30).max(240) }),
+  params: z.object({ id: z.string().min(1) }),
+});
+
 export const listReservaSchema = z.object({
   query: z.object({
     fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

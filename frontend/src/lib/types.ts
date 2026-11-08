@@ -22,6 +22,8 @@ export interface Reserva {
   /** Cómo dijo el cliente que iba a pagar la seña. Opcional: puede venir de un backend con skew de versión. */
   metodoSena?: MetodoSena | null;
   pagado: number; saldo: number;
+  /** Nota libre de la reserva (ej. "Clase de pádel"). */
+  notas?: string | null;
   turnoFijoId?: string | null;
   suscripcionId?: string | null;
   montoLista?: number | null;

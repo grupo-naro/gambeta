@@ -7,6 +7,7 @@ import type { Reserva, Cancha, TurnoFijo, Bloqueo } from '@/lib/types';
 import { colorDeCancha, ubicarEnTz, horasDelDia, materializar, etiquetaMotivo, ESTILO_TIPO, dividirCelda, hhmmDeMinutos, horasQueToca, type EventoCal } from '@/lib/calendario';
 import { ReprogramarDialog } from '@/components/reservas/reprogramar-dialog';
 import { AccionReservaSheet } from '@/components/reservas/accion-reserva-sheet';
+import { EditarReservaDialog } from '@/components/reservas/editar-reserva-dialog';
 
 const DIAS_LBL = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -46,6 +47,7 @@ export function CalendarioSemana({
 }) {
   const router = useRouter();
   const [selReserva, setSelReserva] = useState<Reserva | null>(null);
+  const [editandoRes, setEditandoRes] = useState<Reserva | null>(null);
   const [selInfo, setSelInfo] = useState<EventoCal | null>(null);
   const [reprogId, setReprogId] = useState<string | null>(null);
   const [selCelda, setSelCelda] = useState<{ fecha: string; hora: number; eventos: EventoCal[] } | null>(null);
@@ -187,7 +189,9 @@ export function CalendarioSemana({
         open={selReserva !== null}
         onOpenChange={(o) => { if (!o) setSelReserva(null); }}
         onReprogramar={(id) => setReprogId(id)}
+        onEditar={(r) => setEditandoRes(r)}
       />
+      {editandoRes && <EditarReservaDialog key={editandoRes.id} reserva={editandoRes} open onOpenChange={(o) => { if (!o) { setEditandoRes(null); setSelReserva(null); router.refresh(); } }} />}
 
       {/* Hoja de info de turno fijo / bloqueo (solo lectura) */}
       <Sheet open={!!selInfo} onOpenChange={(o) => { if (!o) setSelInfo(null); }}>
