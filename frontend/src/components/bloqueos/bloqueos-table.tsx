@@ -11,6 +11,7 @@ import { BloqueoDialog } from './bloqueo-dialog';
 import { ExcepcionBloqueoDialog } from './excepcion-bloqueo-dialog';
 import { eliminarBloqueo } from '@/lib/bloqueos-actions';
 import { CobrosDialog } from '@/components/reservas/cobros-dialog';
+import { ClasesBloqueoDialog } from './clases-bloqueo-dialog';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
@@ -24,6 +25,7 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
   const [bloqueoExc, setBloqueoExc] = useState<Bloqueo | null>(null);
   function abrirExcepcion(b: Bloqueo) { setSeleccion(null); setBloqueoExc(b); setExcepcionOpen(true); }
   const [cobrosId, setCobrosId] = useState<string | null>(null);
+  const [clasesDe, setClasesDe] = useState<Bloqueo | null>(null);
   const [editando, setEditando] = useState<Bloqueo | null>(null);
   const [pending, start] = useTransition();
   const confirm = useConfirm();
@@ -43,6 +45,8 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
   }
   function plataLabel(b: Bloqueo) {
     if (b.valor == null) return null;
+    // Entrenamiento recurrente: el valor es por clase y la deuda se ve clase por clase.
+    if (b.recurrente) return `${money(b.valor)} por clase`;
     return (b.saldo ?? 0) > 0 ? `${money(b.valor)} · DEBE ${money(b.saldo ?? 0)}` : `${money(b.valor)} · Pago`;
   }
   async function eliminar(b: Bloqueo) {
@@ -105,8 +109,11 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
               <SheetTitle>{seleccion.cancha?.nombre ?? 'Bloqueo'}</SheetTitle>
               <p className="text-sm text-neutral-600">{MOTIVO_LABEL[seleccion.motivo] ?? seleccion.motivo} · {programaLabel(seleccion)} · {seleccion.horaInicio}–{seleccion.horaFin}</p>
             </SheetHeader>
-            <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => { setEditando(seleccion); setSeleccion(null); }}>Editar{!seleccion.recurrente && seleccion.valor == null ? ' / poner precio' : ''}</Button>
-            {seleccion.valor != null && (
+            <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => { setEditando(seleccion); setSeleccion(null); }}>Editar{seleccion.valor == null && (!seleccion.recurrente || seleccion.motivo === 'ENTRENAMIENTO') ? ' / poner precio' : ''}</Button>
+            {seleccion.valor != null && seleccion.recurrente && (
+              <Button className="h-11 w-full" disabled={pending} onClick={() => { setClasesDe(seleccion); setSeleccion(null); }}>Cobros por clase ({plataLabel(seleccion)})</Button>
+            )}
+            {seleccion.valor != null && !seleccion.recurrente && (
               <Button className="h-11 w-full" disabled={pending} onClick={() => { setCobrosId(seleccion.id); setSeleccion(null); }}>Cobros del evento ({plataLabel(seleccion)})</Button>
             )}
             {seleccion.recurrente && (
@@ -118,6 +125,7 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
       </Sheet>
 
       {editando && <BloqueoDialog key={editando.id} bloqueo={editando} open onOpenChange={(o) => { if (!o) setEditando(null); }} canchas={canchas} />}
+      <ClasesBloqueoDialog key={clasesDe?.id ?? 'none'} bloqueoId={clasesDe?.id ?? null} titulo={clasesDe ? `${clasesDe.cancha?.nombre ?? ''} · ${DIAS[clasesDe.diaSemana ?? 0]} ${clasesDe.horaInicio}–${clasesDe.horaFin}` : ''} open={clasesDe !== null} onOpenChange={(o) => { if (!o) setClasesDe(null); }} />
       <CobrosDialog bloqueoId={cobrosId} open={cobrosId !== null} onOpenChange={(o) => { if (!o) setCobrosId(null); }} />
       <ExcepcionBloqueoDialog key={bloqueoExc?.id ?? 'none'} open={excepcionOpen} onOpenChange={setExcepcionOpen} bloqueo={bloqueoExc} />
       <BloqueoDialog open={dialogOpen} onOpenChange={setDialogOpen} canchas={canchas} />

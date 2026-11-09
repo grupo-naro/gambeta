@@ -4,7 +4,7 @@ import { requireRole } from '../middlewares/requireRole.js';
 import { validate } from '../middlewares/validate.js';
 import { bloqueoService } from '../services/bloqueo.service.js';
 import { crearBloqueoSchema, editarBloqueoSchema, idBloqueoParamSchema, excepcionBloqueoSchema } from '../validators/bloqueo.schema.js';
-import { crearCobroSchema } from '../validators/cobro.schema.js';
+import { crearCobroBloqueoSchema, cobrosBloqueoSchema, clasesBloqueoSchema } from '../validators/cobro.schema.js';
 import { auditService } from '../services/audit.service.js';
 
 export const bloqueoRoutes = Router();
@@ -27,10 +27,15 @@ bloqueoRoutes.patch('/:id', authJwt, requireRole('ADMIN'), validate(editarBloque
   } catch (e) { next(e); }
 });
 // Cobros del evento (seña y saldo). Solo staff: es plata. Anular un cobro usa DELETE /cobros/:id.
-bloqueoRoutes.get('/:id/cobros', authJwt, validate(idBloqueoParamSchema), async (req, res, next) => {
-  try { res.json(await bloqueoService.listarCobros(String(req.params.id))); } catch (e) { next(e); }
+// En un entrenamiento recurrente el valor es por clase: ?fecha= elige la clase.
+bloqueoRoutes.get('/:id/cobros', authJwt, validate(cobrosBloqueoSchema), async (req, res, next) => {
+  try { res.json(await bloqueoService.listarCobros(String(req.params.id), (req as any).valid.query.fecha)); } catch (e) { next(e); }
 });
-bloqueoRoutes.post('/:id/cobros', authJwt, validate(crearCobroSchema), async (req, res, next) => {
+// Clases de un entrenamiento recurrente (con lo cobrado de cada una) para elegir cuál cobrar.
+bloqueoRoutes.get('/:id/clases', authJwt, validate(clasesBloqueoSchema), async (req, res, next) => {
+  try { res.json(await bloqueoService.clases(String(req.params.id), (req as any).valid.query)); } catch (e) { next(e); }
+});
+bloqueoRoutes.post('/:id/cobros', authJwt, validate(crearCobroBloqueoSchema), async (req, res, next) => {
   try {
     const adminId = req.principal?.kind === 'admin' ? req.principal.adminId : null;
     const r = await bloqueoService.registrarCobro(String(req.params.id), (req as any).valid.body, adminId);

@@ -87,8 +87,8 @@ export function BloqueoDialog({
       // Solo los recurrentes tienen período: el backend rechaza mandarlo en un puntual.
       vigenciaDesde: recurrente && vigenciaDesde ? vigenciaDesde : undefined,
       vigenciaHasta: recurrente && vigenciaHasta ? vigenciaHasta : undefined,
-      // El valor solo existe en eventos de una fecha.
-      valor: !recurrente && valor ? Number(valor) : undefined,
+      // El valor existe en eventos de una fecha y, por clase, en los entrenamientos recurrentes.
+      valor: (!recurrente || motivo === 'ENTRENAMIENTO') && valor ? Number(valor) : undefined,
       montoPagado: !recurrente && valor && sena ? Number(sena) : undefined,
       medioPago: !recurrente && valor && sena ? medioPago : undefined,
     });
@@ -99,7 +99,7 @@ export function BloqueoDialog({
         const r = await editarBloqueo(bloqueo.id, {
           canchaId: d.canchaId, motivo: d.motivo, horaInicio: d.horaInicio, horaFin: d.horaFin,
           nota: d.nota ?? '',
-          ...(recurrente ? { diaSemana: d.diaSemana, vigenciaDesde: d.vigenciaDesde ?? null, vigenciaHasta: d.vigenciaHasta ?? null } : { fecha: d.fecha, valor: d.valor ?? null }),
+          ...(recurrente ? { diaSemana: d.diaSemana, vigenciaDesde: d.vigenciaDesde ?? null, vigenciaHasta: d.vigenciaHasta ?? null, ...(motivo === 'ENTRENAMIENTO' ? { valor: d.valor ?? null } : {}) } : { fecha: d.fecha, valor: d.valor ?? null }),
         });
         if (!r.ok) { toast.error(r.error); return; }
         // La seña es un cobro más del evento: se registra después de guardar el valor.
@@ -181,6 +181,13 @@ export function BloqueoDialog({
               <HoraInput id="bl-fin" value={horaFin} onChange={setHoraFin} />
             </div>
           </div>
+          {tipo === 'recurrente' && motivo === 'ENTRENAMIENTO' && (
+            <div className="space-y-1 rounded-lg border bg-neutral-50 p-3">
+              <Label htmlFor="bl-valor-clase">Valor por clase (opcional)</Label>
+              <Input id="bl-valor-clase" type="number" min="0" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="20000" />
+              <p className="text-xs text-muted-foreground">Lo que sale cada entrenamiento. Después, desde el bloqueo, marcás qué clases se pagaron y cuáles se deben. Lo cobrado entra en la caja.</p>
+            </div>
+          )}
           {tipo === 'puntual' && (
             <div className="space-y-3 rounded-lg border bg-neutral-50 p-3">
               <p className="text-xs text-muted-foreground">Si es un evento que se cobra (ej. cumpleaños), cargá el valor y la seña. El resto se cobra ese día y todo entra en la caja.</p>

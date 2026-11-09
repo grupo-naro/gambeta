@@ -1,5 +1,5 @@
 'use client';
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CobrosReserva, MedioPago } from '@/lib/types';
 import { cobroSchema } from '@/lib/validators';
+import { etiquetaClase } from '@/lib/clases-bloqueo';
 import { getCobros, registrarCobro, anularCobro, getCobrosFijo, registrarCobroFijo, getCobrosBloqueo, registrarCobroBloqueo } from '@/lib/cobros-actions';
 import { useConfirm } from '@/components/ui/confirm';
 
@@ -15,15 +16,23 @@ const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
 /**
  * Cobros de una reserva o, si se pasa `fijoId`, del abono de un turno fijo: las dos cosas tienen
- * total / pagado / saldo y se cobran en partes, así que comparten pantalla.
+ * total / pagado / saldo y se cobran en partes, así que comparten pantalla. Con `bloqueoId` es un
+ * evento; si además viene `bloqueoFecha`, es UNA clase de un entrenamiento recurrente (el valor es por clase).
  */
-export function CobrosDialog({ reservaId, fijoId, bloqueoId, open, onOpenChange }: { reservaId?: string | null; fijoId?: string | null; bloqueoId?: string | null; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function CobrosDialog({ reservaId, fijoId, bloqueoId, bloqueoFecha, open, onOpenChange }: { reservaId?: string | null; fijoId?: string | null; bloqueoId?: string | null; bloqueoFecha?: string | null; open: boolean; onOpenChange: (o: boolean) => void }) {
   const router = useRouter();
   const esFijo = !!fijoId;
   const esEvento = !!bloqueoId;
   const destinoId = bloqueoId ?? fijoId ?? reservaId ?? null;
-  const cargar = esEvento ? getCobrosBloqueo : esFijo ? getCobrosFijo : getCobros;
-  const cobrar = esEvento ? registrarCobroBloqueo : esFijo ? registrarCobroFijo : registrarCobro;
+  // useCallback: el efecto de carga depende de estas funciones; sin esto se recargaría en cada render.
+  const cargar = useCallback(
+    (id: string) => (esEvento ? getCobrosBloqueo(id, bloqueoFecha) : esFijo ? getCobrosFijo(id) : getCobros(id)),
+    [esEvento, esFijo, bloqueoFecha],
+  );
+  const cobrar = useCallback(
+    (id: string, input: { monto: number; medio: MedioPago }) => (esEvento ? registrarCobroBloqueo(id, { ...input, ...(bloqueoFecha ? { fecha: bloqueoFecha } : {}) }) : esFijo ? registrarCobroFijo(id, input) : registrarCobro(id, input)),
+    [esEvento, esFijo, bloqueoFecha],
+  );
   const [data, setData] = useState<CobrosReserva | null>(null);
   const [monto, setMonto] = useState('');
   const [medio, setMedio] = useState<MedioPago>('EFECTIVO');
@@ -62,7 +71,7 @@ export function CobrosDialog({ reservaId, fijoId, bloqueoId, open, onOpenChange 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{esEvento ? 'Cobros del evento' : esFijo ? 'Cobros del abono' : 'Cobros'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{esEvento ? (bloqueoFecha ? `Cobros de la clase del ${etiquetaClase(bloqueoFecha)}` : 'Cobros del evento') : esFijo ? 'Cobros del abono' : 'Cobros'}</DialogTitle></DialogHeader>
         {data ? (
           <div className="space-y-3 text-sm">
             <div className="flex gap-4 rounded-lg bg-neutral-50 p-3">

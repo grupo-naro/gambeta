@@ -385,6 +385,8 @@ model Cobro {
   bloqueoId       String?
   /// Al eliminar el bloqueo el cobro se conserva en la caja (origen 'EVENTO').
   bloqueo         Bloqueo?     @relation(fields: [bloqueoId], references: [id], onDelete: SetNull)
+  /// Clase de un entrenamiento recurrente que paga este cobro. null en los eventos puntuales.
+  bloqueoFecha    DateTime?    @db.Date
   monto           Decimal      @db.Decimal(10, 2)
   medio           MedioPago
   origen          String       @default("MANUAL")
