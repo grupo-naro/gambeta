@@ -12,20 +12,21 @@ export const crearCobroSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
 });
 
-// Cobros de un bloqueo. En un entrenamiento recurrente cada cobro es de una clase (fecha).
+// Cobros de un bloqueo. En un entrenamiento recurrente cada cobro es de un mes ('YYYY-MM').
+const ym = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Mes inválido (YYYY-MM)');
 export const crearCobroBloqueoSchema = z.object({
-  body: z.object({ monto: z.number().positive(), medio: z.enum(['EFECTIVO', 'TRANSFERENCIA']), fecha: ymd.optional() }),
+  body: z.object({ monto: z.number().positive(), medio: z.enum(['EFECTIVO', 'TRANSFERENCIA']), mes: ym.optional() }),
   query: empty,
   params: z.object({ id: z.string().min(1) }),
 });
 export const cobrosBloqueoSchema = z.object({
   body: z.unknown(),
-  query: z.object({ fecha: ymd.optional() }),
+  query: z.object({ mes: ym.optional() }),
   params: z.object({ id: z.string().min(1) }),
 });
-export const clasesBloqueoSchema = z.object({
+export const mesesBloqueoSchema = z.object({
   body: z.unknown(),
-  query: z.object({ desde: ymd.optional(), hasta: ymd.optional() }),
+  query: z.object({ desde: ym.optional(), hasta: ym.optional() }),
   params: z.object({ id: z.string().min(1) }),
 });
 

@@ -16,17 +16,17 @@ export const cobroRepo = {
       orderBy: { creadoEn: 'asc' },
       include: { registradoPor: { select: { nombre: true } } },
     }),
-  /** `fecha` ('YYYY-MM-DD') filtra a una clase de un entrenamiento recurrente. */
-  listByBloqueo: (bloqueoId: string, fecha?: string) =>
+  /** `mes` ('YYYY-MM') filtra a un mes de un entrenamiento recurrente. */
+  listByBloqueo: (bloqueoId: string, mes?: string) =>
     prisma.cobro.findMany({
-      where: { bloqueoId, ...(fecha ? { bloqueoFecha: new Date(fecha + 'T00:00:00.000Z') } : {}) },
+      where: { bloqueoId, ...(mes ? { bloqueoMes: new Date(mes + '-01T00:00:00.000Z') } : {}) },
       orderBy: { creadoEn: 'asc' },
       include: { registradoPor: { select: { nombre: true } } },
     }),
-  /** Lo cobrado de cada clase ('YYYY-MM-DD' → monto) de un entrenamiento recurrente. */
-  sumByBloqueoPorFecha: async (bloqueoId: string) => {
-    const rows = await prisma.cobro.groupBy({ by: ['bloqueoFecha'], where: { bloqueoId, bloqueoFecha: { not: null } }, _sum: { monto: true } });
-    return new Map(rows.map((r) => [(r.bloqueoFecha as Date).toISOString().slice(0, 10), Number(r._sum.monto ?? 0)]));
+  /** Lo cobrado de cada mes ('YYYY-MM' → monto) de un entrenamiento recurrente. */
+  sumByBloqueoPorMes: async (bloqueoId: string) => {
+    const rows = await prisma.cobro.groupBy({ by: ['bloqueoMes'], where: { bloqueoId, bloqueoMes: { not: null } }, _sum: { monto: true } });
+    return new Map(rows.map((r) => [(r.bloqueoMes as Date).toISOString().slice(0, 7), Number(r._sum.monto ?? 0)]));
   },
   sumByBloqueos: async (ids: string[]) => {
     if (ids.length === 0) return new Map<string, number>();

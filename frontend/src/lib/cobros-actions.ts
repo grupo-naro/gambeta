@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { apiFetch } from './api';
 import { ApiError } from './types';
 import type { CobrosReserva, MedioPago } from './types';
-import type { ClasesBloqueo } from './clases-bloqueo';
+import type { MesesBloqueo } from './meses-bloqueo';
 
 type Result = { ok: true } | { ok: false; error: string };
 async function run(fn: () => Promise<unknown>): Promise<Result> {
@@ -25,15 +25,15 @@ export async function registrarCobroFijo(fijoId: string, input: { monto: number;
   return run(() => apiFetch(`/turnos-fijos/${fijoId}/cobros`, { method: 'POST', body: JSON.stringify(input) }));
 }
 // Cobros de un evento (bloqueo con valor): misma forma que los de una reserva.
-// En un entrenamiento recurrente el valor es por clase: `fecha` ('YYYY-MM-DD') elige la clase.
-export async function getCobrosBloqueo(bloqueoId: string, fecha?: string | null): Promise<CobrosReserva> {
-  return apiFetch<CobrosReserva>(`/bloqueos/${bloqueoId}/cobros${fecha ? `?fecha=${fecha}` : ''}`);
+// En un entrenamiento recurrente el valor es mensual: `mes` ('YYYY-MM') elige el mes.
+export async function getCobrosBloqueo(bloqueoId: string, mes?: string | null): Promise<CobrosReserva> {
+  return apiFetch<CobrosReserva>(`/bloqueos/${bloqueoId}/cobros${mes ? `?mes=${mes}` : ''}`);
 }
-// Las clases de un entrenamiento recurrente (5 semanas atrás a 2 adelante) con lo cobrado de cada una.
-export async function getClasesBloqueo(bloqueoId: string): Promise<ClasesBloqueo> {
-  return apiFetch<ClasesBloqueo>(`/bloqueos/${bloqueoId}/clases`);
+// Los meses de un entrenamiento recurrente (5 atrás a 1 adelante, dentro de su período) con lo cobrado de cada uno.
+export async function getMesesBloqueo(bloqueoId: string): Promise<MesesBloqueo> {
+  return apiFetch<MesesBloqueo>(`/bloqueos/${bloqueoId}/meses`);
 }
-export async function registrarCobroBloqueo(bloqueoId: string, input: { monto: number; medio: MedioPago; fecha?: string }): Promise<Result> {
+export async function registrarCobroBloqueo(bloqueoId: string, input: { monto: number; medio: MedioPago; mes?: string }): Promise<Result> {
   return run(() => apiFetch(`/bloqueos/${bloqueoId}/cobros`, { method: 'POST', body: JSON.stringify(input) }));
 }
 export async function anularCobro(id: string): Promise<Result> {

@@ -87,7 +87,7 @@ export function BloqueoDialog({
       // Solo los recurrentes tienen período: el backend rechaza mandarlo en un puntual.
       vigenciaDesde: recurrente && vigenciaDesde ? vigenciaDesde : undefined,
       vigenciaHasta: recurrente && vigenciaHasta ? vigenciaHasta : undefined,
-      // El valor existe en eventos de una fecha y, por clase, en los entrenamientos recurrentes.
+      // El valor existe en eventos de una fecha y, por mes, en los entrenamientos recurrentes.
       valor: (!recurrente || motivo === 'ENTRENAMIENTO') && valor ? Number(valor) : undefined,
       montoPagado: !recurrente && valor && sena ? Number(sena) : undefined,
       medioPago: !recurrente && valor && sena ? medioPago : undefined,
@@ -183,9 +183,9 @@ export function BloqueoDialog({
           </div>
           {tipo === 'recurrente' && motivo === 'ENTRENAMIENTO' && (
             <div className="space-y-1 rounded-lg border bg-neutral-50 p-3">
-              <Label htmlFor="bl-valor-clase">Valor por clase (opcional)</Label>
-              <Input id="bl-valor-clase" type="number" min="0" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="20000" />
-              <p className="text-xs text-muted-foreground">Lo que sale cada entrenamiento. Después, desde el bloqueo, marcás qué clases se pagaron y cuáles se deben. Lo cobrado entra en la caja.</p>
+              <Label htmlFor="bl-valor-mes">Valor por mes (opcional)</Label>
+              <Input id="bl-valor-mes" type="number" min="0" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="50000" />
+              <p className="text-xs text-muted-foreground">Lo que se paga por mes por este entrenamiento. Después, desde el bloqueo, marcás qué meses se pagaron y cuáles se deben. Lo cobrado entra en la caja.</p>
             </div>
           )}
           {tipo === 'puntual' && (

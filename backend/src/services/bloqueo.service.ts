@@ -2,8 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { BadRequest, BusinessRule, Conflict, NotFound } from '../utils/errors.js';
 import { ocupacionService } from './ocupacion.service.js';
 import { sheetsSync } from './sheets/sheetsSync.service.js';
-import { dayOfWeekInTz, minutoDeJornada, hhmmAMin, cierreMin, hoyEnTz, sumarDias } from '../utils/tz.js';
-import { vigenteEn } from './turnoFijo.vigencia.js';
+import { dayOfWeekInTz, minutoDeJornada, hhmmAMin, cierreMin, hoyEnTz } from '../utils/tz.js';
 import { getEnv } from '../config/env.js';
 import { configService } from './config.service.js';
 import { cobroRepo } from '../repositories/cobro.repo.js';
@@ -12,16 +11,30 @@ import { adminUserRepo } from '../repositories/adminUser.repo.js';
 const plata = (n: number) => '$' + n.toLocaleString('es-AR');
 const ymdDe = (d: Date) => d.toISOString().slice(0, 10);
 
-type BloqueoClase = { id: string; recurrente: boolean; diaSemana: number | null; vigenciaDesde: Date | null; vigenciaHasta: Date | null };
+type BloqueoMes = { vigenciaDesde: Date | null; vigenciaHasta: Date | null };
 
-/** ¿Es `fecha` una clase real de este entrenamiento recurrente? (día de la semana, período y no liberada). */
-async function assertClase(b: BloqueoClase, fecha: string | undefined): Promise<string> {
-  if (!fecha) throw BusinessRule('Indicá la fecha de la clase: el valor de un entrenamiento recurrente es por clase');
-  if (dayOfWeekInTz(fecha, getEnv().TZ_NEGOCIO) !== b.diaSemana) throw BusinessRule('Esa fecha no es un día de este entrenamiento');
-  if (!vigenteEn(b, fecha)) throw BusinessRule('Esa fecha está fuera del período del entrenamiento');
-  const liberada = await prisma.bloqueoExcepcion.findUnique({ where: { bloqueoId_fecha: { bloqueoId: b.id, fecha: new Date(fecha + 'T00:00:00.000Z') } } });
-  if (liberada) throw BusinessRule('Esa clase está liberada (no se da): no hay nada que cobrar');
-  return fecha;
+/** Último día ('YYYY-MM-DD') del mes 'YYYY-MM'. */
+function ultimoDiaDelMes(mes: string): string {
+  const [y, m] = mes.split('-').map(Number);
+  return mes + '-' + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0');
+}
+/** Suma meses a un 'YYYY-MM'. */
+function sumarMeses(mes: string, n: number): string {
+  const [y, m] = mes.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + n, 1));
+  return t.toISOString().slice(0, 7);
+}
+/** ¿El mes cae (aunque sea en parte) dentro del período del entrenamiento? */
+function mesEnPeriodo(b: BloqueoMes, mes: string): boolean {
+  if (b.vigenciaDesde && ymdDe(b.vigenciaDesde) > ultimoDiaDelMes(mes)) return false;
+  if (b.vigenciaHasta && ymdDe(b.vigenciaHasta) < mes + '-01') return false;
+  return true;
+}
+/** El valor de un entrenamiento recurrente es mensual: hay que decir qué mes, y que sea del período. */
+function assertMes(b: BloqueoMes, mes: string | undefined): string {
+  if (!mes) throw BusinessRule('Indicá el mes: el valor de un entrenamiento recurrente es mensual');
+  if (!mesEnPeriodo(b, mes)) throw BusinessRule('Ese mes está fuera del período del entrenamiento');
+  return mes;
 }
 
 export const bloqueoService = {
@@ -104,10 +117,10 @@ export const bloqueoService = {
       if (b.recurrente && c.valor !== null && (c.motivo ?? b.motivo) !== 'ENTRENAMIENTO') throw BusinessRule('El valor en un bloqueo recurrente solo aplica a entrenamientos');
       const total = (await cobroRepo.sumByBloqueos([id])).get(id) ?? 0;
       if (c.valor === null && total > 0) throw BusinessRule('No se puede sacar el valor: ya tiene cobros. Anulalos primero.');
-      // Evento puntual: contra lo cobrado en total. Entrenamiento: contra la clase en la que más se cobró.
-      const cobrado = b.recurrente ? Math.max(0, ...(await cobroRepo.sumByBloqueoPorFecha(id)).values()) : total;
+      // Evento puntual: contra lo cobrado en total. Entrenamiento: contra el mes en el que más se cobró.
+      const cobrado = b.recurrente ? Math.max(0, ...(await cobroRepo.sumByBloqueoPorMes(id)).values()) : total;
       if (c.valor !== null && c.valor < cobrado) throw BusinessRule(b.recurrente
-        ? `El valor por clase no puede ser menor a lo ya cobrado en una clase (${plata(cobrado)})`
+        ? `El valor mensual no puede ser menor a lo ya cobrado en un mes (${plata(cobrado)})`
         : `El valor no puede ser menor a lo ya cobrado (${plata(cobrado)})`);
       valor = c.valor;
     }
@@ -152,13 +165,13 @@ export const bloqueoService = {
   },
   /**
    * Cobros de un evento, con valor, pagado y saldo (misma forma que los del abono de un fijo). En un
-   * entrenamiento recurrente el valor es por clase, así que hay que pedir una `fecha`.
+   * entrenamiento recurrente el valor es mensual, así que hay que pedir el `mes` ('YYYY-MM').
    */
-  async listarCobros(id: string, fecha?: string) {
+  async listarCobros(id: string, mes?: string) {
     const b = await prisma.bloqueo.findUnique({ where: { id } });
     if (!b) throw NotFound('Bloqueo', id);
-    const f = b.recurrente ? await assertClase(b, fecha) : undefined;
-    const cobros = await cobroRepo.listByBloqueo(id, f);
+    const m = b.recurrente ? assertMes(b, mes) : undefined;
+    const cobros = await cobroRepo.listByBloqueo(id, m);
     const valor = b.valor == null ? 0 : Number(b.valor);
     const pagado = cobros.reduce((s, c) => s + Number(c.monto), 0);
     return {
@@ -166,49 +179,46 @@ export const bloqueoService = {
       cobros: cobros.map((c) => ({ id: c.id, monto: Number(c.monto), medio: c.medio, origen: c.origen, registradoPor: c.registradoPor?.nombre ?? 'Sistema', creadoEn: c.creadoEn })),
     };
   },
-  /** Otro pago del evento (el saldo el día del cumpleaños) o de una clase. No puede superar lo que falta. */
-  async registrarCobro(id: string, input: { monto: number; medio: 'EFECTIVO' | 'TRANSFERENCIA'; fecha?: string }, adminId: string | null) {
+  /** Otro pago del evento (el saldo el día del cumpleaños) o de un mes de un entrenamiento. No puede superar lo que falta. */
+  async registrarCobro(id: string, input: { monto: number; medio: 'EFECTIVO' | 'TRANSFERENCIA'; mes?: string }, adminId: string | null) {
     const b = await prisma.bloqueo.findUnique({ where: { id } });
     if (!b) throw NotFound('Bloqueo', id);
     if (b.valor == null) throw BusinessRule('Este bloqueo no tiene valor: no hay nada que cobrar');
-    const fecha = b.recurrente ? await assertClase(b, input.fecha) : undefined;
-    const yaPagado = fecha ? ((await cobroRepo.sumByBloqueoPorFecha(id)).get(fecha) ?? 0) : ((await cobroRepo.sumByBloqueos([id])).get(id) ?? 0);
+    const mes = b.recurrente ? assertMes(b, input.mes) : undefined;
+    const yaPagado = mes ? ((await cobroRepo.sumByBloqueoPorMes(id)).get(mes) ?? 0) : ((await cobroRepo.sumByBloqueos([id])).get(id) ?? 0);
     const saldo = Math.max(0, Number(b.valor) - yaPagado);
-    const queEs = fecha ? 'La clase' : 'El evento';
-    if (input.monto > saldo) throw BusinessRule(saldo === 0 ? `${queEs} ya está paga por completo` : `El pago supera el saldo: faltan ${plata(saldo)}`);
+    const queEs = mes ? 'El mes' : 'El evento';
+    if (input.monto > saldo) throw BusinessRule(saldo === 0 ? `${queEs} ya está pago por completo` : `El pago supera el saldo: faltan ${plata(saldo)}`);
     const adminExists = adminId ? !!(await adminUserRepo.findById(adminId)) : false;
     const cobro = await cobroRepo.create({
-      bloqueoId: id, bloqueoFecha: fecha ? new Date(fecha + 'T00:00:00.000Z') : null,
+      bloqueoId: id, bloqueoMes: mes ? new Date(mes + '-01T00:00:00.000Z') : null,
       monto: input.monto, medio: input.medio, origen: 'EVENTO', registradoPorId: adminExists ? adminId : null,
     });
     const pagado = yaPagado + input.monto;
     return { cobro: { id: cobro.id, monto: Number(cobro.monto), medio: cobro.medio }, pagado, saldo: Math.max(0, Number(b.valor) - pagado) };
   },
   /**
-   * Las clases de un entrenamiento recurrente entre dos fechas (por defecto, desde 5 semanas atrás
-   * hasta 2 semanas adelante), con lo cobrado de cada una. Las liberadas se marcan y no se cobran.
+   * Los meses de un entrenamiento recurrente entre dos meses ('YYYY-MM'; por defecto, 5 meses atrás
+   * hasta 1 adelante), solo los que caen en su período, con lo cobrado de cada uno.
    */
-  async clases(id: string, rango: { desde?: string; hasta?: string } = {}) {
-    const b = await prisma.bloqueo.findUnique({ where: { id }, include: { excepciones: true } });
+  async meses(id: string, rango: { desde?: string; hasta?: string } = {}) {
+    const b = await prisma.bloqueo.findUnique({ where: { id } });
     if (!b) throw NotFound('Bloqueo', id);
-    if (!b.recurrente) throw BusinessRule('Solo los bloqueos recurrentes tienen clases');
-    const tz = getEnv().TZ_NEGOCIO;
-    const hoy = hoyEnTz(tz);
-    const desde = rango.desde ?? sumarDias(hoy, -35);
-    const hasta = rango.hasta ?? sumarDias(hoy, 14);
+    if (!b.recurrente) throw BusinessRule('Solo los bloqueos recurrentes tienen meses');
+    const hoyMes = hoyEnTz(getEnv().TZ_NEGOCIO).slice(0, 7);
+    const desde = rango.desde ?? sumarMeses(hoyMes, -5);
+    const hasta = rango.hasta ?? sumarMeses(hoyMes, 1);
     if (desde > hasta) throw BadRequest('El rango está invertido');
-    if (sumarDias(desde, 400) < hasta) throw BadRequest('El rango es demasiado largo (máximo 400 días)');
-    const liberadas = new Set(b.excepciones.map((e) => ymdDe(e.fecha)));
-    const cobrado = await cobroRepo.sumByBloqueoPorFecha(id);
+    if (sumarMeses(desde, 36) < hasta) throw BadRequest('El rango es demasiado largo (máximo 36 meses)');
+    const cobrado = await cobroRepo.sumByBloqueoPorMes(id);
     const valor = b.valor == null ? null : Number(b.valor);
-    const clases: { fecha: string; liberada: boolean; pagado: number; saldo: number }[] = [];
-    for (let f = desde; f <= hasta; f = sumarDias(f, 1)) {
-      if (dayOfWeekInTz(f, tz) !== b.diaSemana || !vigenteEn(b, f)) continue;
-      const liberada = liberadas.has(f);
-      const pagado = cobrado.get(f) ?? 0;
-      clases.push({ fecha: f, liberada, pagado, saldo: valor == null || liberada ? 0 : Math.max(0, valor - pagado) });
+    const meses: { mes: string; pagado: number; saldo: number }[] = [];
+    for (let m = desde; m <= hasta; m = sumarMeses(m, 1)) {
+      if (!mesEnPeriodo(b, m)) continue;
+      const pagado = cobrado.get(m) ?? 0;
+      meses.push({ mes: m, pagado, saldo: valor == null ? 0 : Math.max(0, valor - pagado) });
     }
-    return { valor, clases };
+    return { valor, meses };
   },
   async agregarExcepcion(id: string, fecha: string) {
     const b = await prisma.bloqueo.findUnique({ where: { id } });
