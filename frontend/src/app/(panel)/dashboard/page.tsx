@@ -1,7 +1,8 @@
-import { DollarSign, CalendarDays, Trophy, Eye, Users } from 'lucide-react';
+import { DollarSign, CalendarDays, Trophy, Eye, Users, ShoppingBag, Receipt, Wallet } from 'lucide-react';
 import { requireAdmin } from '@/lib/require-admin';
 import { apiFetch } from '@/lib/api';
-import type { Cancha, Config, IngresoDia, OcupacionCelda, HorarioPico, Origenes, ReservasResumen } from '@/lib/types';
+import type { BuffetResumen, Cancha, Config, IngresoDia, OcupacionCelda, HorarioPico, Origenes, ReservasResumen } from '@/lib/types';
+import { normalizarVista } from '@/lib/dashboard-vista';
 import { hoyAR, addDias } from '@/lib/fecha';
 import { resolverAperturaCierreUnificados } from '@/lib/hora';
 import { MetricCard } from '@/components/dashboard/metric-card';
@@ -14,6 +15,9 @@ import { DashboardBloqueado } from '@/components/dashboard/dashboard-bloqueado';
 import { BotonOjo } from '@/components/dashboard/boton-ojo';
 import { OrigenesChart } from '@/components/dashboard/origenes-chart';
 import { OrigenesTabla } from '@/components/dashboard/origenes-tabla';
+import { VistaSelector } from '@/components/dashboard/vista-selector';
+import { BuffetVentasChart } from '@/components/dashboard/buffet-ventas-chart';
+import { BuffetMostradorCard } from '@/components/dashboard/buffet-mostrador-card';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 async function safe<T>(p: Promise<T>, fallback: T): Promise<T> { try { return await p; } catch { return fallback; } }
@@ -36,6 +40,44 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     : periodo === 'semana' ? addDias(hasta, -((diaSemana + 6) % 7))
     : addDias(hasta, -PERIODOS[periodo]);
   const qs = `desde=${desde}&hasta=${hasta}`;
+  const vista = normalizarVista(sp.vista);
+
+  // Encabezado común a las dos vistas: título, vista (canchas / buffet), período y el ojo del PIN.
+  const encabezado = (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="mt-1 text-sm text-neutral-600">{vista === 'buffet' ? 'Ventas del buffet, por mostrador.' : 'Resumen del complejo.'}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <PeriodoSelector periodo={periodo} vista={vista} />
+          <BotonOjo configurado={lock.configurado} />
+        </div>
+      </div>
+      <VistaSelector vista={vista} periodo={periodo} />
+    </div>
+  );
+
+  if (vista === 'buffet') {
+    const vacio = { monto: 0, tickets: 0, unidades: 0, ticketPromedio: 0, alquileres: 0, porMedio: { EFECTIVO: 0, TRANSFERENCIA: 0 } };
+    const buffet = await safe(apiFetch<BuffetResumen>(`/analytics/buffet?${qs}`), { total: vacio, mostradores: [], porDia: [] });
+    return (
+      <div className="space-y-6">
+        {encabezado}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard title="Ventas del buffet" value={money(buffet.total.monto)} hint="Los dos mostradores juntos" Icon={ShoppingBag} />
+          <MetricCard title="Tickets" value={String(buffet.total.tickets)} hint={`${buffet.total.unidades} unidades vendidas`} Icon={Receipt} />
+          <MetricCard title="Ticket promedio" value={money(buffet.total.ticketPromedio)} Icon={Wallet} />
+          <MetricCard title="Alquileres" value={money(buffet.total.alquileres)} hint="Aparte de las ventas" Icon={DollarSign} />
+        </div>
+        <BuffetVentasChart data={buffet.porDia} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          {buffet.mostradores.map((m) => <BuffetMostradorCard key={m.tipo} m={m} />)}
+        </div>
+      </div>
+    );
+  }
 
   const [ingresos, reservas, canchasTop, canchas, horarios, ingresosDia, ocupacion, config, origenes] = await Promise.all([
     safe(apiFetch<{ total: number }>(`/analytics/ingresos?${qs}`), { total: 0 }),
@@ -57,16 +99,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="mt-1 text-sm text-neutral-600">Resumen del complejo.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <PeriodoSelector periodo={periodo} />
-          <BotonOjo configurado={lock.configurado} />
-        </div>
-      </div>
+      {encabezado}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard title="Ingresos del período" value={money(ingresos.total)} hint="Reservas confirmadas/completadas" Icon={DollarSign} />
         <MetricCard title="Reservas del período" value={String(reservas.total)} hint="Turnos ya usados (terminó su horario)" Icon={CalendarDays} />

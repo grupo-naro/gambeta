@@ -6,6 +6,11 @@ import { dayOfWeekInTz, instanteDeJornada, jornadaWindowUtc, minutoDeJornada, su
 
 const ACTIVE = ['CONFIRMADA', 'COMPLETADA'] as const;
 
+const MOSTRADORES = ['PRINCIPAL', 'SECUNDARIO'] as const;
+type TipoMostrador = (typeof MOSTRADORES)[number];
+const NOMBRE_MOSTRADOR: Record<TipoMostrador, string> = { PRINCIPAL: 'Mostrador principal', SECUNDARIO: 'Mostrador secundario' };
+const redondear = (n: number) => Math.round(n * 100) / 100;
+
 export const analyticsService = {
   async ingresos(desde: Date, hasta: Date) {
     const agg = await prisma.reserva.aggregate({
@@ -130,6 +135,89 @@ export const analyticsService = {
       FROM "Reserva"
       WHERE estado IN ('CONFIRMADA','COMPLETADA') AND "fechaInicio" >= ${desde} AND "fechaInicio" < ${hasta}
       GROUP BY 1,2 ORDER BY dia, hora`;
+  },
+
+  /**
+   * Ventas del buffet en el período, separadas por mostrador (el buffet tiene dos puestos, principal y
+   * secundario, cada uno con su caja). Siempre devuelve los dos, aunque no hayan vendido. Las ventas
+   * son los tickets; los alquileres (pecheras, etc.) van aparte porque no son venta de buffet. El día
+   * de cada ticket es el de la hora argentina en que se vendió.
+   */
+  async buffet(desde: Date, hasta: Date) {
+    const tz = getEnv().TZ_NEGOCIO;
+    const dia = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const [tickets, alquileres, filas] = await Promise.all([
+      prisma.ticketBuffet.findMany({
+        where: { creadoEn: { gte: desde, lt: hasta } },
+        select: {
+          total: true, medioPago: true, creadoEn: true,
+          caja: { select: { mostrador: { select: { tipo: true } } } },
+          lineas: { select: { cantidad: true, precioUnit: true, producto: { select: { id: true, nombre: true } } } },
+        },
+      }),
+      prisma.alquiler.findMany({
+        where: { entregadoEn: { gte: desde, lt: hasta } },
+        select: { total: true, caja: { select: { mostrador: { select: { tipo: true } } } } },
+      }),
+      prisma.mostrador.findMany({ select: { tipo: true, nombre: true } }),
+    ]);
+    const nombres = new Map(filas.map((m) => [m.tipo as TipoMostrador, m.nombre]));
+
+    const acc = Object.fromEntries(MOSTRADORES.map((t) => [t, {
+      monto: 0, tickets: 0, unidades: 0, alquileres: 0,
+      porMedio: { EFECTIVO: 0, TRANSFERENCIA: 0 },
+      productos: new Map<string, { nombre: string; unidades: number; monto: number }>(),
+      porDia: new Map<string, number>(),
+    }])) as Record<TipoMostrador, { monto: number; tickets: number; unidades: number; alquileres: number; porMedio: { EFECTIVO: number; TRANSFERENCIA: number }; productos: Map<string, { nombre: string; unidades: number; monto: number }>; porDia: Map<string, number> }>;
+
+    for (const t of tickets) {
+      const a = acc[t.caja.mostrador.tipo as TipoMostrador];
+      const total = Number(t.total);
+      a.monto += total; a.tickets += 1; a.porMedio[t.medioPago] += total;
+      const f = dia.format(t.creadoEn);
+      a.porDia.set(f, (a.porDia.get(f) ?? 0) + total);
+      for (const l of t.lineas) {
+        a.unidades += l.cantidad;
+        const p = a.productos.get(l.producto.id) ?? { nombre: l.producto.nombre, unidades: 0, monto: 0 };
+        p.unidades += l.cantidad; p.monto += Number(l.precioUnit) * l.cantidad;
+        a.productos.set(l.producto.id, p);
+      }
+    }
+    for (const al of alquileres) acc[al.caja.mostrador.tipo as TipoMostrador].alquileres += Number(al.total);
+
+    const mostradores = MOSTRADORES.map((tipo) => {
+      const a = acc[tipo];
+      return {
+        tipo, nombre: nombres.get(tipo) ?? NOMBRE_MOSTRADOR[tipo],
+        monto: a.monto, tickets: a.tickets, unidades: a.unidades,
+        ticketPromedio: a.tickets ? redondear(a.monto / a.tickets) : 0,
+        alquileres: a.alquileres, porMedio: a.porMedio,
+        topProductos: [...a.productos.values()].sort((x, y) => y.unidades - x.unidades || y.monto - x.monto || x.nombre.localeCompare(y.nombre)).slice(0, 5),
+        porDia: [...a.porDia.entries()].map(([fecha, monto]) => ({ fecha, monto })).sort((x, y) => x.fecha.localeCompare(y.fecha)),
+      };
+    });
+    const sum = (f: (m: (typeof mostradores)[number]) => number) => mostradores.reduce((s, m) => s + f(m), 0);
+    const monto = sum((m) => m.monto);
+    const nTickets = sum((m) => m.tickets);
+
+    // Una fila por día con lo de cada mostrador, para el gráfico de barras apiladas.
+    const dias = new Set(mostradores.flatMap((m) => m.porDia.map((d) => d.fecha)));
+    const porDia = [...dias].sort().map((fecha) => ({
+      fecha,
+      PRINCIPAL: acc.PRINCIPAL.porDia.get(fecha) ?? 0,
+      SECUNDARIO: acc.SECUNDARIO.porDia.get(fecha) ?? 0,
+    }));
+
+    return {
+      total: {
+        monto, tickets: nTickets, unidades: sum((m) => m.unidades),
+        ticketPromedio: nTickets ? redondear(monto / nTickets) : 0,
+        alquileres: sum((m) => m.alquileres),
+        porMedio: { EFECTIVO: sum((m) => m.porMedio.EFECTIVO), TRANSFERENCIA: sum((m) => m.porMedio.TRANSFERENCIA) },
+      },
+      mostradores,
+      porDia,
+    };
   },
 
   ingresosPorDia(desde: Date, hasta: Date) {

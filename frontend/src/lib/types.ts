@@ -117,6 +117,19 @@ export interface LogActividad { id: string; creadoEn: string; usuario: string; a
 export type MedioPago = 'EFECTIVO' | 'TRANSFERENCIA';
 export interface Cobro { id: string; monto: number; medio: MedioPago; origen: string; registradoPor: string; creadoEn: string }
 export interface CobrosReserva { monto: number; pagado: number; saldo: number; cobros: Cobro[] }
+/** Ventas de un mostrador del buffet en el período (GET /analytics/buffet). */
+export interface BuffetMostradorResumen {
+  tipo: 'PRINCIPAL' | 'SECUNDARIO'; nombre: string;
+  monto: number; tickets: number; unidades: number; ticketPromedio: number; alquileres: number;
+  porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
+  topProductos: { nombre: string; unidades: number; monto: number }[];
+  porDia: { fecha: string; monto: number }[];
+}
+export interface BuffetResumen {
+  total: { monto: number; tickets: number; unidades: number; ticketPromedio: number; alquileres: number; porMedio: { EFECTIVO: number; TRANSFERENCIA: number } };
+  mostradores: BuffetMostradorResumen[];
+  porDia: { fecha: string; PRINCIPAL: number; SECUNDARIO: number }[];
+}
 export interface CajaReporte {
   desde: string; hasta: string; total: number;
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
