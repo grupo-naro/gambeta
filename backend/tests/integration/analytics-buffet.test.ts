@@ -41,7 +41,8 @@ describe('analytics del buffet, por mostrador', () => {
     expect(res.status).toBe(200);
     expect(res.body.total).toMatchObject({ monto: 0, tickets: 0, unidades: 0, ticketPromedio: 0, alquileres: 0 });
     expect(res.body.mostradores.map((m: any) => m.tipo)).toEqual(['PRINCIPAL', 'SECUNDARIO']);
-    expect(res.body.mostradores[0]).toMatchObject({ monto: 0, tickets: 0, topProductos: [], porDia: [] });
+    expect(res.body.mostradores[0]).toMatchObject({ monto: 0, tickets: 0, topProductos: [] });
+    expect(res.body.total.masVendido).toBeNull();
   });
 
   it('separa lo vendido en cada mostrador y suma el total', async () => {
@@ -82,18 +83,35 @@ describe('analytics del buffet, por mostrador', () => {
     expect(top.map((t: any) => t.nombre)).toEqual(['F', 'E', 'D', 'C', 'B']);
   });
 
-  it('ventas por día en hora argentina, separadas por mostrador', async () => {
+  it('desglose por día en hora argentina: todos los días del rango, el más nuevo primero', async () => {
     const coca = await producto('Coca', 2000);
+    const agua = await producto('Agua', 1000);
     const cp = await caja('mostrador-principal');
     const cs = await caja('mostrador-secundario');
     await ticket(cp.id, '2030-05-10T22:00:00Z', 'EFECTIVO', [[coca, 1]]); // 10/05 19:00
-    await ticket(cs.id, '2030-05-11T01:00:00Z', 'EFECTIVO', [[coca, 1]]); // 10/05 22:00 (aún es el 10 en Argentina)
+    await ticket(cs.id, '2030-05-11T01:00:00Z', 'TRANSFERENCIA', [[agua, 3]]); // 10/05 22:00 (aún es el 10 en Argentina)
     await ticket(cp.id, '2030-05-11T15:00:00Z', 'EFECTIVO', [[coca, 2]]); // 11/05 12:00
-    const res = await get('desde=2030-05-10&hasta=2030-05-11');
-    expect(res.body.porDia).toEqual([
-      { fecha: '2030-05-10', PRINCIPAL: 2000, SECUNDARIO: 2000 },
-      { fecha: '2030-05-11', PRINCIPAL: 4000, SECUNDARIO: 0 },
-    ]);
+    const res = await get('desde=2030-05-09&hasta=2030-05-11');
+    expect(res.body.dias.map((d: any) => d.fecha)).toEqual(['2030-05-11', '2030-05-10', '2030-05-09']);
+    const [d11, d10, d09] = res.body.dias;
+    expect(d11).toMatchObject({ unidades: 2, efectivo: 4000, transferencia: 0, total: 4000 });
+    expect(d10).toMatchObject({ unidades: 4, efectivo: 2000, transferencia: 3000, total: 5000 });
+    // un día sin ventas igual aparece, en cero
+    expect(d09).toMatchObject({ unidades: 0, efectivo: 0, transferencia: 0, total: 0, productos: [] });
+    // cada día separa lo de cada mostrador y sus productos
+    expect(d10.mostradores).toEqual({ PRINCIPAL: { unidades: 1, total: 2000 }, SECUNDARIO: { unidades: 3, total: 3000 } });
+    expect(d10.productos).toEqual([{ nombre: 'Agua', unidades: 3, monto: 3000 }, { nombre: 'Coca', unidades: 1, monto: 2000 }]);
+  });
+
+  it('el más vendido del período, sumando los dos mostradores', async () => {
+    const coca = await producto('Coca', 2000);
+    const agua = await producto('Agua', 1000);
+    const cp = await caja('mostrador-principal');
+    const cs = await caja('mostrador-secundario');
+    await ticket(cp.id, '2030-05-10T22:00:00Z', 'EFECTIVO', [[coca, 2], [agua, 1]]);
+    await ticket(cs.id, '2030-05-10T23:00:00Z', 'EFECTIVO', [[agua, 4]]);
+    const res = await get();
+    expect(res.body.total.masVendido).toEqual({ nombre: 'Agua', unidades: 5 });
   });
 
   it('respeta el período: lo de afuera no cuenta', async () => {

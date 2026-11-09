@@ -24,7 +24,7 @@ export function BuffetMostradorCard({ m }: { m: BuffetMostradorResumen }) {
         <div className="grid grid-cols-3 gap-4">
           <Dato etiqueta="Tickets" valor={String(m.tickets)} />
           <Dato etiqueta="Unidades" valor={String(m.unidades)} />
-          <Dato etiqueta="Ticket promedio" valor={money(m.ticketPromedio)} />
+          <Dato etiqueta="Ticket promedio" valor={money(Math.round(m.ticketPromedio))} />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <Dato etiqueta="Efectivo" valor={money(m.porMedio.EFECTIVO)} />

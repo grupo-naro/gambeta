@@ -51,7 +51,7 @@ analyticsRoutes.get('/horarios-pico', async (req, res, next) => {
 });
 // Ventas del buffet por mostrador (principal y secundario) en el período.
 analyticsRoutes.get('/buffet', async (req, res, next) => {
-  try { const { desde, hasta } = rango(req); res.json(await analyticsService.buffet(desde, hasta)); } catch (e) { next(e); }
+  try { const { desde, hasta, desdeYmd, hastaYmd } = rango(req); res.json(await analyticsService.buffet(desde, hasta, { desdeYmd, hastaYmd })); } catch (e) { next(e); }
 });
 analyticsRoutes.get('/ocupacion', async (req, res, next) => {
   try { const { desde, hasta } = rango(req); res.json(serializeBigInt(await analyticsService.ocupacion(desde, hasta))); } catch (e) { next(e); }

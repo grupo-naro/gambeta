@@ -141,11 +141,13 @@ export const analyticsService = {
    * Ventas del buffet en el período, separadas por mostrador (el buffet tiene dos puestos, principal y
    * secundario, cada uno con su caja). Siempre devuelve los dos, aunque no hayan vendido. Las ventas
    * son los tickets; los alquileres (pecheras, etc.) van aparte porque no son venta de buffet. El día
-   * de cada ticket es el de la hora argentina en que se vendió.
+   * de cada ticket es el de la hora argentina en que se vendió. `dias` trae TODOS los días del rango
+   * (también los sin ventas), el más nuevo primero, con el desglose por medio de pago, por mostrador y
+   * por producto.
    */
-  async buffet(desde: Date, hasta: Date) {
+  async buffet(desde: Date, hasta: Date, rango: { desdeYmd: string; hastaYmd: string }) {
     const tz = getEnv().TZ_NEGOCIO;
-    const dia = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const diaEnTz = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
     const [tickets, alquileres, filas] = await Promise.all([
       prisma.ticketBuffet.findMany({
         where: { creadoEn: { gte: desde, lt: hasta } },
@@ -163,24 +165,46 @@ export const analyticsService = {
     ]);
     const nombres = new Map(filas.map((m) => [m.tipo as TipoMostrador, m.nombre]));
 
+    type Prod = Map<string, { nombre: string; unidades: number; monto: number }>;
+    const sumarProducto = (m: Prod, id: string, nombre: string, unidades: number, monto: number) => {
+      const p = m.get(id) ?? { nombre, unidades: 0, monto: 0 };
+      p.unidades += unidades; p.monto += monto; m.set(id, p);
+    };
+    const porUnidades = (m: Prod) => [...m.values()].sort((x, y) => y.unidades - x.unidades || y.monto - x.monto || x.nombre.localeCompare(y.nombre));
+
     const acc = Object.fromEntries(MOSTRADORES.map((t) => [t, {
       monto: 0, tickets: 0, unidades: 0, alquileres: 0,
       porMedio: { EFECTIVO: 0, TRANSFERENCIA: 0 },
-      productos: new Map<string, { nombre: string; unidades: number; monto: number }>(),
-      porDia: new Map<string, number>(),
-    }])) as Record<TipoMostrador, { monto: number; tickets: number; unidades: number; alquileres: number; porMedio: { EFECTIVO: number; TRANSFERENCIA: number }; productos: Map<string, { nombre: string; unidades: number; monto: number }>; porDia: Map<string, number> }>;
+      productos: new Map() as Prod,
+    }]));
+    type Acc = (typeof acc)[TipoMostrador];
+    const dias = new Map<string, {
+      unidades: number; efectivo: number; transferencia: number; total: number;
+      mostradores: Record<TipoMostrador, { unidades: number; total: number }>; productos: Prod;
+    }>();
+    const productosTotal: Prod = new Map();
+    const diaDe = (fecha: string) => {
+      let d = dias.get(fecha);
+      if (!d) { d = { unidades: 0, efectivo: 0, transferencia: 0, total: 0, mostradores: { PRINCIPAL: { unidades: 0, total: 0 }, SECUNDARIO: { unidades: 0, total: 0 } }, productos: new Map() }; dias.set(fecha, d); }
+      return d;
+    };
 
     for (const t of tickets) {
-      const a = acc[t.caja.mostrador.tipo as TipoMostrador];
+      const tipo = t.caja.mostrador.tipo as TipoMostrador;
+      const a: Acc = acc[tipo];
       const total = Number(t.total);
       a.monto += total; a.tickets += 1; a.porMedio[t.medioPago] += total;
-      const f = dia.format(t.creadoEn);
-      a.porDia.set(f, (a.porDia.get(f) ?? 0) + total);
+      const d = diaDe(diaEnTz.format(t.creadoEn));
+      d.total += total;
+      d.mostradores[tipo].total += total;
+      if (t.medioPago === 'EFECTIVO') d.efectivo += total; else d.transferencia += total;
       for (const l of t.lineas) {
+        const monto = Number(l.precioUnit) * l.cantidad;
         a.unidades += l.cantidad;
-        const p = a.productos.get(l.producto.id) ?? { nombre: l.producto.nombre, unidades: 0, monto: 0 };
-        p.unidades += l.cantidad; p.monto += Number(l.precioUnit) * l.cantidad;
-        a.productos.set(l.producto.id, p);
+        d.unidades += l.cantidad; d.mostradores[tipo].unidades += l.cantidad;
+        sumarProducto(a.productos, l.producto.id, l.producto.nombre, l.cantidad, monto);
+        sumarProducto(d.productos, l.producto.id, l.producto.nombre, l.cantidad, monto);
+        sumarProducto(productosTotal, l.producto.id, l.producto.nombre, l.cantidad, monto);
       }
     }
     for (const al of alquileres) acc[al.caja.mostrador.tipo as TipoMostrador].alquileres += Number(al.total);
@@ -192,21 +216,20 @@ export const analyticsService = {
         monto: a.monto, tickets: a.tickets, unidades: a.unidades,
         ticketPromedio: a.tickets ? redondear(a.monto / a.tickets) : 0,
         alquileres: a.alquileres, porMedio: a.porMedio,
-        topProductos: [...a.productos.values()].sort((x, y) => y.unidades - x.unidades || y.monto - x.monto || x.nombre.localeCompare(y.nombre)).slice(0, 5),
-        porDia: [...a.porDia.entries()].map(([fecha, monto]) => ({ fecha, monto })).sort((x, y) => x.fecha.localeCompare(y.fecha)),
+        topProductos: porUnidades(a.productos).slice(0, 5),
       };
     });
-    const sum = (f: (m: (typeof mostradores)[number]) => number) => mostradores.reduce((s, m) => s + f(m), 0);
+    const sum = (fn: (m: (typeof mostradores)[number]) => number) => mostradores.reduce((s, m) => s + fn(m), 0);
     const monto = sum((m) => m.monto);
     const nTickets = sum((m) => m.tickets);
+    const top = porUnidades(productosTotal)[0];
 
-    // Una fila por día con lo de cada mostrador, para el gráfico de barras apiladas.
-    const dias = new Set(mostradores.flatMap((m) => m.porDia.map((d) => d.fecha)));
-    const porDia = [...dias].sort().map((fecha) => ({
-      fecha,
-      PRINCIPAL: acc.PRINCIPAL.porDia.get(fecha) ?? 0,
-      SECUNDARIO: acc.SECUNDARIO.porDia.get(fecha) ?? 0,
-    }));
+    // Todos los días del rango, también los sin ventas, el más nuevo primero.
+    const lista = [];
+    for (let fecha = rango.hastaYmd; fecha >= rango.desdeYmd; fecha = sumarDias(fecha, -1)) {
+      const d = dias.get(fecha) ?? diaDe(fecha);
+      lista.push({ fecha, unidades: d.unidades, efectivo: d.efectivo, transferencia: d.transferencia, total: d.total, mostradores: d.mostradores, productos: porUnidades(d.productos) });
+    }
 
     return {
       total: {
@@ -214,9 +237,10 @@ export const analyticsService = {
         ticketPromedio: nTickets ? redondear(monto / nTickets) : 0,
         alquileres: sum((m) => m.alquileres),
         porMedio: { EFECTIVO: sum((m) => m.porMedio.EFECTIVO), TRANSFERENCIA: sum((m) => m.porMedio.TRANSFERENCIA) },
+        masVendido: top ? { nombre: top.nombre, unidades: top.unidades } : null,
       },
       mostradores,
-      porDia,
+      dias: lista,
     };
   },
 

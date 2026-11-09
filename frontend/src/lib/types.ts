@@ -123,12 +123,22 @@ export interface BuffetMostradorResumen {
   monto: number; tickets: number; unidades: number; ticketPromedio: number; alquileres: number;
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
   topProductos: { nombre: string; unidades: number; monto: number }[];
-  porDia: { fecha: string; monto: number }[];
+}
+/** Un día del buffet: todo junto, por medio de pago, por mostrador y por producto. */
+export interface BuffetDia {
+  fecha: string; unidades: number; efectivo: number; transferencia: number; total: number;
+  mostradores: { PRINCIPAL: { unidades: number; total: number }; SECUNDARIO: { unidades: number; total: number } };
+  productos: { nombre: string; unidades: number; monto: number }[];
 }
 export interface BuffetResumen {
-  total: { monto: number; tickets: number; unidades: number; ticketPromedio: number; alquileres: number; porMedio: { EFECTIVO: number; TRANSFERENCIA: number } };
+  total: {
+    monto: number; tickets: number; unidades: number; ticketPromedio: number; alquileres: number;
+    porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
+    masVendido: { nombre: string; unidades: number } | null;
+  };
   mostradores: BuffetMostradorResumen[];
-  porDia: { fecha: string; PRINCIPAL: number; SECUNDARIO: number }[];
+  /** Todos los días del período (también los sin ventas), el más nuevo primero. */
+  dias: BuffetDia[];
 }
 export interface CajaReporte {
   desde: string; hasta: string; total: number;

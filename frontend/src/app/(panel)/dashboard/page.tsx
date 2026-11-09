@@ -1,4 +1,4 @@
-import { DollarSign, CalendarDays, Trophy, Eye, Users, ShoppingBag, Receipt, Wallet } from 'lucide-react';
+import { DollarSign, CalendarDays, Trophy, Eye, Users } from 'lucide-react';
 import { requireAdmin } from '@/lib/require-admin';
 import { apiFetch } from '@/lib/api';
 import type { BuffetResumen, Cancha, Config, IngresoDia, OcupacionCelda, HorarioPico, Origenes, ReservasResumen } from '@/lib/types';
@@ -16,13 +16,16 @@ import { BotonOjo } from '@/components/dashboard/boton-ojo';
 import { OrigenesChart } from '@/components/dashboard/origenes-chart';
 import { OrigenesTabla } from '@/components/dashboard/origenes-tabla';
 import { VistaSelector } from '@/components/dashboard/vista-selector';
-import { BuffetVentasChart } from '@/components/dashboard/buffet-ventas-chart';
+import { BuffetResumenCard } from '@/components/dashboard/buffet-resumen';
+import { BuffetPorDia } from '@/components/dashboard/buffet-por-dia';
+import { DescargarPdf } from '@/components/dashboard/descargar-pdf';
 import { BuffetMostradorCard } from '@/components/dashboard/buffet-mostrador-card';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 async function safe<T>(p: Promise<T>, fallback: T): Promise<T> { try { return await p; } catch { return fallback; } }
 
 const PERIODOS: Record<string, number> = { hoy: 0, '7': 6, '30': 29 };
+const ETIQUETA_PERIODO: Record<string, string> = { hoy: 'Hoy', '7': 'Últimos 7 días', semana: 'Esta semana', '30': 'Últimos 30 días', mes: 'Este mes' };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   await requireAdmin();
@@ -42,8 +45,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const qs = `desde=${desde}&hasta=${hasta}`;
   const vista = normalizarVista(sp.vista);
 
-  // Encabezado común a las dos vistas: título, vista (canchas / buffet), período y el ojo del PIN.
-  const encabezado = (
+  const periodoPdf = { desde, hasta, etiqueta: ETIQUETA_PERIODO[periodo] };
+
+  // Encabezado común a las dos vistas: título, vista (canchas / buffet), período, PDF y el ojo del PIN.
+  const encabezado = (pdf: React.ReactNode) => (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -52,6 +57,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PeriodoSelector periodo={periodo} vista={vista} />
+          {pdf}
           <BotonOjo configurado={lock.configurado} />
         </div>
       </div>
@@ -60,21 +66,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   );
 
   if (vista === 'buffet') {
-    const vacio = { monto: 0, tickets: 0, unidades: 0, ticketPromedio: 0, alquileres: 0, porMedio: { EFECTIVO: 0, TRANSFERENCIA: 0 } };
-    const buffet = await safe(apiFetch<BuffetResumen>(`/analytics/buffet?${qs}`), { total: vacio, mostradores: [], porDia: [] });
+    const vacio = { monto: 0, tickets: 0, unidades: 0, ticketPromedio: 0, alquileres: 0, porMedio: { EFECTIVO: 0, TRANSFERENCIA: 0 }, masVendido: null };
+    const buffet = await safe(apiFetch<BuffetResumen>(`/analytics/buffet?${qs}`), { total: vacio, mostradores: [], dias: [] });
     return (
       <div className="space-y-6">
-        {encabezado}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Ventas del buffet" value={money(buffet.total.monto)} hint="Los dos mostradores juntos" Icon={ShoppingBag} />
-          <MetricCard title="Tickets" value={String(buffet.total.tickets)} hint={`${buffet.total.unidades} unidades vendidas`} Icon={Receipt} />
-          <MetricCard title="Ticket promedio" value={money(buffet.total.ticketPromedio)} Icon={Wallet} />
-          <MetricCard title="Alquileres" value={money(buffet.total.alquileres)} hint="Aparte de las ventas" Icon={DollarSign} />
-        </div>
-        <BuffetVentasChart data={buffet.porDia} />
-        <div className="grid gap-4 lg:grid-cols-2">
-          {buffet.mostradores.map((m) => <BuffetMostradorCard key={m.tipo} m={m} />)}
-        </div>
+        {encabezado(<DescargarPdf vista="buffet" datos={buffet} periodo={periodoPdf} />)}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Resumen</h2>
+          <BuffetResumenCard total={buffet.total} />
+        </section>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Por mostrador</h2>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {buffet.mostradores.map((m) => <BuffetMostradorCard key={m.tipo} m={m} />)}
+          </div>
+        </section>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Por día</h2>
+          <BuffetPorDia dias={buffet.dias} />
+        </section>
       </div>
     );
   }
@@ -99,7 +109,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="space-y-6">
-      {encabezado}
+      {encabezado(<DescargarPdf vista="canchas" datos={{ ingresos: Number(ingresos.total), reservas, canchaTop: topNombre, ingresosPorDia: ingresosDia }} periodo={periodoPdf} />)}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard title="Ingresos del período" value={money(ingresos.total)} hint="Reservas confirmadas/completadas" Icon={DollarSign} />
         <MetricCard title="Reservas del período" value={String(reservas.total)} hint="Turnos ya usados (terminó su horario)" Icon={CalendarDays} />
