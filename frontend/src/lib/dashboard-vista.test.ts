@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { dashboardHref, normalizarVista } from './dashboard-vista';
 
 describe('normalizarVista', () => {
-  it('buffet es buffet; todo lo demás es canchas', () => {
+  it('buffet y academia son esas vistas; todo lo demás es canchas', () => {
     expect(normalizarVista('buffet')).toBe('buffet');
+    expect(normalizarVista('academia')).toBe('academia');
     expect(normalizarVista('canchas')).toBe('canchas');
     expect(normalizarVista(undefined)).toBe('canchas');
     expect(normalizarVista('otra')).toBe('canchas');

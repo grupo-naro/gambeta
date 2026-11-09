@@ -6,9 +6,10 @@ import { dashboardHref, type VistaDashboard } from '@/lib/dashboard-vista';
 const OPCIONES: { v: VistaDashboard; label: string }[] = [
   { v: 'canchas', label: 'Canchas' },
   { v: 'buffet', label: 'Buffet' },
+  { v: 'academia', label: 'Academia' },
 ];
 
-/** Cambia entre las analíticas de las canchas (fútbol y pádel) y las del buffet, sin perder el período. */
+/** Cambia entre las analíticas de las canchas (fútbol y pádel), el buffet y la academia, sin perder el período. */
 export function VistaSelector({ vista, periodo }: { vista: VistaDashboard; periodo: string }) {
   const router = useRouter();
   return (

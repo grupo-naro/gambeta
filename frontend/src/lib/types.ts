@@ -124,6 +124,16 @@ export interface BuffetMostradorResumen {
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
   topProductos: { nombre: string; unidades: number; monto: number }[];
 }
+/** Un entrenamiento de la academia con su valor mensual, lo cobrado en el período y lo que se debe. */
+export interface AcademiaEntrenamiento {
+  id: string; nombre: string; cancha: string; diaSemana: number | null; horaInicio: string; horaFin: string;
+  valor: number; cobrado: number; debe: number; mesesConDeuda: number;
+}
+/** La academia en el período (GET /analytics/academia). */
+export interface AcademiaResumen {
+  total: { cobrado: number; porMedio: { EFECTIVO: number; TRANSFERENCIA: number }; debe: number; entrenamientos: number };
+  entrenamientos: AcademiaEntrenamiento[];
+}
 /** Un día del buffet: todo junto, por medio de pago, por mostrador y por producto. */
 export interface BuffetDia {
   fecha: string; unidades: number; efectivo: number; transferencia: number; total: number;
@@ -143,9 +153,9 @@ export interface BuffetResumen {
 export interface CajaReporte {
   desde: string; hasta: string; total: number;
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
-  porConcepto: { turnos: number; cuotas: number; abonos: number; eventos: number };
+  porConcepto: { turnos: number; cuotas: number; abonos: number; eventos: number; academia: number };
   porCancha: { canchaId: string; nombre: string; total: number }[];
-  cobros: { id: string; creadoEn: string; monto: number; medio: MedioPago; concepto: 'TURNO' | 'CUOTA' | 'ABONO' | 'EVENTO'; cancha: string; cliente: string; registradoPor: string }[];
+  cobros: { id: string; creadoEn: string; monto: number; medio: MedioPago; concepto: 'TURNO' | 'CUOTA' | 'ABONO' | 'EVENTO' | 'ACADEMIA'; cancha: string; cliente: string; registradoPor: string }[];
 }
 
 export interface SheetsInfo { configurado: boolean; url: string | null }

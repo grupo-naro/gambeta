@@ -192,7 +192,8 @@ export const bloqueoService = {
     const adminExists = adminId ? !!(await adminUserRepo.findById(adminId)) : false;
     const cobro = await cobroRepo.create({
       bloqueoId: id, bloqueoMes: mes ? new Date(mes + '-01T00:00:00.000Z') : null,
-      monto: input.monto, medio: input.medio, origen: 'EVENTO', registradoPorId: adminExists ? adminId : null,
+      // Con mes es un entrenamiento (la academia); sin mes, un evento (cumpleaños, etc.).
+      monto: input.monto, medio: input.medio, origen: mes ? 'ACADEMIA' : 'EVENTO', registradoPorId: adminExists ? adminId : null,
     });
     const pagado = yaPagado + input.monto;
     return { cobro: { id: cobro.id, monto: Number(cobro.monto), medio: cobro.medio }, pagado, saldo: Math.max(0, Number(b.valor) - pagado) };

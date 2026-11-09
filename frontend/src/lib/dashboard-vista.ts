@@ -1,9 +1,9 @@
-/** El dashboard tiene dos vistas: las canchas (fútbol y pádel) y el buffet. */
-export type VistaDashboard = 'canchas' | 'buffet';
+/** El dashboard tiene tres vistas: las canchas (fútbol y pádel), el buffet y la academia. */
+export type VistaDashboard = 'canchas' | 'buffet' | 'academia';
 
 /** Cualquier valor raro de la URL cae en la vista de canchas, que es la de siempre. */
 export function normalizarVista(v: string | undefined): VistaDashboard {
-  return v === 'buffet' ? 'buffet' : 'canchas';
+  return v === 'buffet' || v === 'academia' ? v : 'canchas';
 }
 
 /** Link del dashboard conservando el período al cambiar de vista (y la vista al cambiar de período). */

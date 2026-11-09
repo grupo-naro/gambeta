@@ -49,6 +49,10 @@ analyticsRoutes.get('/canchas-top', async (req, res, next) => {
 analyticsRoutes.get('/horarios-pico', async (req, res, next) => {
   try { const { desde, hasta } = rango(req); res.json(serializeBigInt(await analyticsService.horariosPico(desde, hasta))); } catch (e) { next(e); }
 });
+// La academia (entrenamientos con valor mensual): cobrado en el período y deuda de meses.
+analyticsRoutes.get('/academia', async (req, res, next) => {
+  try { const { desde, hasta } = rango(req); res.json(await analyticsService.academia(desde, hasta)); } catch (e) { next(e); }
+});
 // Ventas del buffet por mostrador (principal y secundario) en el período.
 analyticsRoutes.get('/buffet', async (req, res, next) => {
   try { const { desde, hasta, desdeYmd, hastaYmd } = rango(req); res.json(await analyticsService.buffet(desde, hasta, { desdeYmd, hastaYmd })); } catch (e) { next(e); }

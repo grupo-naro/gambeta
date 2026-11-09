@@ -4,7 +4,7 @@ import type { CajaReporte } from '@/lib/types';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 const fmt = (iso: string) => new Date(iso).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-const conceptoLabel = (c: 'TURNO' | 'CUOTA' | 'ABONO' | 'EVENTO') => c === 'CUOTA' ? 'Cuota de socio' : c === 'ABONO' ? 'Abono de fijo' : c === 'EVENTO' ? 'Evento' : 'Turno';
+const conceptoLabel = (c: 'TURNO' | 'CUOTA' | 'ABONO' | 'EVENTO' | 'ACADEMIA') => c === 'CUOTA' ? 'Cuota de socio' : c === 'ABONO' ? 'Abono de fijo' : c === 'EVENTO' ? 'Evento' : c === 'ACADEMIA' ? 'Academia' : 'Turno';
 
 export function CajaReporteView({ caja }: { caja: CajaReporte }) {
   return (
@@ -17,12 +17,13 @@ export function CajaReporteView({ caja }: { caja: CajaReporte }) {
       {/* Turnos vs cuotas de socios vs abonos de fijos: sin este desglose el total de caja no se
           puede explicar contra la suma de los turnos del día, porque cuotas y abonos no tienen
           cancha (o el turno que originan sale en $0). */}
-      {(caja.porConcepto.cuotas > 0 || caja.porConcepto.abonos > 0 || caja.porConcepto.eventos > 0) && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {(caja.porConcepto.cuotas > 0 || caja.porConcepto.abonos > 0 || caja.porConcepto.eventos > 0 || (caja.porConcepto.academia ?? 0) > 0) && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <div className="rounded-lg border bg-white p-4"><div className="text-xs text-neutral-600">Turnos</div><div className="text-lg font-semibold">{money(caja.porConcepto.turnos)}</div></div>
           <div className="rounded-lg border bg-white p-4"><div className="text-xs text-neutral-600">Cuotas de socios</div><div className="text-lg font-semibold">{money(caja.porConcepto.cuotas)}</div></div>
           <div className="rounded-lg border bg-white p-4"><div className="text-xs text-neutral-600">Abonos de fijos</div><div className="text-lg font-semibold">{money(caja.porConcepto.abonos)}</div></div>
           <div className="rounded-lg border bg-white p-4"><div className="text-xs text-neutral-600">Eventos</div><div className="text-lg font-semibold">{money(caja.porConcepto.eventos ?? 0)}</div></div>
+          <div className="rounded-lg border bg-white p-4"><div className="text-xs text-neutral-600">Academia</div><div className="text-lg font-semibold">{money(caja.porConcepto.academia ?? 0)}</div></div>
         </div>
       )}
       {caja.porCancha.length > 0 && (

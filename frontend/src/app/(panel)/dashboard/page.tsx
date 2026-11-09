@@ -1,7 +1,7 @@
 import { DollarSign, CalendarDays, Trophy, Eye, Users } from 'lucide-react';
 import { requireAdmin } from '@/lib/require-admin';
 import { apiFetch } from '@/lib/api';
-import type { BuffetResumen, Cancha, Config, IngresoDia, OcupacionCelda, HorarioPico, Origenes, ReservasResumen } from '@/lib/types';
+import type { AcademiaResumen, BuffetResumen, Cancha, Config, IngresoDia, OcupacionCelda, HorarioPico, Origenes, ReservasResumen } from '@/lib/types';
 import { normalizarVista } from '@/lib/dashboard-vista';
 import { hoyAR, addDias } from '@/lib/fecha';
 import { resolverAperturaCierreUnificados } from '@/lib/hora';
@@ -16,6 +16,8 @@ import { BotonOjo } from '@/components/dashboard/boton-ojo';
 import { OrigenesChart } from '@/components/dashboard/origenes-chart';
 import { OrigenesTabla } from '@/components/dashboard/origenes-tabla';
 import { VistaSelector } from '@/components/dashboard/vista-selector';
+import { AcademiaResumenCard } from '@/components/dashboard/academia-resumen';
+import { AcademiaEntrenamientos } from '@/components/dashboard/academia-entrenamientos';
 import { BuffetResumenCard } from '@/components/dashboard/buffet-resumen';
 import { BuffetPorDia } from '@/components/dashboard/buffet-por-dia';
 import { DescargarPdf } from '@/components/dashboard/descargar-pdf';
@@ -53,7 +55,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="mt-1 text-sm text-neutral-600">{vista === 'buffet' ? 'Ventas del buffet, por mostrador.' : 'Resumen del complejo.'}</p>
+          <p className="mt-1 text-sm text-neutral-600">{vista === 'buffet' ? 'Ventas del buffet, por mostrador.' : vista === 'academia' ? 'Cobros y deuda de la academia.' : 'Resumen del complejo.'}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <PeriodoSelector periodo={periodo} vista={vista} />
@@ -64,6 +66,23 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <VistaSelector vista={vista} periodo={periodo} />
     </div>
   );
+
+  if (vista === 'academia') {
+    const academia = await safe(apiFetch<AcademiaResumen>(`/analytics/academia?${qs}`), { total: { cobrado: 0, porMedio: { EFECTIVO: 0, TRANSFERENCIA: 0 }, debe: 0, entrenamientos: 0 }, entrenamientos: [] });
+    return (
+      <div className="space-y-6">
+        {encabezado(<DescargarPdf vista="academia" datos={academia} periodo={periodoPdf} />)}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Resumen</h2>
+          <AcademiaResumenCard total={academia.total} />
+        </section>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Por entrenamiento</h2>
+          <AcademiaEntrenamientos entrenamientos={academia.entrenamientos} />
+        </section>
+      </div>
+    );
+  }
 
   if (vista === 'buffet') {
     const vacio = { monto: 0, tickets: 0, unidades: 0, ticketPromedio: 0, alquileres: 0, porMedio: { EFECTIVO: 0, TRANSFERENCIA: 0 }, masVendido: null };

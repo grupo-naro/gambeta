@@ -1,7 +1,8 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { etiquetaDia } from './dashboard-buffet';
-import type { BuffetDia, BuffetResumen, IngresoDia, ReservasResumen } from './types';
+import { diaYHora, textoMeses } from './dashboard-academia';
+import type { AcademiaResumen, BuffetDia, BuffetResumen, IngresoDia, ReservasResumen } from './types';
 
 /** Período que cubre el PDF: 'YYYY-MM-DD' inclusivo en los dos extremos, y cómo se llama ("Este mes"). */
 export interface PeriodoPdf { desde: string; hasta: string; etiqueta: string }
@@ -14,7 +15,7 @@ const VERDE: [number, number, number] = [22, 101, 52];
 const GRIS: [number, number, number] = [90, 90, 90];
 
 /** Nombre del archivo: gambeteando-buffet-2026-11-02_2026-11-08.pdf */
-export function nombreArchivoPdf(vista: 'canchas' | 'buffet', p: PeriodoPdf): string {
+export function nombreArchivoPdf(vista: 'canchas' | 'buffet' | 'academia', p: PeriodoPdf): string {
   return `gambeteando-${vista}-${p.desde}_${p.hasta}.pdf`;
 }
 
@@ -97,6 +98,40 @@ export function pdfBuffet(b: BuffetResumen, p: PeriodoPdf): jsPDF {
       body: filas,
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
       didParseCell: (d) => { if (d.section === 'body' && d.row.index === filas.length - 1) d.cell.styles.fontStyle = 'bold'; },
+    });
+  }
+  return doc;
+}
+
+/** PDF de la vista Academia: lo cobrado, la deuda y cada entrenamiento. */
+export function pdfAcademia(a: AcademiaResumen, p: PeriodoPdf): jsPDF {
+  const doc = new jsPDF();
+  let y = encabezado(doc, 'Academia', p);
+
+  y = subtitulo(doc, 'Resumen', y);
+  autoTable(doc, {
+    ...estiloTabla, startY: y, theme: 'plain', styles: { fontSize: 10 },
+    body: [
+      ['Cobrado en el período', money(a.total.cobrado)],
+      ['Efectivo', money(a.total.porMedio.EFECTIVO)],
+      ['Transferencia', money(a.total.porMedio.TRANSFERENCIA)],
+      ['A cobrar (meses sin pagar)', money(a.total.debe)],
+      ['Entrenamientos con valor mensual', String(a.total.entrenamientos)],
+    ],
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 65 } },
+  });
+  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(...GRIS);
+  doc.text('"A cobrar" suma los meses sin pagar hasta el mes actual, sin importar el período elegido.', 14, finTabla(doc) + 6);
+
+  y = subtitulo(doc, 'Por entrenamiento', finTabla(doc) + 14);
+  if (a.entrenamientos.length === 0) {
+    doc.setFont('helvetica', 'normal').setFontSize(10).setTextColor(...GRIS).text('No hay entrenamientos con valor mensual.', 14, y + 6);
+  } else {
+    autoTable(doc, {
+      ...estiloTabla, startY: y,
+      head: [['Entrenamiento', 'Cancha', 'Día y hora', 'Valor por mes', 'Cobrado', 'Debe']],
+      body: a.entrenamientos.map((e) => [e.nombre, e.cancha, diaYHora(e), money(e.valor), money(e.cobrado), e.debe > 0 ? `${money(e.debe)} (${textoMeses(e.mesesConDeuda)})` : 'Al día']),
+      columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } },
     });
   }
   return doc;

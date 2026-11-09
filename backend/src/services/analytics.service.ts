@@ -11,6 +11,14 @@ type TipoMostrador = (typeof MOSTRADORES)[number];
 const NOMBRE_MOSTRADOR: Record<TipoMostrador, string> = { PRINCIPAL: 'Mostrador principal', SECUNDARIO: 'Mostrador secundario' };
 const redondear = (n: number) => Math.round(n * 100) / 100;
 
+/** 'YYYY-MM' a partir de un 'YYYY-MM-DD'. */
+const mesDe = (ymd: string) => ymd.slice(0, 7);
+/** Suma meses a un 'YYYY-MM'. */
+function sumarMesesYm(ym: string, n: number): string {
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7);
+}
+
 export const analyticsService = {
   async ingresos(desde: Date, hasta: Date) {
     const agg = await prisma.reserva.aggregate({
@@ -242,6 +250,69 @@ export const analyticsService = {
       mostradores,
       dias: lista,
     };
+  },
+
+  /**
+   * La academia (entrenamientos recurrentes con valor mensual): lo cobrado en el período y lo que se debe.
+   *
+   * Cobrado: los cobros de un mes de entrenamiento hechos entre `desde` y `hasta` (por la fecha en que
+   * se cobró, como la caja), aunque el entrenamiento ya se haya eliminado.
+   *
+   * Debe: por cada entrenamiento con valor, cada mes de su período hasta el mes actual (el mes en curso
+   * cuenta, uno futuro no) que no esté pago por completo. No depende del período elegido: es lo que se
+   * debe hoy. Sin fecha de inicio cuenta desde el mes en que se creó.
+   */
+  async academia(desde: Date, hasta: Date) {
+    const tz = getEnv().TZ_NEGOCIO;
+    const dia = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const mesActual = mesDe(dia.format(new Date()));
+
+    const [cobrosPeriodo, bloqueos, cobrosPorMes] = await Promise.all([
+      prisma.cobro.findMany({
+        where: { bloqueoMes: { not: null }, creadoEn: { gte: desde, lt: hasta } },
+        select: { monto: true, medio: true, bloqueoId: true },
+      }),
+      prisma.bloqueo.findMany({
+        where: { motivo: 'ENTRENAMIENTO', recurrente: true, valor: { not: null } },
+        include: { cancha: { select: { nombre: true } } },
+        orderBy: { creadoEn: 'asc' },
+      }),
+      prisma.cobro.groupBy({ by: ['bloqueoId', 'bloqueoMes'], where: { bloqueoMes: { not: null }, bloqueoId: { not: null } }, _sum: { monto: true } }),
+    ]);
+
+    const porMedio = { EFECTIVO: 0, TRANSFERENCIA: 0 };
+    const cobradoPorBloqueo = new Map<string, number>();
+    let cobrado = 0;
+    for (const c of cobrosPeriodo) {
+      const m = Number(c.monto);
+      cobrado += m; porMedio[c.medio] += m;
+      if (c.bloqueoId) cobradoPorBloqueo.set(c.bloqueoId, (cobradoPorBloqueo.get(c.bloqueoId) ?? 0) + m);
+    }
+
+    // Lo pagado de cada mes de cada entrenamiento: 'bloqueoId|YYYY-MM' → monto.
+    const pagado = new Map<string, number>();
+    for (const r of cobrosPorMes) pagado.set(r.bloqueoId + '|' + (r.bloqueoMes as Date).toISOString().slice(0, 7), Number(r._sum.monto ?? 0));
+
+    let debeTotal = 0;
+    const entrenamientos = bloqueos.map((b) => {
+      const valor = Number(b.valor);
+      const inicio = b.vigenciaDesde ? b.vigenciaDesde.toISOString().slice(0, 7) : mesDe(dia.format(b.creadoEn));
+      const fin = b.vigenciaHasta && b.vigenciaHasta.toISOString().slice(0, 7) < mesActual ? b.vigenciaHasta.toISOString().slice(0, 7) : mesActual;
+      let debe = 0; let mesesConDeuda = 0;
+      // Tope de 60 meses para no recorrer una vida si alguien carga un inicio muy viejo.
+      for (let m = inicio, i = 0; m <= fin && i < 60; m = sumarMesesYm(m, 1), i++) {
+        const falta = Math.max(0, valor - (pagado.get(b.id + '|' + m) ?? 0));
+        if (falta > 0) { debe += falta; mesesConDeuda += 1; }
+      }
+      debeTotal += debe;
+      return {
+        id: b.id, nombre: b.nota?.trim() || 'Entrenamiento', cancha: b.cancha.nombre,
+        diaSemana: b.diaSemana, horaInicio: b.horaInicio, horaFin: b.horaFin, valor,
+        cobrado: cobradoPorBloqueo.get(b.id) ?? 0, debe, mesesConDeuda,
+      };
+    });
+
+    return { total: { cobrado, porMedio, debe: debeTotal, entrenamientos: entrenamientos.length }, entrenamientos };
   },
 
   ingresosPorDia(desde: Date, hasta: Date) {

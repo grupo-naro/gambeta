@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { filasPorDia, fmtYmd, nombreArchivoPdf, pdfBuffet, pdfCanchas } from './dashboard-pdf';
-import type { BuffetDia, BuffetResumen } from './types';
+import { filasPorDia, fmtYmd, nombreArchivoPdf, pdfAcademia, pdfBuffet, pdfCanchas } from './dashboard-pdf';
+import type { AcademiaResumen, BuffetDia, BuffetResumen } from './types';
 
 const dia = (fecha: string, unidades: number, efectivo: number, transferencia: number): BuffetDia => ({
   fecha, unidades, efectivo, transferencia, total: efectivo + transferencia,
@@ -50,6 +50,18 @@ describe('generación del PDF', () => {
   it('el PDF del buffet sin ventas también se genera', () => {
     const vacio: BuffetResumen = { ...buffet, total: { ...buffet.total, monto: 0, tickets: 0, unidades: 0, masVendido: null }, mostradores: buffet.mostradores.map((m) => ({ ...m, monto: 0, topProductos: [] })), dias: [dia('2026-11-08', 0, 0, 0)] };
     expect(esPdf(pdfBuffet(vacio, periodo))).toBe('%PDF-');
+  });
+  it('el PDF de la academia es un PDF válido, con y sin entrenamientos', () => {
+    const academia: AcademiaResumen = {
+      total: { cobrado: 150000, porMedio: { EFECTIVO: 50000, TRANSFERENCIA: 100000 }, debe: 80000, entrenamientos: 2 },
+      entrenamientos: [
+        { id: 'a', nombre: 'Escuelita', cancha: 'Fútbol 1', diaSemana: 2, horaInicio: '17:00', horaFin: '18:00', valor: 50000, cobrado: 100000, debe: 0, mesesConDeuda: 0 },
+        { id: 'b', nombre: 'Clases de pádel', cancha: 'Pádel 1', diaSemana: 3, horaInicio: '19:00', horaFin: '20:00', valor: 30000, cobrado: 50000, debe: 80000, mesesConDeuda: 2 },
+      ],
+    };
+    expect(esPdf(pdfAcademia(academia, periodo))).toBe('%PDF-');
+    expect(esPdf(pdfAcademia({ total: { ...academia.total, cobrado: 0, debe: 0, entrenamientos: 0 }, entrenamientos: [] }, periodo))).toBe('%PDF-');
+    expect(nombreArchivoPdf('academia', periodo)).toBe('gambeteando-academia-2026-11-02_2026-11-08.pdf');
   });
   it('el PDF de canchas es un PDF válido', () => {
     const doc = pdfCanchas({

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import supertest from 'supertest';
 import { setupTestDb, teardownTestDb, resetTables, getPrisma } from '../helpers/db.js';
 import { signAdminToken } from '../../src/services/auth.service.js';
+import { hoyEnTz } from '../../src/utils/tz.js';
 
 let app: any; let token: string;
 beforeAll(async () => { await setupTestDb(); const { buildApp } = await import('../../src/app.js'); app = buildApp(); });
@@ -109,13 +110,43 @@ describe('entrenamiento recurrente con valor mensual', () => {
     expect((await cobrar(b.body.id, { mes: '2031-01', monto: 1000, medio: 'EFECTIVO' })).status).toBe(201);
   });
 
-  it('el cobro queda en la caja como evento, atado a su mes', async () => {
+  it('el cobro queda en la caja como Academia (no como evento), atado a su mes', async () => {
     const c = await crearCancha();
     const b = await altaEntrenamiento(c.id);
     await cobrar(b.body.id, { mes: '2030-06', monto: 50000, medio: 'EFECTIVO' });
     const cobro = await getPrisma().cobro.findFirstOrThrow({ where: { bloqueoId: b.body.id } });
-    expect(cobro.origen).toBe('EVENTO');
+    expect(cobro.origen).toBe('ACADEMIA');
     expect(cobro.bloqueoMes?.toISOString().slice(0, 10)).toBe('2030-06-01');
+  });
+
+  it('en la caja Academia va aparte de los eventos', async () => {
+    const c = await crearCancha();
+    const b = await altaEntrenamiento(c.id);
+    await cobrar(b.body.id, { mes: '2030-06', monto: 50000, medio: 'TRANSFERENCIA' });
+    const cumple = await auth(supertest(app).post('/bloqueos')).send({ canchaId: c.id, motivo: 'OTRO', recurrente: false, fecha: '2030-05-10', horaInicio: '15:00', horaFin: '18:00', nota: 'Cumple', valor: 20000, montoPagado: 20000, medioPago: 'EFECTIVO' });
+    expect(cumple.status).toBe(201);
+    const hoy = hoyEnTz('America/Argentina/Buenos_Aires');
+    const res = await auth(supertest(app).get(`/caja?desde=${hoy}&hasta=${hoy}`));
+    expect(res.body.porConcepto.academia).toBe(50000);
+    expect(res.body.porConcepto.eventos).toBe(20000);
+    expect(res.body.total).toBe(70000);
+    const conceptos = res.body.cobros.map((x: any) => x.concepto).sort();
+    expect(conceptos).toEqual(['ACADEMIA', 'EVENTO']);
+    expect(res.body.cobros.find((x: any) => x.concepto === 'ACADEMIA').cliente).toBe('Academia');
+  });
+
+  it('si se elimina el entrenamiento, sus cobros siguen en la caja como Academia', async () => {
+    const c = await crearCancha();
+    const b = await altaEntrenamiento(c.id);
+    await cobrar(b.body.id, { mes: '2030-06', monto: 50000, medio: 'EFECTIVO' });
+    expect((await auth(supertest(app).delete(`/bloqueos/${b.body.id}`))).status).toBe(200);
+    const cobro = await getPrisma().cobro.findFirstOrThrow();
+    expect(cobro.bloqueoId).toBeNull();
+    expect(cobro.origen).toBe('ACADEMIA');
+    const hoy = hoyEnTz('America/Argentina/Buenos_Aires');
+    const res = await auth(supertest(app).get(`/caja?desde=${hoy}&hasta=${hoy}`));
+    expect(res.body.porConcepto.academia).toBe(50000);
+    expect(res.body.porConcepto.eventos).toBe(0);
   });
 
   it('editar el valor mensual: no puede quedar debajo de lo cobrado en un mes', async () => {

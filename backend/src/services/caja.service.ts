@@ -9,7 +9,7 @@ export const cajaService = {
     const end = dayWindowUtc(hasta, tz).end;
     const rows = await cobroRepo.listRange(start, end);
     const porMedio = { EFECTIVO: 0, TRANSFERENCIA: 0 };
-    const porConcepto = { turnos: 0, cuotas: 0, abonos: 0, eventos: 0 };
+    const porConcepto = { turnos: 0, cuotas: 0, abonos: 0, eventos: 0, academia: 0 };
     const porCanchaMap = new Map<string, { canchaId: string; nombre: string; total: number }>();
     let total = 0;
     for (const c of rows) {
@@ -21,7 +21,9 @@ export const cajaService = {
       // de un fijo que ya se eliminó: queda sin destino, y por eso el abono se reconoce también
       // por `origen` y no solo por `turnoFijoId`.
       // Igual que el abono: el evento de un bloqueo ya eliminado queda sin destino, con origen 'EVENTO'.
+      // Academia: el cobro de un mes de un entrenamiento. Va antes que evento porque también cuelga de un bloqueo.
       if (c.suscripcionId) porConcepto.cuotas += m;
+      else if (c.origen === 'ACADEMIA' || c.bloqueoMes) porConcepto.academia += m;
       else if (c.bloqueoId || c.origen === 'EVENTO') porConcepto.eventos += m;
       else if (c.turnoFijoId || c.origen === 'ABONO') porConcepto.abonos += m;
       else porConcepto.turnos += m;
@@ -44,7 +46,7 @@ export const cajaService = {
         creadoEn: c.creadoEn,
         monto: Number(c.monto),
         medio: c.medio,
-        concepto: c.suscripcionId ? ('CUOTA' as const) : c.bloqueoId || c.origen === 'EVENTO' ? ('EVENTO' as const) : c.turnoFijoId || c.origen === 'ABONO' ? ('ABONO' as const) : ('TURNO' as const),
+        concepto: c.suscripcionId ? ('CUOTA' as const) : c.origen === 'ACADEMIA' || c.bloqueoMes ? ('ACADEMIA' as const) : c.bloqueoId || c.origen === 'EVENTO' ? ('EVENTO' as const) : c.turnoFijoId || c.origen === 'ABONO' ? ('ABONO' as const) : ('TURNO' as const),
         cancha: c.reserva?.cancha?.nombre ?? c.bloqueo?.cancha?.nombre ?? '-',
         cliente: c.reserva?.cliente?.nombre ?? c.suscripcion?.cliente?.nombre ?? c.turnoFijo?.clienteNombre ?? c.bloqueo?.nota ?? (c.origen === 'EVENTO' ? 'Evento' : '-'),
         registradoPor: c.registradoPor?.nombre ?? 'Sistema',
