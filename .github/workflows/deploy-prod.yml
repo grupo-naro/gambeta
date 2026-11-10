@@ -98,11 +98,13 @@ jobs:
           # ── 1. Guardar lo que está corriendo como :previous ────────────────────────
           for s in $SERVICES; do
             img=$(docker inspect -f '{{.Image}}' "gambeta-prod-$s" 2>/dev/null || true)
-            if [ -n "$img" ]; then
-              docker tag "$img" "gambeta-prod-$s:previous"
+            if [ -n "$img" ] && docker tag "$img" "gambeta-prod-$s:previous" 2>/dev/null; then
               echo "Guardada gambeta-prod-$s:previous"
+            elif docker tag "gambeta-prod-$s:latest" "gambeta-prod-$s:previous" 2>/dev/null; then
+              # Pasa si un prune viejo borró la imagen que usa el contenedor en marcha.
+              echo "::warning::La imagen en uso de gambeta-prod-$s ya no existe; :previous = :latest actual"
             else
-              echo "::warning::gambeta-prod-$s no estaba corriendo: no hay :previous para ese servicio"
+              echo "::warning::gambeta-prod-$s: no hay imagen para :previous (sin rollback para ese servicio)"
             fi
           done
 
