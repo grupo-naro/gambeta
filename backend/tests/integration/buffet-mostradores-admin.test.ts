@@ -19,10 +19,10 @@ beforeEach(resetTables);
 const comoAdmin = (r: any) => r.set('authorization', `Bearer ${token}`);
 
 describe('GET /buffet/mostradores', () => {
-  it('lista los dos mostradores con su tipo y si tienen PIN', async () => {
+  it('lista los tres mostradores con su tipo y si tienen PIN', async () => {
     const r = await comoAdmin(supertest(app).get('/buffet/mostradores'));
     expect(r.status).toBe(200);
-    expect(r.body).toHaveLength(2);
+    expect(r.body).toHaveLength(3);
 
     const principal = r.body.find((m: any) => m.tipo === 'PRINCIPAL');
     expect(principal).toMatchObject({ id: 'mostrador-principal', activo: true, tienePin: false });

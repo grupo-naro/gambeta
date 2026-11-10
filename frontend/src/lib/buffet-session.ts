@@ -2,7 +2,7 @@ import 'server-only';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { ApiAuthError } from './types';
+import { ApiAuthError, type TipoMostrador } from './types';
 
 export const BUFFET_COOKIE = 'buffet';
 const DIAS_30 = 30 * 24 * 60 * 60 * 1000;
@@ -21,7 +21,7 @@ export interface SesionMostrador {
   /** El token que emitió el backend al verificar el PIN. Viaja en `x-mostrador`. */
   token: string;
   nombre: string;
-  tipo: 'PRINCIPAL' | 'SECUNDARIO';
+  tipo: TipoMostrador;
 }
 
 /**
@@ -54,7 +54,7 @@ export function leerSesion(valor: string | undefined): SesionMostrador | null {
   try {
     const { exp, token, nombre, tipo } = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     if (typeof exp !== 'number' || typeof token !== 'string' || !token) return null;
-    if (tipo !== 'PRINCIPAL' && tipo !== 'SECUNDARIO') return null;
+    if (tipo !== 'PRINCIPAL' && tipo !== 'SECUNDARIO' && tipo !== 'TERCERO') return null;
     if (exp <= Date.now()) return null;
     return { token, nombre: typeof nombre === 'string' ? nombre : '', tipo };
   } catch {
@@ -84,7 +84,7 @@ export async function tokenMostradorDeSesion(): Promise<string | null> {
 }
 
 /** Quién es el puesto logueado, para mostrarlo en la pantalla de venta. */
-export async function mostradorDeSesion(): Promise<{ nombre: string; tipo: 'PRINCIPAL' | 'SECUNDARIO' } | null> {
+export async function mostradorDeSesion(): Promise<{ nombre: string; tipo: TipoMostrador } | null> {
   const s = await sesionActual();
   return s ? { nombre: s.nombre, tipo: s.tipo } : null;
 }

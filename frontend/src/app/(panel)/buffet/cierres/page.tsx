@@ -10,6 +10,7 @@ const FILTROS = [
   { clave: '', label: 'Todos' },
   { clave: 'mostrador-principal', label: 'Principal' },
   { clave: 'mostrador-secundario', label: 'Secundario' },
+  { clave: 'mostrador-tercero', label: 'Tercero' },
 ] as const;
 
 export default async function CierresBuffetPage({ searchParams }: { searchParams: Promise<{ mostradorId?: string }> }) {

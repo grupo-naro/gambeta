@@ -96,7 +96,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </section>
         <section className="space-y-3">
           <h2 className="text-lg font-semibold tracking-tight">Por mostrador</h2>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             {buffet.mostradores.map((m) => <BuffetMostradorCard key={m.tipo} m={m} />)}
           </div>
         </section>

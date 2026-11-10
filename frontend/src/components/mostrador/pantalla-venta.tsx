@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { CajaBuffetEstado, ProductoCobro, MedioPago, ConciliacionPendiente, StockAsignado } from '@/lib/types';
+import { tieneCupo, type CajaBuffetEstado, type ProductoCobro, type MedioPago, type ConciliacionPendiente, type StockAsignado, type TipoMostrador } from '@/lib/types';
 import { abrirCaja, cerrarCaja, cobrar, buscarPorCodigo, salirDelMostrador } from '@/lib/buffet-actions';
 import { asignadoPorProducto, productosDelMostrador } from '@/lib/mostrador-stock';
 
@@ -33,7 +33,7 @@ export function filtrarProductos(productos: ProductoCobro[], query: string): Pro
 export function PantallaVenta({ inicial, productos, mostrador, pendientes, asignado }: {
   inicial: CajaBuffetEstado | null;
   productos: ProductoCobro[];
-  mostrador: { nombre: string; tipo: 'PRINCIPAL' | 'SECUNDARIO' };
+  mostrador: { nombre: string; tipo: TipoMostrador };
   pendientes: ConciliacionPendiente[];
   asignado: StockAsignado[];
 }) {
@@ -59,7 +59,7 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
 
   const total = items.reduce((a, it) => a + it.precio * it.cantidad, 0);
   const vuelto = calcularVuelto(Number(pagoTxt), total);
-  const esSecundario = mostrador.tipo === 'SECUNDARIO';
+  const esSecundario = tieneCupo(mostrador.tipo);
   const yaTiene = asignadoPorProducto(asignado);
   // El secundario solo ve lo que tiene asignado; el principal, todo el catálogo.
   const visibles = productosDelMostrador(productos, mostrador.tipo, asignado);
@@ -168,7 +168,7 @@ export function PantallaVenta({ inicial, productos, mostrador, pendientes, asign
       {mostrador.tipo === 'PRINCIPAL' && (
         <div className="flex flex-wrap items-center gap-2">
           <a href="/mostrador/entregar" className="rounded-xl border border-emerald-600 px-4 py-2 font-semibold text-emerald-700">
-            Entregar al secundario
+            Entregar a los puestos
           </a>
           <a href="/mostrador/alquileres" className="rounded-xl border border-sky-600 px-4 py-2 font-semibold text-sky-700">
             Alquileres

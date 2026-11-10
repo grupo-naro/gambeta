@@ -63,6 +63,7 @@ export async function resetTables(): Promise<void> {
     data: [
       { id: 'mostrador-principal', nombre: 'Principal', tipo: 'PRINCIPAL', pinHash: '' },
       { id: 'mostrador-secundario', nombre: 'Secundario', tipo: 'SECUNDARIO', pinHash: '' },
+      { id: 'mostrador-tercero', nombre: 'Tercero', tipo: 'TERCERO', pinHash: '' },
     ],
   });
 }

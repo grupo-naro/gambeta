@@ -6,9 +6,9 @@ import { dayOfWeekInTz, instanteDeJornada, jornadaWindowUtc, minutoDeJornada, su
 
 const ACTIVE = ['CONFIRMADA', 'COMPLETADA'] as const;
 
-const MOSTRADORES = ['PRINCIPAL', 'SECUNDARIO'] as const;
+const MOSTRADORES = ['PRINCIPAL', 'SECUNDARIO', 'TERCERO'] as const;
 type TipoMostrador = (typeof MOSTRADORES)[number];
-const NOMBRE_MOSTRADOR: Record<TipoMostrador, string> = { PRINCIPAL: 'Mostrador principal', SECUNDARIO: 'Mostrador secundario' };
+const NOMBRE_MOSTRADOR: Record<TipoMostrador, string> = { PRINCIPAL: 'Mostrador principal', SECUNDARIO: 'Mostrador secundario', TERCERO: 'Mostrador tercero' };
 const redondear = (n: number) => Math.round(n * 100) / 100;
 
 /** 'YYYY-MM' a partir de un 'YYYY-MM-DD'. */
@@ -146,8 +146,8 @@ export const analyticsService = {
   },
 
   /**
-   * Ventas del buffet en el período, separadas por mostrador (el buffet tiene dos puestos, principal y
-   * secundario, cada uno con su caja). Siempre devuelve los dos, aunque no hayan vendido. Las ventas
+   * Ventas del buffet en el período, separadas por mostrador (el buffet tiene tres puestos, principal,
+   * secundario y tercero, cada uno con su caja). Siempre devuelve los tres, aunque no hayan vendido. Las ventas
    * son los tickets; los alquileres (pecheras, etc.) van aparte porque no son venta de buffet. El día
    * de cada ticket es el de la hora argentina en que se vendió. `dias` trae TODOS los días del rango
    * (también los sin ventas), el más nuevo primero, con el desglose por medio de pago, por mostrador y
@@ -193,7 +193,7 @@ export const analyticsService = {
     const productosTotal: Prod = new Map();
     const diaDe = (fecha: string) => {
       let d = dias.get(fecha);
-      if (!d) { d = { unidades: 0, efectivo: 0, transferencia: 0, total: 0, mostradores: { PRINCIPAL: { unidades: 0, total: 0 }, SECUNDARIO: { unidades: 0, total: 0 } }, productos: new Map() }; dias.set(fecha, d); }
+      if (!d) { d = { unidades: 0, efectivo: 0, transferencia: 0, total: 0, mostradores: { PRINCIPAL: { unidades: 0, total: 0 }, SECUNDARIO: { unidades: 0, total: 0 }, TERCERO: { unidades: 0, total: 0 } }, productos: new Map() }; dias.set(fecha, d); }
       return d;
     };
 

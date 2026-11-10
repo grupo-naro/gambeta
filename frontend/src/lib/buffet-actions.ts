@@ -55,16 +55,16 @@ export async function cobrar(input: { uid: string; medioPago: MedioPago; montoPa
   return conSesion(() => buffetFetch<CobroResultado>('/buffet/cobrar', { method: 'POST', body: JSON.stringify(input) }));
 }
 
-export async function entregarStock(items: { productoId: string; cantidad: number }[]): Promise<Resultado<{ entregaId: string }>> {
+export async function entregarStock(items: { productoId: string; cantidad: number }[], puestoId: string): Promise<Resultado<{ entregaId: string }>> {
   return conSesion(() => buffetFetch<{ entregaId: string }>('/buffet/entregas', {
-    method: 'POST', body: JSON.stringify({ items }),
+    method: 'POST', body: JSON.stringify({ items, puestoId }),
   }));
 }
 
-// Le baja al secundario parte de su cupo (lo devuelve al principal). Manual: nada vuelve solo.
-export async function devolverStock(items: { productoId: string; cantidad: number }[]): Promise<Resultado<{ entregaId: string }>> {
+// Le baja a un puesto (secundario o tercero) parte de su cupo (lo devuelve al principal). Manual: nada vuelve solo.
+export async function devolverStock(items: { productoId: string; cantidad: number }[], puestoId: string): Promise<Resultado<{ entregaId: string }>> {
   return conSesion(() => buffetFetch<{ entregaId: string }>('/buffet/devoluciones', {
-    method: 'POST', body: JSON.stringify({ items }),
+    method: 'POST', body: JSON.stringify({ items, puestoId }),
   }));
 }
 

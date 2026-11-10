@@ -41,7 +41,8 @@ export const buffetSecundarioService = {
    * bajó el cupo: ventas de tickets (incluye las cuentas ya rendidas), cuentas impagas y cuentas
    * todavía abiertas (ya descontaron). Las canceladas devolvieron el stock, así que no cuentan.
    */
-  async resumenDiario(opts: { dias?: number; desde?: string } = {}): Promise<DiaSecundario[]> {
+  async resumenDiario(opts: { dias?: number; desde?: string; mostradorId?: string } = {}): Promise<DiaSecundario[]> {
+    const puesto = opts.mostradorId ?? SECUNDARIO;
     const tz = getEnv().TZ_NEGOCIO;
     const hoy = hoyEnTz(tz);
     const tope = opts.desde ?? CUPO_SECUNDARIO_DESDE;
@@ -60,16 +61,16 @@ export const buffetSecundarioService = {
 
     const [entregas, ventas, cuentas, actual] = await Promise.all([
       prisma.entregaMostradorLinea.findMany({
-        where: { entrega: { mostradorId: SECUNDARIO, creadaEn: { gte: ini, lt: fin } } },
+        where: { entrega: { mostradorId: puesto, creadaEn: { gte: ini, lt: fin } } },
         include: { entrega: { select: { creadaEn: true } } },
       }),
       prisma.ventaBuffet.findMany({
-        where: { creadoEn: { gte: ini, lt: fin }, ticket: { caja: { mostradorId: SECUNDARIO } } },
+        where: { creadoEn: { gte: ini, lt: fin }, ticket: { caja: { mostradorId: puesto } } },
         select: { productoId: true, cantidad: true, creadoEn: true },
       }),
       prisma.cuentaBuffet.findMany({
         where: {
-          mostradorId: SECUNDARIO,
+          mostradorId: puesto,
           OR: [
             { estado: 'IMPAGA', cerradaEn: { gte: ini, lt: fin } },
             { estado: 'ABIERTA', abiertaEn: { gte: ini, lt: fin } },
@@ -77,7 +78,7 @@ export const buffetSecundarioService = {
         },
         include: { lineas: { select: { productoId: true, cantidad: true } } },
       }),
-      prisma.stockMostrador.findMany({ where: { mostradorId: SECUNDARIO } }),
+      prisma.stockMostrador.findMany({ where: { mostradorId: puesto } }),
     ]);
 
     const porDia = new Map<string, Map<string, Mov>>();

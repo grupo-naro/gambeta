@@ -73,3 +73,10 @@ describe('sesion del mostrador', () => {
     expect(leerSesion('a.b.c')).toBeNull();
   });
 });
+
+describe('sesión del tercer mostrador', () => {
+  it('guarda y lee la sesión del tercero', () => {
+    const s = firmarSesion(Date.now() + 60_000, { token: 'mostrador-tercero.abc123', nombre: 'Tercero', tipo: 'TERCERO' });
+    expect(leerSesion(s)).toMatchObject({ nombre: 'Tercero', tipo: 'TERCERO', token: 'mostrador-tercero.abc123' });
+  });
+});

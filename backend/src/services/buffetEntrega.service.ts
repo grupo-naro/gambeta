@@ -1,17 +1,28 @@
 import { prisma } from '../db/prisma.js';
 import { BusinessRule, Forbidden, NotFound } from '../utils/errors.js';
-import { esViolacionStockAsignadoNegativo } from './buffetStock.js';
+import { esViolacionStockAsignadoNegativo, tieneCupo, type TipoMostrador } from './buffetStock.js';
 
 const SECUNDARIO = 'mostrador-secundario';
 
+/** El puesto con cupo al que se entrega o del que se devuelve; si no se dice, el secundario. */
+async function puestoConCupo(id: string | undefined): Promise<string> {
+  const puestoId = id ?? SECUNDARIO;
+  const m = await prisma.mostrador.findUnique({ where: { id: puestoId } });
+  if (!m) throw NotFound('Mostrador', puestoId);
+  if (!tieneCupo(m.tipo as TipoMostrador)) throw BusinessRule('El mostrador principal no recibe entregas: es de donde sale la mercadería');
+  return m.id;
+}
+
 export interface EntregarInput {
   desdeMostradorId: string;
+  /** Puesto destino (entregar) u origen (devolver). Sin esto, el secundario. */
+  puestoId?: string;
   items: { productoId: string; cantidad: number }[];
 }
 
 export const buffetEntregaService = {
   /**
-   * Le asigna al secundario un cupo de mercadería. NO mueve stock: el general es el total del
+   * Le asigna a un puesto (secundario o tercero) un cupo de mercadería. NO mueve stock: el general es el total del
    * complejo y solo baja cuando se vende. Lo que el secundario no venda se queda asignado a él
    * (no vuelve al principal ni se borra).
    *
@@ -27,9 +38,10 @@ export const buffetEntregaService = {
     for (const it of input.items) {
       if (!Number.isInteger(it.cantidad) || it.cantidad < 1) throw BusinessRule('Cantidad inválida');
     }
+    const puesto = await puestoConCupo(input.puestoId);
 
     return prisma.$transaction(async (tx) => {
-      const entrega = await tx.entregaMostrador.create({ data: { mostradorId: SECUNDARIO } });
+      const entrega = await tx.entregaMostrador.create({ data: { mostradorId: puesto } });
       for (const it of input.items) {
         const p = await tx.productoBuffet.findUnique({ where: { id: it.productoId } });
         if (!p) throw NotFound('ProductoBuffet', it.productoId);
@@ -40,8 +52,8 @@ export const buffetEntregaService = {
           throw BusinessRule(`No hay stock suficiente de ${p.nombre}: hay ${Math.max(0, libre)} sin asignar y querés entregar ${it.cantidad}`);
         }
         await tx.stockMostrador.upsert({
-          where: { mostradorId_productoId: { mostradorId: SECUNDARIO, productoId: p.id } },
-          create: { mostradorId: SECUNDARIO, productoId: p.id, cantidad: it.cantidad },
+          where: { mostradorId_productoId: { mostradorId: puesto, productoId: p.id } },
+          create: { mostradorId: puesto, productoId: p.id, cantidad: it.cantidad },
           update: { cantidad: { increment: it.cantidad } },
         });
         await tx.entregaMostradorLinea.create({ data: { entregaId: entrega.id, productoId: p.id, cantidad: it.cantidad } });
@@ -65,18 +77,20 @@ export const buffetEntregaService = {
     for (const it of input.items) {
       if (!Number.isInteger(it.cantidad) || it.cantidad < 1) throw BusinessRule('Cantidad inválida');
     }
+    const puesto = await puestoConCupo(input.puestoId);
+    const nombrePuesto = (await prisma.mostrador.findUniqueOrThrow({ where: { id: puesto } })).nombre;
 
     try {
       return await prisma.$transaction(async (tx) => {
-        const mov = await tx.entregaMostrador.create({ data: { mostradorId: SECUNDARIO } });
+        const mov = await tx.entregaMostrador.create({ data: { mostradorId: puesto } });
         for (const it of input.items) {
           const p = await tx.productoBuffet.findUnique({ where: { id: it.productoId } });
           if (!p) throw NotFound('ProductoBuffet', it.productoId);
-          const clave = { mostradorId_productoId: { mostradorId: SECUNDARIO, productoId: p.id } };
+          const clave = { mostradorId_productoId: { mostradorId: puesto, productoId: p.id } };
           const asig = await tx.stockMostrador.findUnique({ where: clave });
           const tiene = asig?.cantidad ?? 0;
           if (tiene < it.cantidad) {
-            throw BusinessRule(`El secundario no tiene tantas unidades de ${p.nombre}: tiene ${tiene} y querés devolver ${it.cantidad}`);
+            throw BusinessRule(`${nombrePuesto} no tiene tantas unidades de ${p.nombre}: tiene ${tiene} y querés devolver ${it.cantidad}`);
           }
           await tx.stockMostrador.update({ where: clave, data: { cantidad: { decrement: it.cantidad } } });
           await tx.entregaMostradorLinea.create({ data: { entregaId: mov.id, productoId: p.id, cantidad: -it.cantidad } });
@@ -85,7 +99,7 @@ export const buffetEntregaService = {
       });
     } catch (e) {
       // El secundario vendió justo en el medio y el cupo no alcanzó: lo frena el CHECK de la base.
-      if (esViolacionStockAsignadoNegativo(e)) throw BusinessRule('El secundario vendió mientras tanto y ya no tiene tantas unidades');
+      if (esViolacionStockAsignadoNegativo(e)) throw BusinessRule(`${nombrePuesto} vendió mientras tanto y ya no tiene tantas unidades`);
       throw e;
     }
   },

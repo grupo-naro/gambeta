@@ -40,7 +40,7 @@ describe('analytics del buffet, por mostrador', () => {
     const res = await get();
     expect(res.status).toBe(200);
     expect(res.body.total).toMatchObject({ monto: 0, tickets: 0, unidades: 0, ticketPromedio: 0, alquileres: 0 });
-    expect(res.body.mostradores.map((m: any) => m.tipo)).toEqual(['PRINCIPAL', 'SECUNDARIO']);
+    expect(res.body.mostradores.map((m: any) => m.tipo)).toEqual(['PRINCIPAL', 'SECUNDARIO', 'TERCERO']);
     expect(res.body.mostradores[0]).toMatchObject({ monto: 0, tickets: 0, topProductos: [] });
     expect(res.body.total.masVendido).toBeNull();
   });
@@ -99,7 +99,7 @@ describe('analytics del buffet, por mostrador', () => {
     // un día sin ventas igual aparece, en cero
     expect(d09).toMatchObject({ unidades: 0, efectivo: 0, transferencia: 0, total: 0, productos: [] });
     // cada día separa lo de cada mostrador y sus productos
-    expect(d10.mostradores).toEqual({ PRINCIPAL: { unidades: 1, total: 2000 }, SECUNDARIO: { unidades: 3, total: 3000 } });
+    expect(d10.mostradores).toEqual({ PRINCIPAL: { unidades: 1, total: 2000 }, SECUNDARIO: { unidades: 3, total: 3000 }, TERCERO: { unidades: 0, total: 0 } });
     expect(d10.productos).toEqual([{ nombre: 'Agua', unidades: 3, monto: 3000 }, { nombre: 'Coca', unidades: 1, monto: 2000 }]);
   });
 

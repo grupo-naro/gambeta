@@ -2,7 +2,13 @@ import { redirect } from 'next/navigation';
 import { mostradorDeSesion, manejarBuffetNoAutorizado } from '@/lib/buffet-session';
 import { buffetFetch } from '@/lib/buffet-api';
 import type { ProductoCobro, StockAsignado } from '@/lib/types';
-import { PantallaEntrega } from '@/components/mostrador/pantalla-entrega';
+import { PantallaEntrega, type PuestoEntrega } from '@/components/mostrador/pantalla-entrega';
+
+/** Los puestos a los que el principal le entrega mercadería. */
+const PUESTOS = [
+  { id: 'mostrador-secundario', nombre: 'Secundario' },
+  { id: 'mostrador-tercero', nombre: 'Tercero' },
+];
 
 export default async function EntregarPage() {
   const mostrador = await mostradorDeSesion();
@@ -17,15 +23,17 @@ export default async function EntregarPage() {
   }
 
   let productos: ProductoCobro[];
-  let asignado: StockAsignado[];
+  let puestos: PuestoEntrega[];
   try {
-    [productos, asignado] = await Promise.all([
+    let asignados: StockAsignado[][];
+    [productos, ...asignados] = await Promise.all([
       buffetFetch<ProductoCobro[]>('/buffet/productos/activos'),
-      buffetFetch<StockAsignado[]>('/buffet/stock-asignado?mostradorId=mostrador-secundario'),
-    ]);
+      ...PUESTOS.map((p) => buffetFetch<StockAsignado[]>(`/buffet/stock-asignado?mostradorId=${p.id}`)),
+    ]) as [ProductoCobro[], ...StockAsignado[][]];
+    puestos = PUESTOS.map((p, i) => ({ ...p, asignado: asignados[i] }));
   } catch (e) {
     await manejarBuffetNoAutorizado(e);
     throw e;
   }
-  return <PantallaEntrega productos={productos} asignado={asignado} />;
+  return <PantallaEntrega productos={productos} puestos={puestos} />;
 }

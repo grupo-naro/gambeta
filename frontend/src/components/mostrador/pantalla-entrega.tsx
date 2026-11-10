@@ -5,10 +5,14 @@ import { entregarStock, devolverStock } from '@/lib/buffet-actions';
 import { asignadoPorProducto } from '@/lib/mostrador-stock';
 import type { ProductoCobro, StockAsignado } from '@/lib/types';
 
-export function PantallaEntrega({ productos, asignado }: { productos: ProductoCobro[]; asignado: StockAsignado[] }) {
+export interface PuestoEntrega { id: string; nombre: string; asignado: StockAsignado[] }
+
+export function PantallaEntrega({ productos, puestos }: { productos: ProductoCobro[]; puestos: PuestoEntrega[] }) {
   const router = useRouter();
-  const yaTiene = asignadoPorProducto(asignado);
-  // Entregar le suma cupo al secundario; devolver se lo baja (lo que ya tiene vuelve al principal).
+  const [puestoId, setPuestoId] = useState(puestos[0]?.id ?? '');
+  const puesto = puestos.find((p) => p.id === puestoId) ?? puestos[0];
+  const yaTiene = asignadoPorProducto(puesto?.asignado ?? []);
+  // Entregar le suma cupo al puesto elegido; devolver se lo baja (lo que ya tiene vuelve al principal).
   const [modo, setModo] = useState<'entregar' | 'devolver'>('entregar');
   const devolviendo = modo === 'devolver';
   const [cant, setCant] = useState<Record<string, number>>({});
@@ -31,11 +35,14 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
   function cambiarModo(m: 'entregar' | 'devolver') {
     setModo(m); setCant({}); setError(''); setConfirmacion(null);
   }
+  function cambiarPuesto(id: string) {
+    setPuestoId(id); setCant({}); setError(''); setConfirmacion(null);
+  }
 
   function entregar() {
     if (items.length === 0) { setError('Cargá al menos un producto'); return; }
     setError(''); setEnviando(true); setConfirmacion(null);
-    void (devolviendo ? devolverStock(items) : entregarStock(items)).then((r) => {
+    void (devolviendo ? devolverStock(items, puestoId) : entregarStock(items, puestoId)).then((r) => {
       setEnviando(false);
       if (r.ok) {
         // La confirmación explícita queda en pantalla mientras dura el refresh: sin esto el
@@ -59,9 +66,20 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
   return (
     <main className="flex min-h-screen flex-col gap-4 p-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{devolviendo ? 'Devolver del secundario' : 'Entregar al secundario'}</h1>
+        <h1 className="text-xl font-bold">{devolviendo ? `Devolver de ${puesto?.nombre ?? 'un puesto'}` : `Entregar a ${puesto?.nombre ?? 'un puesto'}`}</h1>
         <a href="/mostrador" className="rounded-lg border px-3 py-1 text-sm font-medium">Volver</a>
       </header>
+
+      {puestos.length > 1 && (
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${puestos.length}, minmax(0, 1fr))` }} role="group" aria-label="Puesto">
+          {puestos.map((p) => (
+            <button key={p.id} type="button" onClick={() => cambiarPuesto(p.id)}
+              className={`h-12 rounded-xl border-2 text-lg font-semibold ${puestoId === p.id ? 'border-violet-600 bg-violet-50' : 'border-neutral-300'}`}>
+              {p.nombre}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         {(['entregar', 'devolver'] as const).map((m) => (
@@ -107,7 +125,7 @@ export function PantallaEntrega({ productos, asignado }: { productos: ProductoCo
           </li>
         ))}
         {devolviendo && productos.every((p) => (yaTiene[p.id] ?? 0) === 0) && (
-          <li className="p-4 text-center text-neutral-500">El secundario no tiene nada para devolver.</li>
+          <li className="p-4 text-center text-neutral-500">{puesto?.nombre ?? 'El puesto'} no tiene nada para devolver.</li>
         )}
       </ul>
 

@@ -5,6 +5,7 @@ const PAGINAS = [
   { clave: 'cierres', href: '/buffet/cierres', label: 'Cierres' },
   { clave: 'conciliaciones', href: '/buffet/conciliaciones', label: 'Faltantes' },
   { clave: 'secundario', href: '/buffet/secundario', label: 'Secundario' },
+  { clave: 'tercero', href: '/buffet/tercero', label: 'Tercero' },
   { clave: 'entregas', href: '/buffet/entregas', label: 'Entregas' },
   { clave: 'cuentas', href: '/buffet/cuentas', label: 'Cuentas' },
 ] as const;
@@ -14,7 +15,7 @@ export type PaginaBuffet = (typeof PAGINAS)[number]['clave'];
 /**
  * Los links entre las páginas del buffet.
  *
- * Existe porque el menú principal solo lleva a `/buffet`: sin esto, las otras tres son
+ * Existe porque el menú principal solo lleva a `/buffet`: sin esto, las otras son
  * inalcanzables salvo tipeando la URL — que es como quedó `cierres` hasta ahora.
  */
 export function SubNavBuffet({ activa }: { activa: PaginaBuffet }) {

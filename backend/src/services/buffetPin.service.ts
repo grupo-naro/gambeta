@@ -1,8 +1,9 @@
 import { prisma } from '../db/prisma.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { Conflict } from '../utils/errors.js';
+import type { TipoMostrador } from './buffetStock.js';
 
-export interface MostradorIdentificado { mostradorId: string; tipo: 'PRINCIPAL' | 'SECUNDARIO'; nombre: string }
+export interface MostradorIdentificado { mostradorId: string; tipo: TipoMostrador; nombre: string }
 
 export const buffetPinService = {
   async setear(mostradorId: string, pin: string): Promise<void> {
@@ -23,7 +24,7 @@ export const buffetPinService = {
    * Devuelve QUÉ mostrador es, no solo si el PIN sirve. Recorre los mostradores activos en un
    * orden determinístico (por más que `setear` ya evite los PINs duplicados, un orden estable
    * evita que datos viejos o una carrera hagan que "quién entró" cambie de un request a otro) y
-   * compara contra cada hash: son dos, así que el costo es irrelevante.
+   * compara contra cada hash: son tres, así que el costo es irrelevante.
    */
   async verificar(pin: string): Promise<MostradorIdentificado | null> {
     const mostradores = await prisma.mostrador.findMany({ where: { activo: true }, orderBy: { id: 'asc' } });
@@ -31,7 +32,7 @@ export const buffetPinService = {
       // Un hash vacío nunca matchea: un mostrador sin PIN configurado no deja entrar a nadie.
       if (!m.pinHash) continue;
       if (await verifyPassword(pin, m.pinHash)) {
-        return { mostradorId: m.id, tipo: m.tipo as 'PRINCIPAL' | 'SECUNDARIO', nombre: m.nombre };
+        return { mostradorId: m.id, tipo: m.tipo as TipoMostrador, nombre: m.nombre };
       }
     }
     return null;

@@ -426,6 +426,7 @@ model ProductoBuffet {
 enum TipoMostrador {
   PRINCIPAL
   SECUNDARIO
+  TERCERO
 }
 
 /// Un puesto de atención del buffet. Cada uno tiene su propio PIN: es lo que permite
@@ -441,7 +442,8 @@ model Mostrador {
   stock    StockMostrador[]
   entregas EntregaMostrador[]
 
-  /// Un solo mostrador de cada tipo. El diseño es para dos puestos, no N.
+  /// Un solo mostrador de cada tipo. El diseño es para tres puestos fijos (principal, secundario
+  /// y tercero), no N: el secundario y el tercero funcionan igual, cada uno con su cupo y su caja.
   @@unique([tipo])
 }
 

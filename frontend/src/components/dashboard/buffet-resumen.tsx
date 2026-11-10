@@ -3,7 +3,7 @@ import type { BuffetResumen } from '@/lib/types';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
-/** Resumen del buffet en el período: los dos mostradores juntos. */
+/** Resumen del buffet en el período: los tres mostradores juntos. */
 export function BuffetResumenCard({ total }: { total: BuffetResumen['total'] }) {
   return (
     <Card className="gap-0">

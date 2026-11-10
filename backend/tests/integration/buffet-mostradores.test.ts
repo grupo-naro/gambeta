@@ -6,12 +6,12 @@ afterAll(teardownTestDb);
 beforeEach(resetTables);
 
 describe('mostradores', () => {
-  it('existen el principal y el secundario', async () => {
+  it('existen el principal, el secundario y el tercero', async () => {
     const ms = await getPrisma().mostrador.findMany({ orderBy: { tipo: 'asc' } });
-    expect(ms.map((m) => m.tipo)).toEqual(['PRINCIPAL', 'SECUNDARIO']);
+    expect(ms.map((m) => m.tipo)).toEqual(['PRINCIPAL', 'SECUNDARIO', 'TERCERO']);
   });
 
-  it('no se puede crear un tercer mostrador del mismo tipo', async () => {
+  it('no se puede crear otro mostrador del mismo tipo', async () => {
     await expect(
       getPrisma().mostrador.create({ data: { nombre: 'Otro', tipo: 'PRINCIPAL' } }),
     ).rejects.toThrow();

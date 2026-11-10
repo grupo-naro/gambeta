@@ -1,10 +1,11 @@
 import { prisma } from '../db/prisma.js';
 import { NotFound } from '../utils/errors.js';
+import type { TipoMostrador } from './buffetStock.js';
 
 export interface MostradorAdmin {
   id: string;
   nombre: string;
-  tipo: 'PRINCIPAL' | 'SECUNDARIO';
+  tipo: TipoMostrador;
   activo: boolean;
   /** Si tiene PIN cargado. Se expone esto y no el hash: el panel solo necesita saber si falta. */
   tienePin: boolean;
@@ -17,7 +18,7 @@ export const mostradorService = {
     return filas.map((m) => ({
       id: m.id,
       nombre: m.nombre,
-      tipo: m.tipo as 'PRINCIPAL' | 'SECUNDARIO',
+      tipo: m.tipo as TipoMostrador,
       activo: m.activo,
       tienePin: m.pinHash !== '',
     }));
@@ -37,7 +38,7 @@ export const mostradorService = {
     return {
       id: m.id,
       nombre: m.nombre,
-      tipo: m.tipo as 'PRINCIPAL' | 'SECUNDARIO',
+      tipo: m.tipo as TipoMostrador,
       activo: m.activo,
       tienePin: m.pinHash !== '',
     };

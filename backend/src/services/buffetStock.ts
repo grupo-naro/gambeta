@@ -5,7 +5,11 @@ import { BusinessRule } from '../utils/errors.js';
 // cuentas por cancha. Viven acá para que las dos cosas muevan el stock y calculen el vuelto igual.
 
 export type MedioPago = 'EFECTIVO' | 'TRANSFERENCIA';
-export interface MostradorStock { id: string; tipo: 'PRINCIPAL' | 'SECUNDARIO' }
+export type TipoMostrador = 'PRINCIPAL' | 'SECUNDARIO' | 'TERCERO';
+export interface MostradorStock { id: string; tipo: TipoMostrador }
+
+/** El secundario y el tercero son puestos con cupo: venden contra lo que les asignó el principal. */
+export const tieneCupo = (tipo: TipoMostrador): boolean => tipo !== 'PRINCIPAL';
 
 // Postgres check_violation SQLSTATE es 23514. Con el driver adapter de Prisma 7, el código
 // vive en e.cause.code (no en e.code ni en e.meta.code) — mismo patrón que isExclusionViolation
@@ -33,8 +37,8 @@ export function calcularPago(medioPago: MedioPago, montoPagado: number, total: n
  * Saca `cantidad` unidades del stock cuando el mostrador vende.
  *
  * El stock general es el TOTAL del complejo y baja cuando se vende, venda quien venda. Lo asignado
- * al secundario es solo un cupo dentro de ese total (cuánto se le dio): entregar no mueve stock,
- * vender sí, así que la venta del secundario baja su cupo Y el total.
+ * a un puesto (secundario o tercero) es solo un cupo dentro de ese total (cuánto se le dio): entregar no mueve stock,
+ * vender sí, así que la venta de un puesto baja su cupo Y el total.
  */
 export async function descontarStock(
   tx: Prisma.TransactionClient,
@@ -42,7 +46,7 @@ export async function descontarStock(
   producto: { id: string; nombre: string },
   cantidad: number,
 ): Promise<void> {
-  if (mostrador.tipo === 'SECUNDARIO') {
+  if (tieneCupo(mostrador.tipo)) {
     const clave = { mostradorId_productoId: { mostradorId: mostrador.id, productoId: producto.id } };
     const asignado = await tx.stockMostrador.findUnique({ where: clave });
     if (!asignado || asignado.cantidad < cantidad) throw BusinessRule(mensajeSinStockAsignado(producto.nombre));
@@ -58,7 +62,7 @@ export async function devolverStock(
   productoId: string,
   cantidad: number,
 ): Promise<void> {
-  if (mostrador.tipo === 'SECUNDARIO') {
+  if (tieneCupo(mostrador.tipo)) {
     await tx.stockMostrador.update({
       where: { mostradorId_productoId: { mostradorId: mostrador.id, productoId } },
       data: { cantidad: { increment: cantidad } },

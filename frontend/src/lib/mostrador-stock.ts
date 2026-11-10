@@ -1,4 +1,4 @@
-import type { StockAsignado } from './types';
+import type { StockAsignado, TipoMostrador } from './types';
 
 /**
  * Indexa el stock asignado por producto.
@@ -13,15 +13,15 @@ export function asignadoPorProducto(filas: StockAsignado[]): Record<string, numb
 }
 
 /**
- * Los productos que muestra un mostrador. El principal ve todo el catálogo; el secundario solo lo
- * que tiene asignado (más de 0), para no ofrecerle productos que no puede vender.
+ * Los productos que muestra un mostrador. El principal ve todo el catálogo; el secundario y el tercero solo lo
+ * que tienen asignado (más de 0), para no ofrecerle productos que no puede vender.
  *
  * `conservar` son ids que se siguen mostrando aunque se hayan quedado sin asignado (por ejemplo,
  * los que ya están cargados en una cuenta abierta, para poder restarlos).
  */
 export function productosDelMostrador<T extends { id: string }>(
   productos: T[],
-  tipo: 'PRINCIPAL' | 'SECUNDARIO',
+  tipo: TipoMostrador,
   asignado: StockAsignado[],
   conservar: string[] = [],
 ): T[] {

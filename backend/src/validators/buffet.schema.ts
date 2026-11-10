@@ -58,6 +58,8 @@ export const porCodigoSchema = z.object({
 
 export const entregarSchema = z.object({
   body: z.object({
+    // A qué puesto (secundario o tercero) se entrega o de cuál se devuelve. Sin esto, al secundario.
+    puestoId: z.string().min(1).optional(),
     items: z.array(z.object({ productoId: z.string().min(1), cantidad: z.number().int().positive() })).min(1),
   }),
   query: empty, params: empty,
@@ -73,7 +75,7 @@ export const conciliarSchema = z.object({
 
 const pin4 = z.string().regex(/^\d{4}$/, 'El PIN son 4 dígitos');
 // Los ids son fijos: los crea la migración de Task 1 y no hay alta de mostradores por API.
-const mostradorIdExistente = z.enum(['mostrador-principal', 'mostrador-secundario']);
+const mostradorIdExistente = z.enum(['mostrador-principal', 'mostrador-secundario', 'mostrador-tercero']);
 export const setPinSchema = z.object({ body: z.object({ pin: pin4, mostradorId: mostradorIdExistente }), query: empty, params: empty });
 export const verificarPinSchema = z.object({ body: z.object({ pin: pin4 }), query: empty, params: empty });
 export const setActivoMostradorSchema = z.object({

@@ -98,16 +98,16 @@ buffetRoutes.post('/caja/cerrar', authMostrador, async (req, res, next) => {
 
 buffetRoutes.post('/entregas', authMostrador, validate(entregarSchema), async (req, res, next) => {
   try {
-    const { items } = (req as any).valid.body;
-    res.json(await buffetEntregaService.entregar({ desdeMostradorId: (req as any).mostrador.id, items }));
+    const { items, puestoId } = (req as any).valid.body;
+    res.json(await buffetEntregaService.entregar({ desdeMostradorId: (req as any).mostrador.id, puestoId, items }));
   } catch (e) { next(e); }
 });
 
 // Devolver al principal lo que el secundario ya tiene. Manual: nada se devuelve al cerrar la caja.
 buffetRoutes.post('/devoluciones', authMostrador, validate(entregarSchema), async (req, res, next) => {
   try {
-    const { items } = (req as any).valid.body;
-    res.json(await buffetEntregaService.devolver({ desdeMostradorId: (req as any).mostrador.id, items }));
+    const { items, puestoId } = (req as any).valid.body;
+    res.json(await buffetEntregaService.devolver({ desdeMostradorId: (req as any).mostrador.id, puestoId, items }));
   } catch (e) { next(e); }
 });
 
@@ -166,16 +166,17 @@ buffetRoutes.get('/admin/cuentas', authJwt, requireRole('ADMIN'), validate(lista
   try { res.json(await buffetCuentaService.listarParaAdmin((req as any).valid.query.estado)); } catch (e) { next(e); }
 });
 
-// Resumen diario del secundario para el admin: con cuánto arrancó, cuánto vendió y cuánto sobró.
+// Resumen diario de un puesto con cupo (secundario por defecto, o el tercero con ?mostradorId=) para el admin: con cuánto arrancó, cuánto vendió y cuánto sobró.
 buffetRoutes.get('/secundario/diario', authJwt, requireRole('ADMIN'), async (req, res, next) => {
   try {
     const dias = Number(req.query.dias);
-    res.json(await buffetSecundarioService.resumenDiario({ dias: Number.isFinite(dias) && dias > 0 ? dias : undefined }));
+    const mostradorId = typeof req.query.mostradorId === 'string' && req.query.mostradorId ? req.query.mostradorId : undefined;
+    res.json(await buffetSecundarioService.resumenDiario({ dias: Number.isFinite(dias) && dias > 0 ? dias : undefined, mostradorId }));
   } catch (e) { next(e); }
 });
 
-buffetRoutes.get('/cajas', authJwt, requireRole('ADMIN'), async (_req, res, next) => {
-  try { res.json(await buffetCajaService.listCierres()); } catch (e) { next(e); }
+buffetRoutes.get('/cajas', authJwt, requireRole('ADMIN'), async (req, res, next) => {
+  try { res.json(await buffetCajaService.listCierres(typeof req.query.mostradorId === 'string' && req.query.mostradorId ? req.query.mostradorId : undefined)); } catch (e) { next(e); }
 });
 buffetRoutes.get('/productos', authJwt, requireRole('ADMIN'), async (_req, res, next) => {
   try { res.json(await buffetProductoService.list()); } catch (e) { next(e); }

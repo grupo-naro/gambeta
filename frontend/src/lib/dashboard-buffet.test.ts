@@ -4,7 +4,7 @@ import type { BuffetDia } from './types';
 
 const dia = (fecha: string, total: number, unidades = 0): BuffetDia => ({
   fecha, total, unidades, efectivo: total, transferencia: 0,
-  mostradores: { PRINCIPAL: { unidades, total }, SECUNDARIO: { unidades: 0, total: 0 } }, productos: [],
+  mostradores: { PRINCIPAL: { unidades, total }, SECUNDARIO: { unidades: 0, total: 0 }, TERCERO: { unidades: 0, total: 0 } }, productos: [],
 });
 
 describe('etiquetaDia', () => {

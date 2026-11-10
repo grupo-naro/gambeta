@@ -4,7 +4,7 @@ import type { AcademiaResumen, BuffetDia, BuffetResumen } from './types';
 
 const dia = (fecha: string, unidades: number, efectivo: number, transferencia: number): BuffetDia => ({
   fecha, unidades, efectivo, transferencia, total: efectivo + transferencia,
-  mostradores: { PRINCIPAL: { unidades, total: efectivo + transferencia }, SECUNDARIO: { unidades: 0, total: 0 } },
+  mostradores: { PRINCIPAL: { unidades, total: efectivo + transferencia }, SECUNDARIO: { unidades: 0, total: 0 }, TERCERO: { unidades: 0, total: 0 } },
   productos: [{ nombre: 'Coca', unidades, monto: efectivo + transferencia }],
 });
 

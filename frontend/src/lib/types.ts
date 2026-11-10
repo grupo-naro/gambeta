@@ -119,7 +119,7 @@ export interface Cobro { id: string; monto: number; medio: MedioPago; origen: st
 export interface CobrosReserva { monto: number; pagado: number; saldo: number; cobros: Cobro[] }
 /** Ventas de un mostrador del buffet en el período (GET /analytics/buffet). */
 export interface BuffetMostradorResumen {
-  tipo: 'PRINCIPAL' | 'SECUNDARIO'; nombre: string;
+  tipo: TipoMostrador; nombre: string;
   monto: number; tickets: number; unidades: number; ticketPromedio: number; alquileres: number;
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
   topProductos: { nombre: string; unidades: number; monto: number }[];
@@ -137,7 +137,7 @@ export interface AcademiaResumen {
 /** Un día del buffet: todo junto, por medio de pago, por mostrador y por producto. */
 export interface BuffetDia {
   fecha: string; unidades: number; efectivo: number; transferencia: number; total: number;
-  mostradores: { PRINCIPAL: { unidades: number; total: number }; SECUNDARIO: { unidades: number; total: number } };
+  mostradores: Record<TipoMostrador, { unidades: number; total: number }>;
   productos: { nombre: string; unidades: number; monto: number }[];
 }
 export interface BuffetResumen {
@@ -172,10 +172,13 @@ export class ApiAuthError extends ApiError { constructor(message = 'No autorizad
 export interface ProductoBuffet {
   id: string; nombre: string; codigoBarra: string | null; precio: number;
   stock: number; stockMinimo: number; enBotonera: boolean; orden: number; activo: boolean;
-  /** Unidades de este producto que están en el mostrador secundario. */
+  /** Unidades de este producto asignadas a los puestos (secundario y tercero). */
   asignado: number;
 }
-export type TipoMostrador = 'PRINCIPAL' | 'SECUNDARIO';
+export type TipoMostrador = 'PRINCIPAL' | 'SECUNDARIO' | 'TERCERO';
+
+/** El secundario y el tercero son puestos con cupo: venden solo lo que les asignó el principal. */
+export const tieneCupo = (tipo: TipoMostrador): boolean => tipo !== 'PRINCIPAL';
 export interface MostradorAdmin {
   id: string; nombre: string; tipo: TipoMostrador; activo: boolean;
   /** Si tiene PIN cargado. El hash nunca sale del backend. */
@@ -216,7 +219,7 @@ export interface ResumenConciliacion {
   productoId: string; nombre: string; cierres: number;
   entregado: number; vendido: number; contado: number; diferencia: number;
 }
-/** Un día del mostrador secundario: con cuánto arrancó, cuánto vendió y cuánto sobró. */
+/** Un día de un puesto con cupo (secundario o tercero): con cuánto arrancó, cuánto vendió y cuánto sobró. */
 export interface LineaDiaSecundario {
   productoId: string; nombre: string;
   arranco: number; entregado: number; devuelto: number; vendido: number; quedo: number;

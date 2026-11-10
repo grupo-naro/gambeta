@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { mostradorDeSesion, manejarBuffetNoAutorizado } from '@/lib/buffet-session';
 import { buffetFetch } from '@/lib/buffet-api';
-import { ApiError } from '@/lib/types';
+import { ApiError, tieneCupo } from '@/lib/types';
 import type { CuentaBuffet, ProductoCobro, StockAsignado } from '@/lib/types';
 import { productosDelMostrador } from '@/lib/mostrador-stock';
 import { PantallaCuenta } from '@/components/mostrador/pantalla-cuenta';
@@ -18,8 +18,8 @@ export default async function CuentaPage({ params }: { params: Promise<{ id: str
     [cuenta, productos, asignado] = await Promise.all([
       buffetFetch<CuentaBuffet>(`/buffet/cuentas/${encodeURIComponent(id)}`),
       buffetFetch<ProductoCobro[]>('/buffet/productos/activos'),
-      // Solo el secundario trabaja con un cupo; pedirlo siendo el principal no hace falta.
-      mostrador.tipo === 'SECUNDARIO' ? buffetFetch<StockAsignado[]>('/buffet/stock-asignado') : Promise.resolve([] as StockAsignado[]),
+      // Solo los puestos (secundario y tercero) trabajan con un cupo; pedirlo siendo el principal no hace falta.
+      tieneCupo(mostrador.tipo) ? buffetFetch<StockAsignado[]>('/buffet/stock-asignado') : Promise.resolve([] as StockAsignado[]),
     ]);
   } catch (e) {
     await manejarBuffetNoAutorizado(e);
