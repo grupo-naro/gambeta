@@ -9,6 +9,7 @@ async function run(fn: () => Promise<unknown>): Promise<Result> {
   try {
     await fn();
     revalidatePath('/bloqueos');
+    revalidatePath('/academia');
     revalidatePath('/calendario');
     revalidatePath('/hoy');
     revalidatePath('/caja');

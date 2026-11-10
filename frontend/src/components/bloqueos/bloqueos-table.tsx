@@ -11,7 +11,6 @@ import { BloqueoDialog } from './bloqueo-dialog';
 import { ExcepcionBloqueoDialog } from './excepcion-bloqueo-dialog';
 import { eliminarBloqueo } from '@/lib/bloqueos-actions';
 import { CobrosDialog } from '@/components/reservas/cobros-dialog';
-import { MesesBloqueoDialog } from './meses-bloqueo-dialog';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
@@ -25,7 +24,6 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
   const [bloqueoExc, setBloqueoExc] = useState<Bloqueo | null>(null);
   function abrirExcepcion(b: Bloqueo) { setSeleccion(null); setBloqueoExc(b); setExcepcionOpen(true); }
   const [cobrosId, setCobrosId] = useState<string | null>(null);
-  const [mesesDe, setMesesDe] = useState<Bloqueo | null>(null);
   const [editando, setEditando] = useState<Bloqueo | null>(null);
   const [pending, start] = useTransition();
   const confirm = useConfirm();
@@ -110,9 +108,6 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
               <p className="text-sm text-neutral-600">{MOTIVO_LABEL[seleccion.motivo] ?? seleccion.motivo} · {programaLabel(seleccion)} · {seleccion.horaInicio}–{seleccion.horaFin}</p>
             </SheetHeader>
             <Button variant="outline" className="h-11 w-full" disabled={pending} onClick={() => { setEditando(seleccion); setSeleccion(null); }}>Editar{seleccion.valor == null && (!seleccion.recurrente || seleccion.motivo === 'ENTRENAMIENTO') ? ' / poner precio' : ''}</Button>
-            {seleccion.valor != null && seleccion.recurrente && (
-              <Button className="h-11 w-full" disabled={pending} onClick={() => { setMesesDe(seleccion); setSeleccion(null); }}>Cobros por mes ({plataLabel(seleccion)})</Button>
-            )}
             {seleccion.valor != null && !seleccion.recurrente && (
               <Button className="h-11 w-full" disabled={pending} onClick={() => { setCobrosId(seleccion.id); setSeleccion(null); }}>Cobros del evento ({plataLabel(seleccion)})</Button>
             )}
@@ -125,7 +120,6 @@ export function BloqueosTable({ bloqueos, canchas }: { bloqueos: Bloqueo[]; canc
       </Sheet>
 
       {editando && <BloqueoDialog key={editando.id} bloqueo={editando} open onOpenChange={(o) => { if (!o) setEditando(null); }} canchas={canchas} />}
-      <MesesBloqueoDialog key={mesesDe?.id ?? 'none'} bloqueoId={mesesDe?.id ?? null} titulo={mesesDe ? `${mesesDe.cancha?.nombre ?? ''} · ${DIAS[mesesDe.diaSemana ?? 0]} ${mesesDe.horaInicio}–${mesesDe.horaFin}` : ''} open={mesesDe !== null} onOpenChange={(o) => { if (!o) setMesesDe(null); }} />
       <CobrosDialog bloqueoId={cobrosId} open={cobrosId !== null} onOpenChange={(o) => { if (!o) setCobrosId(null); }} />
       <ExcepcionBloqueoDialog key={bloqueoExc?.id ?? 'none'} open={excepcionOpen} onOpenChange={setExcepcionOpen} bloqueo={bloqueoExc} />
       <BloqueoDialog open={dialogOpen} onOpenChange={setDialogOpen} canchas={canchas} />

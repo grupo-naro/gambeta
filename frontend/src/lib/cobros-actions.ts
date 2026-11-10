@@ -7,7 +7,7 @@ import type { MesesBloqueo } from './meses-bloqueo';
 
 type Result = { ok: true } | { ok: false; error: string };
 async function run(fn: () => Promise<unknown>): Promise<Result> {
-  try { await fn(); revalidatePath('/reservas'); revalidatePath('/caja'); revalidatePath('/turnos-fijos'); revalidatePath('/bloqueos'); return { ok: true }; }
+  try { await fn(); revalidatePath('/reservas'); revalidatePath('/caja'); revalidatePath('/turnos-fijos'); revalidatePath('/bloqueos'); revalidatePath('/academia'); return { ok: true }; }
   catch (e) { return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' }; }
 }
 

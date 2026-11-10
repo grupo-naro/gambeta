@@ -15,7 +15,6 @@ import { registrarCobroBloqueo } from '@/lib/cobros-actions';
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MOTIVOS = [
   { value: 'TORNEO', label: 'Torneo' },
-  { value: 'ENTRENAMIENTO', label: 'Entrenamiento' },
   { value: 'MANTENIMIENTO', label: 'Mantenimiento' },
   { value: 'OTRO', label: 'Otro' },
 ];
@@ -181,13 +180,6 @@ export function BloqueoDialog({
               <HoraInput id="bl-fin" value={horaFin} onChange={setHoraFin} />
             </div>
           </div>
-          {tipo === 'recurrente' && motivo === 'ENTRENAMIENTO' && (
-            <div className="space-y-1 rounded-lg border bg-neutral-50 p-3">
-              <Label htmlFor="bl-valor-mes">Valor por mes (opcional)</Label>
-              <Input id="bl-valor-mes" type="number" min="0" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="50000" />
-              <p className="text-xs text-muted-foreground">Lo que se paga por mes por este entrenamiento. Después, desde el bloqueo, marcás qué meses se pagaron y cuáles se deben. Lo cobrado entra en la caja.</p>
-            </div>
-          )}
           {tipo === 'puntual' && (
             <div className="space-y-3 rounded-lg border bg-neutral-50 p-3">
               <p className="text-xs text-muted-foreground">Si es un evento que se cobra (ej. cumpleaños), cargá el valor y la seña. El resto se cobra ese día y todo entra en la caja.</p>
