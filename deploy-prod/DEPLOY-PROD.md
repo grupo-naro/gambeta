@@ -8,13 +8,19 @@ un runner self-hosted de GitHub Actions instalado en el VPS
 ([`.github/workflows/deploy-prod.yml`](../.github/workflows/deploy-prod.yml)).
 
 ```
-push a main ──▶ GitHub ──▶ runner en el VPS ──▶ git reset --hard origin/main
-                                              └▶ docker compose up -d --build
-                                                 (el backend corre `prisma migrate deploy` al arrancar)
-                                              └▶ health check a /health
+push a main ──▶ GitHub ──▶ runner en el VPS ──▶ guarda imágenes actuales como :previous
+                                              └▶ git reset --hard origin/main + build      (falla → nada cambia)
+                                              └▶ pg_dump a /home/deploy/backups/           (falla → nada cambia)
+                                              └▶ prisma migrate deploy (contenedor aparte) (falla → nada cambia)
+                                              └▶ recrea contenedores
+                                              └▶ health check 90 s                        (falla → rollback a :previous)
 ```
 
-Migraciones: automáticas (las corre el `CMD` del contenedor del backend al bootear).
+**Regla: si el deploy falla, el sitio queda andando con la versión anterior.**
+
+Migraciones: automáticas, las corre el workflow **antes** de recrear los contenedores. El
+backend arranca con `node dist/index.js` (override `command:` en el compose), no migra solo.
+Backups: un `pg_dump -Fc` antes de cada deploy en `/home/deploy/backups/` (se guardan 10).
 Seed: **manual** e idempotente — no corre en cada deploy.
 
 ---
@@ -138,14 +144,40 @@ Se usa Evolution API (WhatsApp Web). Hace falta un número de WhatsApp dedicado 
 - **Deploy manual / forzar**: Actions → *Deploy prod (self-hosted)* → **Run workflow**, o en el VPS:
   ```bash
   cd /home/deploy/gambeta && git fetch && git reset --hard origin/main
-  cd deploy-prod && docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+  cd deploy-prod && docker compose -f docker-compose.prod.yml build
+  docker compose -f docker-compose.prod.yml run --rm --no-deps -T backend npx prisma migrate deploy
+  docker compose -f docker-compose.prod.yml up -d --no-build --remove-orphans
   ```
+  Ojo: el backend ya **no** migra al arrancar; un `up -d --build` a secas se saltea las
+  migraciones. Mejor usar *Run workflow*, que además hace backup y rollback automático.
 - **Logs**: `docker compose -f docker-compose.prod.yml logs -f <servicio>`
-- **Rollback**: `git push --force origin <commit-bueno>:main` (o revert + push). El workflow
-  hace `git reset --hard origin/main`, así que vuelve exactamente a lo que quede en `main`.
-- **Migración nueva**: se aplica sola al deployar (el backend corre `prisma migrate deploy`
-  al arrancar). Si falla, el contenedor entra en loop de restart y el health check del
-  workflow marca el run en rojo con los últimos logs del backend.
+- **Rollback**: automático si la versión nueva no pasa el health check. A mano:
+  `git revert` + push (o `git push --force origin <commit-bueno>:main`).
+- **Migración nueva**: se aplica sola al deployar, antes de recrear los contenedores.
+
+### Si falla una migración
+
+El run queda en rojo y el sitio sigue con la versión anterior, pero la migración queda
+registrada como fallida en `_prisma_migrations` y **todo deploy siguiente va a fallar**
+(P3009) hasta destrabarla:
+
+1. Leer el error en el log del run (o en `_prisma_migrations.logs`).
+2. Confirmar que no quedó aplicada a medias (Postgres corre el script de la migración en una
+   transacción implícita salvo que tenga `BEGIN/COMMIT` propios, pero verificarlo igual).
+3. Marcarla como revertida:
+   ```bash
+   cd /home/deploy/gambeta/deploy-prod
+   docker compose -f docker-compose.prod.yml run --rm --no-deps -T backend \
+     npx prisma migrate resolve --rolled-back <nombre_de_la_migracion>
+   ```
+4. Corregir la migración en el repo (si nunca se aplicó en ningún lado, se puede editar) y pushear.
+
+### Restaurar un backup
+
+```bash
+docker exec -i gambeta-prod-postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d gambeta --clean --if-exists' \
+  < /home/deploy/backups/pre-deploy-<fecha>-<commit>.dump
+```
 
 ## Notas
 

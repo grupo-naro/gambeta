@@ -45,6 +45,9 @@ services:
     build: ../backend
     image: gambeta-prod-backend:latest
     container_name: gambeta-prod-backend
+    # Arranca SIN migrar: las migraciones las corre solo el workflow de deploy, antes de
+    # recrear el contenedor. Así un reinicio o un rollback nunca se traba por una migración.
+    command: ["node", "dist/index.js"]
     environment:
       DATABASE_URL: "postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/gambeta?schema=public"
       JWT_SECRET: "${JWT_SECRET}"

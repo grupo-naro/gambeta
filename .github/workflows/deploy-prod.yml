@@ -5,6 +5,22 @@ name: Deploy prod (self-hosted)
 # y reconstruye el stack de deploy-prod/. El runner se conecta SALIENTE a GitHub, así
 # que no hace falta abrir puertos ni guardar claves SSH.
 #
+# Regla de oro: si algo falla, el sitio queda andando con la versión anterior.
+#   1. Guarda las imágenes que están corriendo como :previous
+#   2. git reset a origin/main + build          (falla → no se toca nada)
+#   3. Backup pg_dump de la base                (falla → no se toca nada)
+#   4. prisma migrate deploy en un contenedor aparte, con la imagen nueva
+#                                               (falla → no se toca nada; hay que destrabar
+#                                                la migración a mano, ver DEPLOY-PROD.md)
+#   5. Recrea los contenedores con la imagen nueva
+#   6. Health check (backend /health, panel, reservas, nada reiniciándose)
+#                                               (falla → rollback automático a :previous)
+#   7. Recién ahí borra las imágenes viejas
+#
+# Las migraciones las corre SOLO este workflow (paso 4): el backend arranca con
+# `node dist/index.js` (override en el compose), así un reinicio o un rollback nunca
+# se traba por una migración.
+#
 # Requisitos en el VPS (una sola vez, ver deploy-prod/DEPLOY-PROD.md):
 #   - runner registrado en grupo-naro/gambeta con la label `gambeta-prod`, como servicio
 #   - el repo clonado en $DEPLOY_DIR (default /home/deploy/gambeta)
@@ -22,35 +38,120 @@ concurrency:
 jobs:
   deploy:
     runs-on: [self-hosted, gambeta-prod]
+    timeout-minutes: 30
+    env:
+      DIR: ${{ vars.DEPLOY_DIR || '/home/deploy/gambeta' }}
+      BACKUP_DIR: /home/deploy/backups
+      KEEP_BACKUPS: "10"
     steps:
-      - name: Pull latest & redeploy
+      - name: Deploy con rollback automático
+        shell: bash
         run: |
           set -euo pipefail
-          DIR="${{ vars.DEPLOY_DIR || '/home/deploy/gambeta' }}"
-          echo "Desplegando en: $DIR ($(git -C "$DIR" rev-parse --short HEAD 2>/dev/null || echo '?') -> origin/main)"
+          SERVICES="backend frontend reservas"
+          COMPOSE_FILE="$DIR/deploy-prod/docker-compose.prod.yml"
+          C() { docker compose -f "$COMPOSE_FILE" "$@"; }
+
           cd "$DIR"
+          PREV=$(git rev-parse HEAD)
+
+          # Aborta ANTES de tocar los contenedores: vuelve el código y deja todo como estaba.
+          abort() {
+            echo "::error::$1"
+            git -C "$DIR" reset --hard "$PREV" >/dev/null
+            echo "Código vuelto a ${PREV:0:7}. Los contenedores que estaban corriendo NO se tocaron."
+            exit 1
+          }
+
+          healthy() {
+            local s st
+            for s in $SERVICES; do
+              st=$(docker inspect -f '{{.State.Running}} {{.State.Restarting}}' "gambeta-prod-$s" 2>/dev/null || echo "false false")
+              [ "$st" = "true false" ] || { echo "  $s no está corriendo estable ($st)"; return 1; }
+            done
+            docker exec gambeta-prod-backend node -e \
+              "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" \
+              || { echo "  backend /health no responde OK"; return 1; }
+            # Next standalone escucha en la IP del contenedor (HOSTNAME), no en localhost.
+            for s in frontend reservas; do
+              docker exec "gambeta-prod-$s" node -e \
+                "fetch('http://'+require('os').hostname()+':3000/',{redirect:'manual'}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))" \
+                || { echo "  $s no responde"; return 1; }
+            done
+          }
+
+          # Espera hasta ~90 s a que todo responda OK 3 veces seguidas.
+          wait_healthy() {
+            local i ok=0
+            for i in $(seq 1 30); do
+              if healthy; then
+                ok=$((ok + 1)); echo "Health OK ($ok/3)"
+                [ "$ok" -ge 3 ] && return 0
+              else
+                ok=0; echo "Esperando que levante… ($i/30)"
+              fi
+              sleep 3
+            done
+            return 1
+          }
+
+          # ── 1. Guardar lo que está corriendo como :previous ────────────────────────
+          for s in $SERVICES; do
+            img=$(docker inspect -f '{{.Image}}' "gambeta-prod-$s" 2>/dev/null || true)
+            if [ -n "$img" ]; then
+              docker tag "$img" "gambeta-prod-$s:previous"
+              echo "Guardada gambeta-prod-$s:previous"
+            else
+              echo "::warning::gambeta-prod-$s no estaba corriendo: no hay :previous para ese servicio"
+            fi
+          done
+
+          # ── 2. Código nuevo + build (lo viejo sigue corriendo) ─────────────────────
           git fetch --all --prune
           git reset --hard origin/main
-          cd deploy-prod
-          # Rebuild + recreate. El CMD del backend corre `prisma migrate deploy` al arrancar,
-          # así que la base se migra sola. El seed NO corre acá (es manual e idempotente).
-          docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
-          docker image prune -f
-          echo "Compose arriba. Commit: $(git -C "$DIR" rev-parse --short HEAD)"
+          NEW=$(git rev-parse HEAD)
+          echo "Desplegando ${PREV:0:7} -> ${NEW:0:7}"
+          C build || abort "Falló el build de ${NEW:0:7}"
 
-      - name: Health check backend
-        run: |
-          set -euo pipefail
-          DIR="${{ vars.DEPLOY_DIR || '/home/deploy/gambeta' }}"
-          cd "$DIR/deploy-prod"
-          for i in $(seq 1 30); do
-            if docker compose -f docker-compose.prod.yml exec -T backend wget -qO- http://localhost:3000/health >/dev/null 2>&1; then
-              echo "Backend OK (intento $i)"
-              exit 0
+          # ── 3. Backup de la base ───────────────────────────────────────────────────
+          mkdir -p "$BACKUP_DIR" && chmod 700 "$BACKUP_DIR"
+          BACKUP="$BACKUP_DIR/pre-deploy-$(date +%Y%m%d-%H%M%S)-${NEW:0:7}.dump"
+          if ! (umask 077; docker exec gambeta-prod-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -Fc gambeta' > "$BACKUP") \
+             || [ ! -s "$BACKUP" ]; then
+            rm -f "$BACKUP"
+            abort "Falló el backup de la base"
+          fi
+          echo "Backup: $BACKUP ($(du -h "$BACKUP" | cut -f1))"
+          ls -1t "$BACKUP_DIR"/pre-deploy-*.dump | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm -f
+
+          # ── 4. Migraciones, con la imagen nueva y sin tocar lo que corre ───────────
+          if ! C run --rm --no-deps -T backend npx prisma migrate deploy; then
+            abort "Falló la migración. El sitio sigue con la versión anterior. Para el próximo deploy hay que destrabarla a mano (ver 'Si falla una migración' en deploy-prod/DEPLOY-PROD.md). Backup previo: $BACKUP"
+          fi
+
+          # ── 5. Swap ────────────────────────────────────────────────────────────────
+          C up -d --no-build --remove-orphans
+
+          # ── 6. Health check / rollback ─────────────────────────────────────────────
+          if ! wait_healthy; then
+            echo "::error::${NEW:0:7} no pasó el health check. Rollback automático a ${PREV:0:7}"
+            C logs --tail=80 $SERVICES || true
+            for s in $SERVICES; do
+              if docker image inspect "gambeta-prod-$s:previous" >/dev/null 2>&1; then
+                docker tag "gambeta-prod-$s:previous" "gambeta-prod-$s:latest"
+              fi
+            done
+            git reset --hard "$PREV"
+            C up -d --no-build --remove-orphans
+            if wait_healthy; then
+              echo "::error::Rollback OK: el sitio quedó con ${PREV:0:7}. Ojo: las migraciones de ${NEW:0:7} SÍ quedaron aplicadas. Backup previo: $BACKUP"
+            else
+              echo "::error::¡El rollback tampoco quedó sano! Hay que intervenir a mano. Backup previo: $BACKUP"
+              C logs --tail=80 $SERVICES || true
             fi
-            echo "Backend todavía no responde (intento $i/30)…"
-            sleep 3
-          done
-          echo "::error::El backend no pasó el health check tras el deploy"
-          docker compose -f docker-compose.prod.yml logs --tail=80 backend
-          exit 1
+            exit 1
+          fi
+
+          # ── 7. Limpieza ────────────────────────────────────────────────────────────
+          docker image prune -f
+          echo "Deploy OK: ${NEW:0:7}"
