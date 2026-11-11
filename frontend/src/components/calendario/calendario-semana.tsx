@@ -29,7 +29,7 @@ function EventoBtn({ ev, canchas, onEvento }: { ev: EventoCal; canchas: Cancha[]
   return (
     <button
       onClick={() => onEvento(ev)}
-      className={`block w-full truncate rounded border px-1.5 py-0.5 text-left text-[12px] leading-tight ${clasesColor} ${esReserva ? '' : 'border-dashed'} ${ev.esContinuacion ? 'opacity-50' : esperando ? 'opacity-60' : ''}`}
+      className={`block w-full truncate rounded border px-1.5 py-1 text-left text-[14px] leading-tight ${clasesColor} ${esReserva ? '' : 'border-dashed'} ${ev.esContinuacion ? 'opacity-50' : esperando ? 'opacity-60' : ''}`}
       title={`${cuerpoTitle}${tag ? ' · ' + tag : ''}${esperando ? ' (seña)' : ''}`}
     >
       {ev.esContinuacion && <span className="opacity-60">↳ </span>}
