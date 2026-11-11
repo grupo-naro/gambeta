@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, dividirCelda, hhmmDeMinutos, horasQueToca, horasDelDia } from './calendario';
+import { semanaDe, colorDeCancha, PALETA, ubicarEnTz, nombreCancha, hhmmDeMinutos, horasQueToca, horasDelDia } from './calendario';
 import type { TurnoFijo, Bloqueo } from './types';
 
 const dow = (ymd: string) => new Date(ymd + 'T12:00:00Z').getUTCDay(); // 1 = lunes
@@ -192,18 +192,6 @@ describe('materializar', () => {
     expect(ev).toHaveLength(1);
     expect(ev[0].fecha).toBe(vie);
     expect(ev[0].subtitulo).toBe('Mantenim. · pintura');
-  });
-});
-
-describe('dividirCelda', () => {
-  it('muestra todos si no supera el max', () => {
-    expect(dividirCelda(['a', 'b', 'c'], 3)).toEqual({ visibles: ['a', 'b', 'c'], ocultos: [] });
-  });
-  it('deja lugar al boton cuando supera el max', () => {
-    expect(dividirCelda(['a', 'b', 'c', 'd'], 3)).toEqual({ visibles: ['a', 'b'], ocultos: ['c', 'd'] });
-  });
-  it('maneja lista vacia', () => {
-    expect(dividirCelda([], 3)).toEqual({ visibles: [], ocultos: [] });
   });
 });
 

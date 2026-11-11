@@ -167,12 +167,6 @@ export function materializar(dias: string[], fijos: TurnoFijo[], bloqueos: Bloqu
   return out;
 }
 
-/** Parte los eventos de una celda en visibles + ocultos, dejando lugar al botón "+N más". */
-export function dividirCelda<T>(eventos: T[], max: number): { visibles: T[]; ocultos: T[] } {
-  if (eventos.length <= max) return { visibles: eventos, ocultos: [] };
-  return { visibles: eventos.slice(0, max - 1), ocultos: eventos.slice(max - 1) };
-}
-
 // Estilos por TIPO de evento (fijo/bloqueo) para que resalten en Hoy y Calendario.
 // Clases Tailwind LITERALES (el JIT las purga si no aparecen como string).
 export const ESTILO_TIPO = {

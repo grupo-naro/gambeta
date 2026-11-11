@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import type { Reserva, Cancha, TurnoFijo, Bloqueo } from '@/lib/types';
-import { colorDeCancha, ubicarEnTz, horasDelDia, materializar, etiquetaMotivo, ESTILO_TIPO, dividirCelda, hhmmDeMinutos, horasQueToca, type EventoCal } from '@/lib/calendario';
+import { colorDeCancha, ubicarEnTz, horasDelDia, materializar, etiquetaMotivo, ESTILO_TIPO, hhmmDeMinutos, horasQueToca, type EventoCal } from '@/lib/calendario';
 import { ReprogramarDialog } from '@/components/reservas/reprogramar-dialog';
 import { AccionReservaSheet } from '@/components/reservas/accion-reserva-sheet';
 import { EditarReservaDialog } from '@/components/reservas/editar-reserva-dialog';
@@ -50,13 +50,6 @@ export function CalendarioSemana({
   const [editandoRes, setEditandoRes] = useState<Reserva | null>(null);
   const [selInfo, setSelInfo] = useState<EventoCal | null>(null);
   const [reprogId, setReprogId] = useState<string | null>(null);
-  const [selCelda, setSelCelda] = useState<{ fecha: string; hora: number; eventos: EventoCal[] } | null>(null);
-  const onMas = (fecha: string, hora: number, eventos: EventoCal[]) => setSelCelda({ fecha, hora, eventos });
-  const tituloCelda = (fecha: string, hora: number) => {
-    const idx = dias.indexOf(fecha);
-    const lbl = idx >= 0 ? `${DIAS_LBL[idx]} ${Number(fecha.slice(8, 10))}` : fecha;
-    return `${lbl} · ${String(hora).padStart(2, '0')}:00`;
-  };
 
   // Mobile day view state
   const [diaSel, setDiaSel] = useState(dias.includes(hoy) ? hoy : dias[0]);
@@ -105,7 +98,8 @@ export function CalendarioSemana({
   }
   // Las reservas se insertan ordenadas por hora de inicio, así que en una celda, las
   // continuaciones de turnos anteriores entran antes que los que arrancan en esa hora.
-  // Sin este reordenamiento, dividirCelda(evs, 3) puede tapar turnos reales detrás de "+N más".
+  // Se muestran todos los turnos de la celda (la fila crece): ninguno queda escondido detrás de un "+N más".
+  // Los que arrancan en esa hora van primero.
   for (const arr of porCelda.values()) {
     arr.sort((a, b) =>
       Number(a.esContinuacion) - Number(b.esContinuacion) || a.horaTexto.localeCompare(b.horaTexto));
@@ -139,7 +133,7 @@ export function CalendarioSemana({
             </div>
           ))}
           {horas.map((h) => (
-            <FilaHora key={h} h={Number(h.slice(0, 2))} dias={dias} porCelda={porCelda} canchas={canchas} onEvento={onEvento} onMas={onMas} />
+            <FilaHora key={h} h={Number(h.slice(0, 2))} dias={dias} porCelda={porCelda} canchas={canchas} onEvento={onEvento} />
           ))}
         </div>
       </div>
@@ -216,23 +210,6 @@ export function CalendarioSemana({
         )}
       </Sheet>
 
-      {/* Hoja "+N más": todas las reservas de una hora/día */}
-      <Sheet open={!!selCelda} onOpenChange={(o) => { if (!o) setSelCelda(null); }}>
-        {selCelda && (
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>{tituloCelda(selCelda.fecha, selCelda.hora)}</SheetTitle>
-              <p className="text-sm text-neutral-600">{selCelda.eventos.length} turnos ocupan esta hora</p>
-            </SheetHeader>
-            <div className="flex flex-col gap-1">
-              {selCelda.eventos.map((ev) => (
-                <EventoBtn key={ev.key} ev={ev} canchas={canchas} onEvento={(e) => { setSelCelda(null); onEvento(e); }} />
-              ))}
-            </div>
-          </SheetContent>
-        )}
-      </Sheet>
-
       <ReprogramarDialog
         id={reprogId}
         open={!!reprogId}
@@ -243,30 +220,21 @@ export function CalendarioSemana({
 }
 
 function FilaHora({
-  h, dias, porCelda, canchas, onEvento, onMas,
+  h, dias, porCelda, canchas, onEvento,
 }: {
-  h: number; dias: string[]; porCelda: Map<string, EventoCal[]>; canchas: Cancha[]; onEvento: (ev: EventoCal) => void; onMas: (fecha: string, hora: number, eventos: EventoCal[]) => void;
+  h: number; dias: string[]; porCelda: Map<string, EventoCal[]>; canchas: Cancha[]; onEvento: (ev: EventoCal) => void;
 }) {
   return (
     <>
       <div className="border-b border-r bg-neutral-50 p-2 text-right text-xs text-neutral-500">{String(h).padStart(2, '0')}:00</div>
       {dias.map((d) => {
         const evs = porCelda.get(`${d}|${h}`) ?? [];
-        const { visibles, ocultos } = dividirCelda(evs, 3);
         return (
           <div key={d} className="min-h-11 border-b border-r p-1">
             <div className="flex flex-col gap-0.5">
-              {visibles.map((ev) => (
+              {evs.map((ev) => (
                 <EventoBtn key={ev.key} ev={ev} canchas={canchas} onEvento={onEvento} />
               ))}
-              {ocultos.length > 0 && (
-                <button
-                  onClick={() => onMas(d, h, evs)}
-                  className="rounded px-1.5 py-0.5 text-left text-[11px] font-medium text-neutral-500 hover:bg-neutral-100"
-                >
-                  + {ocultos.length} más
-                </button>
-              )}
             </div>
           </div>
         );
