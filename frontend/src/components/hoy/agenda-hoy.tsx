@@ -14,6 +14,8 @@ import { EditarReservaDialog } from '@/components/reservas/editar-reserva-dialog
 import { materializarFijo } from '@/lib/fijos-actions';
 import { addDias, esHoy, fmtFechaLarga, hoyAR } from '@/lib/fecha';
 import { colorDeCancha, nombreCancha } from '@/lib/calendario';
+import { coincideConFiltro, deporteDe, deportesDe } from '@/lib/hoy-filtro';
+import { tipoLabel } from '@/lib/canchas-catalogo';
 import { cn } from '@/lib/utils';
 import type { AgendaDia, CajaReporte, Cancha, Reserva } from '@/lib/types';
 
@@ -27,17 +29,22 @@ export function AgendaHoy({ agenda, canchas, fecha, totalCobrado, porMedio, sena
   const [editando, setEditando] = useState<Reserva | null>(null);
   const [pending, start] = useTransition();
   const [canchaFiltro, setCanchaFiltro] = useState<string | null>(null);
+  const [deporteFiltro, setDeporteFiltro] = useState<string | null>(null);
   const [q, setQ] = useState('');
 
   const norm = (s: string) => (s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const buscando = q.trim() !== '';
   const matchNombre = (nombre?: string | null) => !buscando || norm(nombre ?? '').includes(norm(q));
 
-  const coincide = (canchaId: string) => !canchaFiltro || canchaId === canchaFiltro;
+  const canchaPorId = new Map(canchas.map((c) => [c.id, c]));
+  const coincide = (canchaId: string) => coincideConFiltro(canchaPorId.get(canchaId), { deporte: deporteFiltro, canchaId: canchaFiltro });
   const reservas = agenda.reservas.filter((r) => r.estado !== 'CANCELADA' && coincide(r.canchaId) && matchNombre(r.cliente?.nombre));
   const fijos = agenda.fijos.filter((f) => coincide(f.canchaId) && matchNombre(f.clienteNombre));
   const bloqueos = agenda.bloqueos.filter((b) => coincide(b.canchaId) && !buscando);
-  const canchasOrden = [...canchas].sort((a, b) => a.id.localeCompare(b.id));
+  const deportes = deportesDe(canchas);
+  // Con un deporte elegido, los botones de cancha son solo los de ese deporte.
+  const canchasOrden = [...canchas].filter((c) => !deporteFiltro || deporteDe(c.tipo) === deporteFiltro).sort((a, b) => a.id.localeCompare(b.id));
+  const elegirDeporte = (d: string | null) => { setDeporteFiltro(d); setCanchaFiltro(null); };
   const vacio = reservas.length === 0 && fijos.length === 0 && bloqueos.length === 0;
   const irA = (ymd: string) => router.push(`/hoy?fecha=${ymd}`);
 
@@ -95,6 +102,22 @@ export function AgendaHoy({ agenda, canchas, fecha, totalCobrado, porMedio, sena
         )}
       </div>
 
+      {deportes.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Deporte">
+          {[{ v: null, label: 'Todos' }, ...deportes.map((d) => ({ v: d, label: tipoLabel(d) }))].map((o) => (
+            <button
+              key={o.v ?? 'todos'}
+              type="button"
+              aria-pressed={deporteFiltro === o.v}
+              onClick={() => elegirDeporte(o.v)}
+              className={cn('shrink-0 rounded-lg border px-4 py-1.5 text-sm font-medium whitespace-nowrap', deporteFiltro === o.v ? 'bg-primary text-primary-foreground' : 'bg-white text-neutral-700')}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex gap-2 overflow-x-auto pb-1">
         <button
           type="button"
@@ -123,7 +146,7 @@ export function AgendaHoy({ agenda, canchas, fecha, totalCobrado, porMedio, sena
       {vacio ? (
         <div className="rounded-xl border border-dashed bg-white py-12 text-center">
           <CalendarDays className="mx-auto mb-2 h-8 w-8 text-neutral-300" />
-          <p className="text-sm text-neutral-600">{buscando ? `No se encontró ninguna reserva para «${q}».` : canchaFiltro ? 'No hay turnos en esa cancha para este día.' : 'No hay turnos para este día.'}</p>
+          <p className="text-sm text-neutral-600">{buscando ? `No se encontró ninguna reserva para «${q}».` : canchaFiltro || deporteFiltro ? 'No hay turnos con ese filtro para este día.' : 'No hay turnos para este día.'}</p>
         </div>
       ) : (
         <div className="space-y-2">
