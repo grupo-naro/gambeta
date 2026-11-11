@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react';
 import type { DiaSecundario } from '@/lib/types';
 import { arrancoCon, detalleArranque, fechaCorta } from '@/lib/secundario-dia';
 import { SubNavBuffet } from '@/components/buffet/sub-nav';
 
-/** Día por día de un puesto con cupo (secundario o tercero): con cuánto arrancó, cuánto vendió y cuánto sobró. */
-export function DiarioPuesto({ titulo, activa, dias }: { titulo: string; activa: 'secundario' | 'tercero'; dias: DiaSecundario[] }) {
+/** Día por día de un puesto (secundario o tercero): con cuánto arrancó, cuánto vendió y cuánto sobró. `children` va arriba del día por día. */
+export function DiarioPuesto({ titulo, activa, dias, children }: { titulo: string; activa: 'secundario' | 'tercero'; dias: DiaSecundario[]; children?: ReactNode }) {
   return (
     <div className="space-y-4">
       <header>
@@ -13,6 +14,7 @@ export function DiarioPuesto({ titulo, activa, dias }: { titulo: string; activa:
         </p>
       </header>
       <SubNavBuffet activa={activa} />
+      {children}
 
       {dias.length === 0 ? (
         <p className="text-neutral-600">Todavía no hay movimientos para mostrar.</p>

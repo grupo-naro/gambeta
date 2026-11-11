@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { mostradorDeSesion, manejarBuffetNoAutorizado } from '@/lib/buffet-session';
 import { buffetFetch } from '@/lib/buffet-api';
-import type { CajaBuffetEstado, ProductoCobro, ConciliacionPendiente, StockAsignado } from '@/lib/types';
+import { tieneCupo, type CajaBuffetEstado, type ProductoCobro, type ConciliacionPendiente, type StockAsignado } from '@/lib/types';
 import { PantallaVenta } from '@/components/mostrador/pantalla-venta';
 
 export default async function MostradorPage() {
@@ -19,7 +19,8 @@ export default async function MostradorPage() {
       buffetFetch<ProductoCobro[]>('/buffet/productos/activos'),
       // Cada puesto pide solo lo que le corresponde: pedir lo del otro da 403.
       esPrincipal ? buffetFetch<ConciliacionPendiente[]>('/buffet/conciliaciones/pendientes') : Promise.resolve([]),
-      esPrincipal ? Promise.resolve([] as StockAsignado[]) : buffetFetch<StockAsignado[]>('/buffet/stock-asignado'),
+      // Solo el secundario tiene cupo; el tercero vende sus propios productos.
+      tieneCupo(mostrador.tipo) ? buffetFetch<StockAsignado[]>('/buffet/stock-asignado') : Promise.resolve([] as StockAsignado[]),
     ]);
   } catch (e) {
     // Un mostrador desactivado deja la cookie firmada pero al token muerto contra el backend:

@@ -13,7 +13,7 @@ import { mostradorService } from '../services/mostrador.service.js';
 import { buffetCuentaService, esCanchaDePadel } from '../services/buffetCuenta.service.js';
 import { buffetSecundarioService } from '../services/buffetSecundario.service.js';
 import { canchaRepo } from '../repositories/cancha.repo.js';
-import { crearProductoSchema, actualizarProductoSchema, reponerSchema, ajustarStockSchema, cobrarSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema, abrirCuentaSchema, cuentaIdSchema, fijarCantidadSchema, rendirCuentaSchema, listarCuentasAdminSchema } from '../validators/buffet.schema.js';
+import { crearProductoSchema, actualizarProductoSchema, reponerSchema, ajustarStockSchema, cobrarSchema, listarProductosSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema, abrirCuentaSchema, cuentaIdSchema, fijarCantidadSchema, rendirCuentaSchema, listarCuentasAdminSchema } from '../validators/buffet.schema.js';
 import { idParamSchema } from '../validators/reserva.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
 import { Forbidden, NotFound, Unauthorized } from '../utils/errors.js';
@@ -23,11 +23,11 @@ export const buffetRoutes = Router();
 // --- Mostrador (x-buffet-key + x-mostrador: el token que emite /pin/verificar) ---
 // OJO: /productos/botonera va antes que cualquier /productos/:id de admin.
 buffetRoutes.get('/productos/botonera', authMostrador, async (_req, res, next) => {
-  try { res.json(await buffetProductoService.listBotonera()); } catch (e) { next(e); }
+  try { res.json(await buffetProductoService.listBotonera((_req as any).mostrador.id)); } catch (e) { next(e); }
 });
 
 buffetRoutes.get('/productos/activos', authMostrador, async (_req, res, next) => {
-  try { res.json(await buffetProductoService.listActivos()); } catch (e) { next(e); }
+  try { res.json(await buffetProductoService.listActivos((_req as any).mostrador.id)); } catch (e) { next(e); }
 });
 
 buffetRoutes.post('/caja/abrir', authMostrador, async (req, res, next) => {
@@ -40,7 +40,7 @@ buffetRoutes.get('/caja/actual', authMostrador, async (req, res, next) => {
 
 buffetRoutes.get('/producto', authMostrador, validate(porCodigoSchema), async (req, res, next) => {
   try {
-    const p = await buffetProductoService.porCodigo((req as any).valid.query.codigoBarra);
+    const p = await buffetProductoService.porCodigo((req as any).valid.query.codigoBarra, (req as any).mostrador.id);
     if (!p) return next(NotFound('ProductoBuffet', (req as any).valid.query.codigoBarra));
     res.json(p);
   } catch (e) { next(e); }
@@ -178,8 +178,9 @@ buffetRoutes.get('/secundario/diario', authJwt, requireRole('ADMIN'), async (req
 buffetRoutes.get('/cajas', authJwt, requireRole('ADMIN'), async (req, res, next) => {
   try { res.json(await buffetCajaService.listCierres(typeof req.query.mostradorId === 'string' && req.query.mostradorId ? req.query.mostradorId : undefined)); } catch (e) { next(e); }
 });
-buffetRoutes.get('/productos', authJwt, requireRole('ADMIN'), async (_req, res, next) => {
-  try { res.json(await buffetProductoService.list()); } catch (e) { next(e); }
+// Sin query: el catálogo general. Con ?mostradorId=: el de ese mostrador (el tercero tiene el suyo).
+buffetRoutes.get('/productos', authJwt, requireRole('ADMIN'), validate(listarProductosSchema), async (req, res, next) => {
+  try { res.json(await buffetProductoService.list((req as any).valid.query.mostradorId)); } catch (e) { next(e); }
 });
 
 buffetRoutes.post('/productos', authJwt, requireRole('ADMIN'), validate(crearProductoSchema), async (req, res, next) => {

@@ -1,6 +1,6 @@
 import { prisma } from '../db/prisma.js';
 import { BusinessRule, Forbidden, NotFound } from '../utils/errors.js';
-import { esViolacionStockAsignadoNegativo, tieneCupo, type TipoMostrador } from './buffetStock.js';
+import { esViolacionStockAsignadoNegativo, tieneCatalogoPropio, tieneCupo, type TipoMostrador } from './buffetStock.js';
 
 const SECUNDARIO = 'mostrador-secundario';
 
@@ -9,6 +9,7 @@ async function puestoConCupo(id: string | undefined): Promise<string> {
   const puestoId = id ?? SECUNDARIO;
   const m = await prisma.mostrador.findUnique({ where: { id: puestoId } });
   if (!m) throw NotFound('Mostrador', puestoId);
+  if (tieneCatalogoPropio(m.tipo as TipoMostrador)) throw BusinessRule(`${m.nombre} maneja su propio stock: no recibe entregas del principal`);
   if (!tieneCupo(m.tipo as TipoMostrador)) throw BusinessRule('El mostrador principal no recibe entregas: es de donde sale la mercadería');
   return m.id;
 }
@@ -22,7 +23,7 @@ export interface EntregarInput {
 
 export const buffetEntregaService = {
   /**
-   * Le asigna a un puesto (secundario o tercero) un cupo de mercadería. NO mueve stock: el general es el total del
+   * Le asigna al secundario un cupo de mercadería. NO mueve stock: el general es el total del
    * complejo y solo baja cuando se vende. Lo que el secundario no venda se queda asignado a él
    * (no vuelve al principal ni se borra).
    *
@@ -44,7 +45,7 @@ export const buffetEntregaService = {
       const entrega = await tx.entregaMostrador.create({ data: { mostradorId: puesto } });
       for (const it of input.items) {
         const p = await tx.productoBuffet.findUnique({ where: { id: it.productoId } });
-        if (!p) throw NotFound('ProductoBuffet', it.productoId);
+        if (!p || p.mostradorId !== null) throw NotFound('ProductoBuffet', it.productoId);
         // Lo que se puede asignar es lo que no está ya asignado: el total menos los cupos vigentes.
         const { _sum } = await tx.stockMostrador.aggregate({ where: { productoId: p.id }, _sum: { cantidad: true } });
         const libre = p.stock - (_sum.cantidad ?? 0);
@@ -85,7 +86,7 @@ export const buffetEntregaService = {
         const mov = await tx.entregaMostrador.create({ data: { mostradorId: puesto } });
         for (const it of input.items) {
           const p = await tx.productoBuffet.findUnique({ where: { id: it.productoId } });
-          if (!p) throw NotFound('ProductoBuffet', it.productoId);
+          if (!p || p.mostradorId !== null) throw NotFound('ProductoBuffet', it.productoId);
           const clave = { mostradorId_productoId: { mostradorId: puesto, productoId: p.id } };
           const asig = await tx.stockMostrador.findUnique({ where: clave });
           const tiene = asig?.cantidad ?? 0;

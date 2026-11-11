@@ -4,10 +4,9 @@ import { buffetFetch } from '@/lib/buffet-api';
 import type { ProductoCobro, StockAsignado } from '@/lib/types';
 import { PantallaEntrega, type PuestoEntrega } from '@/components/mostrador/pantalla-entrega';
 
-/** Los puestos a los que el principal le entrega mercadería. */
+/** Los puestos a los que el principal le entrega mercadería (el tercero maneja su propio stock). */
 const PUESTOS = [
   { id: 'mostrador-secundario', nombre: 'Secundario' },
-  { id: 'mostrador-tercero', nombre: 'Tercero' },
 ];
 
 export default async function EntregarPage() {

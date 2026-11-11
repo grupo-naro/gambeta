@@ -58,8 +58,8 @@ describe('productosDelMostrador', () => {
 });
 
 describe('productosDelMostrador del tercero', () => {
-  it('el tercero ve solo lo que tiene asignado, igual que el secundario', () => {
+  it('el tercero ve todo su catálogo, sin depender de lo asignado', () => {
     const productos = [{ id: 'a' }, { id: 'b' }];
-    expect(productosDelMostrador(productos, 'TERCERO', [{ productoId: 'b', cantidad: 2 }])).toEqual([{ id: 'b' }]);
+    expect(productosDelMostrador(productos, 'TERCERO', [])).toEqual(productos);
   });
 });

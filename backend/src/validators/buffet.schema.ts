@@ -13,8 +13,16 @@ export const crearProductoSchema = z.object({
     enBotonera: z.boolean().optional(),
     orden: z.coerce.number().int().optional(),
     activo: z.boolean().optional(),
+    /** Catálogo propio (el tercero). Sin esto, el producto es del general. */
+    mostradorId: z.string().min(1).nullable().optional(),
   }),
   query: empty, params: empty,
+});
+
+export const listarProductosSchema = z.object({
+  body: z.unknown(),
+  query: z.object({ mostradorId: z.string().min(1).optional() }),
+  params: empty,
 });
 
 export const actualizarProductoSchema = z.object({

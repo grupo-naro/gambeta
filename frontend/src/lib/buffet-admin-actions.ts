@@ -9,6 +9,7 @@ async function run(fn: () => Promise<unknown>): Promise<Result> {
   try {
     await fn();
     revalidatePath('/buffet');
+    revalidatePath('/buffet/tercero');
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof ApiError ? e.message : 'Error inesperado' };
@@ -18,6 +19,8 @@ async function run(fn: () => Promise<unknown>): Promise<Result> {
 type ProductoInput = {
   nombre: string; codigoBarra?: string | null; precio: number;
   stock?: number; stockMinimo?: number; enBotonera?: boolean; orden?: number; activo?: boolean;
+  /** Catálogo propio (el tercero). Sin esto, el producto es del general. */
+  mostradorId?: string;
 };
 
 export async function crearProducto(i: ProductoInput): Promise<Result> {

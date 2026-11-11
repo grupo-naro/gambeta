@@ -172,13 +172,17 @@ export class ApiAuthError extends ApiError { constructor(message = 'No autorizad
 export interface ProductoBuffet {
   id: string; nombre: string; codigoBarra: string | null; precio: number;
   stock: number; stockMinimo: number; enBotonera: boolean; orden: number; activo: boolean;
-  /** Unidades de este producto asignadas a los puestos (secundario y tercero). */
-  asignado: number;
+  /** Catálogo al que pertenece: null = el general; si no, el mostrador dueño (el tercero). */
+  mostradorId?: string | null;
+  /** Unidades de este producto asignadas al secundario. Solo en el catálogo general. */
+  asignado?: number;
 }
 export type TipoMostrador = 'PRINCIPAL' | 'SECUNDARIO' | 'TERCERO';
 
-/** El secundario y el tercero son puestos con cupo: venden solo lo que les asignó el principal. */
-export const tieneCupo = (tipo: TipoMostrador): boolean => tipo !== 'PRINCIPAL';
+/** El secundario es un puesto con cupo: vende solo lo que le asignó el principal. */
+export const tieneCupo = (tipo: TipoMostrador): boolean => tipo === 'SECUNDARIO';
+/** El tercero tiene catálogo propio: sus productos, precios y stock, sin depender del principal. */
+export const tieneCatalogoPropio = (tipo: TipoMostrador): boolean => tipo === 'TERCERO';
 export interface MostradorAdmin {
   id: string; nombre: string; tipo: TipoMostrador; activo: boolean;
   /** Si tiene PIN cargado. El hash nunca sale del backend. */

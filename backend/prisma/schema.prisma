@@ -409,7 +409,7 @@ enum EstadoCajaBuffet {
 model ProductoBuffet {
   id               String                  @id @default(cuid())
   nombre           String
-  codigoBarra      String?                 @unique
+  codigoBarra      String?
   precio           Decimal                 @db.Decimal(10, 2)
   stock            Int                     @default(0)
   stockMinimo      Int                     @default(0)
@@ -421,6 +421,17 @@ model ProductoBuffet {
   stockMostradores StockMostrador[]
   entregas         EntregaMostradorLinea[]
   conteosCierre    ConteoCierreLinea[]
+
+  /// Catálogo al que pertenece. null = el general (principal y secundario); si no, el id del
+  /// mostrador dueño (hoy solo el tercero, que tiene sus propios productos, precios y stock).
+  mostradorId      String?
+  mostrador        Mostrador?              @relation(fields: [mostradorId], references: [id], onDelete: Restrict)
+
+  /// El código de barras es único dentro de cada catálogo, no en todo el buffet: la misma Coca puede
+  /// existir en el general y en el del tercero. (Para el general, mostradorId es NULL y Postgres no lo
+  /// considera igual a otro NULL: ahí lo controla el servicio.)
+  @@unique([codigoBarra, mostradorId])
+  @@index([mostradorId])
 }
 
 enum TipoMostrador {
@@ -441,6 +452,7 @@ model Mostrador {
   cuentas  CuentaBuffet[]
   stock    StockMostrador[]
   entregas EntregaMostrador[]
+  productos ProductoBuffet[]
 
   /// Un solo mostrador de cada tipo. El diseño es para tres puestos fijos (principal, secundario
   /// y tercero), no N: el secundario y el tercero funcionan igual, cada uno con su cupo y su caja.
@@ -455,7 +467,7 @@ model CajaBuffet {
   totalUnidades    Int?
   totalMonto       Decimal?            @db.Decimal(10, 2)
   mostradorId      String
-  mostrador        Mostrador           @relation(fields: [mostradorId], references: [id])
+  mostrador        Mostrador           @relation(fields: [mostradorId], references: [id], onDelete: Restrict)
   tickets          TicketBuffet[]
   entregasRendidas EntregaMostrador[]
   conteos          ConteoCierreLinea[]
@@ -474,7 +486,7 @@ model CajaBuffet {
 /// (panel, alerta de stock bajo, planilla de Google).
 model StockMostrador {
   mostradorId String
-  mostrador   Mostrador      @relation(fields: [mostradorId], references: [id])
+  mostrador   Mostrador      @relation(fields: [mostradorId], references: [id], onDelete: Restrict)
   productoId  String
   producto    ProductoBuffet @relation(fields: [productoId], references: [id])
   cantidad    Int            @default(0)
@@ -486,7 +498,7 @@ model StockMostrador {
 model EntregaMostrador {
   id                 String                  @id @default(cuid())
   mostradorId        String
-  mostrador          Mostrador               @relation(fields: [mostradorId], references: [id])
+  mostrador          Mostrador               @relation(fields: [mostradorId], references: [id], onDelete: Restrict)
   creadaEn           DateTime                @default(now())
   /// En qué cierre se rindió esta entrega. `null` = todavía pendiente de conciliar.
   ///
@@ -657,7 +669,7 @@ enum EstadoCuentaBuffet {
 model CuentaBuffet {
   id          String              @id @default(cuid())
   mostradorId String
-  mostrador   Mostrador           @relation(fields: [mostradorId], references: [id])
+  mostrador   Mostrador           @relation(fields: [mostradorId], references: [id], onDelete: Restrict)
   canchaId    String
   cancha      Cancha              @relation(fields: [canchaId], references: [id])
   /// Reserva en curso de esa cancha al abrir la cuenta, si había. Solo informativa.

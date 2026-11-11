@@ -18,7 +18,7 @@ export default async function CuentaPage({ params }: { params: Promise<{ id: str
     [cuenta, productos, asignado] = await Promise.all([
       buffetFetch<CuentaBuffet>(`/buffet/cuentas/${encodeURIComponent(id)}`),
       buffetFetch<ProductoCobro[]>('/buffet/productos/activos'),
-      // Solo los puestos (secundario y tercero) trabajan con un cupo; pedirlo siendo el principal no hace falta.
+      // Solo el secundario trabaja con un cupo; el principal y el tercero (catálogo propio) no lo necesitan.
       tieneCupo(mostrador.tipo) ? buffetFetch<StockAsignado[]>('/buffet/stock-asignado') : Promise.resolve([] as StockAsignado[]),
     ]);
   } catch (e) {

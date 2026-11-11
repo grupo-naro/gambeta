@@ -8,8 +8,20 @@ export type MedioPago = 'EFECTIVO' | 'TRANSFERENCIA';
 export type TipoMostrador = 'PRINCIPAL' | 'SECUNDARIO' | 'TERCERO';
 export interface MostradorStock { id: string; tipo: TipoMostrador }
 
-/** El secundario y el tercero son puestos con cupo: venden contra lo que les asignó el principal. */
-export const tieneCupo = (tipo: TipoMostrador): boolean => tipo !== 'PRINCIPAL';
+/** El secundario es un puesto con cupo: vende contra lo que le asignó el principal. */
+export const tieneCupo = (tipo: TipoMostrador): boolean => tipo === 'SECUNDARIO';
+
+/** El tercero tiene catálogo propio (productos, precios y stock suyos): no depende de nadie. */
+export const tieneCatalogoPropio = (tipo: TipoMostrador): boolean => tipo === 'TERCERO';
+
+/**
+ * Un mostrador solo vende productos de su catálogo: el principal y el secundario, los del general
+ * (`mostradorId` null); el tercero, los suyos. Así la "Coca" del tercero no se cobra en el principal ni al revés.
+ */
+export function asegurarDelCatalogo(mostrador: MostradorStock, producto: { nombre: string; mostradorId: string | null }): void {
+  const esperado = tieneCatalogoPropio(mostrador.tipo) ? mostrador.id : null;
+  if (producto.mostradorId !== esperado) throw BusinessRule(`${producto.nombre} no está en el catálogo de este mostrador`);
+}
 
 // Postgres check_violation SQLSTATE es 23514. Con el driver adapter de Prisma 7, el código
 // vive en e.cause.code (no en e.code ni en e.meta.code) — mismo patrón que isExclusionViolation
@@ -37,15 +49,17 @@ export function calcularPago(medioPago: MedioPago, montoPagado: number, total: n
  * Saca `cantidad` unidades del stock cuando el mostrador vende.
  *
  * El stock general es el TOTAL del complejo y baja cuando se vende, venda quien venda. Lo asignado
- * a un puesto (secundario o tercero) es solo un cupo dentro de ese total (cuánto se le dio): entregar no mueve stock,
- * vender sí, así que la venta de un puesto baja su cupo Y el total.
+ * al secundario es solo un cupo dentro de ese total (cuánto se le dio): entregar no mueve stock,
+ * vender sí, así que su venta baja su cupo Y el total. El tercero no tiene cupo: vende productos
+ * propios y baja directamente el stock de cada uno.
  */
 export async function descontarStock(
   tx: Prisma.TransactionClient,
   mostrador: MostradorStock,
-  producto: { id: string; nombre: string },
+  producto: { id: string; nombre: string; mostradorId: string | null },
   cantidad: number,
 ): Promise<void> {
+  asegurarDelCatalogo(mostrador, producto);
   if (tieneCupo(mostrador.tipo)) {
     const clave = { mostradorId_productoId: { mostradorId: mostrador.id, productoId: producto.id } };
     const asignado = await tx.stockMostrador.findUnique({ where: clave });

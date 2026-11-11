@@ -14,7 +14,8 @@ import { reponerStock, ajustarStock } from '@/lib/buffet-admin-actions';
 
 const money = (n: number | string) => '$' + Number(n || 0).toLocaleString('es-AR');
 
-export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
+/** `mostradorId`: si son los productos propios de un mostrador (el tercero), así los crea en su catálogo. */
+export function ProductosTable({ productos, mostradorId }: { productos: ProductoBuffet[]; mostradorId?: string }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProductoBuffet | null>(null);
   const [seleccion, setSeleccion] = useState<ProductoBuffet | null>(null);
@@ -77,8 +78,8 @@ export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
                       <TableCell>{money(p.precio)}</TableCell>
                       <TableCell className={bajo ? 'font-medium text-red-600' : ''}>
                         {p.stock}
-                        {p.asignado > 0 && (
-                          <span className="ml-1 text-xs font-normal text-neutral-500">({p.asignado} en los puestos)</span>
+                        {(p.asignado ?? 0) > 0 && (
+                          <span className="ml-1 text-xs font-normal text-neutral-500">({p.asignado} en el secundario)</span>
                         )}
                       </TableCell>
                       <TableCell className="text-neutral-600">{p.enBotonera ? 'Sí' : 'No'}</TableCell>
@@ -102,7 +103,7 @@ export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
                     <span className="block">
                       <span className="text-xs text-neutral-500">Stock</span>{' '}
                       <span className={bajo ? 'font-medium text-red-600' : ''}>{p.stock}</span>
-                      {p.asignado > 0 && <span className="text-xs text-neutral-500"> ({p.asignado} en los puestos)</span>}
+                      {(p.asignado ?? 0) > 0 && <span className="text-xs text-neutral-500"> ({p.asignado} en el secundario)</span>}
                     </span>
                     <span className="block"><span className="text-xs text-neutral-500">Botonera</span> {p.enBotonera ? 'Sí' : 'No'}</span>
                   </span>
@@ -143,7 +144,7 @@ export function ProductosTable({ productos }: { productos: ProductoBuffet[] }) {
         )}
       </Sheet>
 
-      <ProductoDialog key={editing?.id ?? 'new'} open={dialogOpen} onOpenChange={setDialogOpen} producto={editing} />
+      <ProductoDialog key={editing?.id ?? 'new'} open={dialogOpen} onOpenChange={setDialogOpen} producto={editing} mostradorId={mostradorId} />
     </>
   );
 }

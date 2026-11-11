@@ -12,10 +12,13 @@ export function ProductoDialog({
   open,
   onOpenChange,
   producto,
+  mostradorId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   producto: ProductoBuffet | null;
+  /** Si el producto es de un catálogo propio (el tercero), a quién pertenece al crearlo. */
+  mostradorId?: string;
 }) {
   const [nombre, setNombre] = useState(producto?.nombre ?? '');
   const [codigoBarra, setCodigoBarra] = useState(producto?.codigoBarra ?? '');
@@ -53,7 +56,7 @@ export function ProductoDialog({
       stockMinimo: stockMinimoNum,
       enBotonera,
       activo,
-      ...(editing ? {} : { stock: Number(stockInicial) || 0 }),
+      ...(editing ? {} : { stock: Number(stockInicial) || 0, ...(mostradorId ? { mostradorId } : {}) }),
     };
     start(async () => {
       const r = editing ? await actualizarProducto(producto!.id, input) : await crearProducto(input);

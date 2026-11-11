@@ -13,8 +13,9 @@ export function asignadoPorProducto(filas: StockAsignado[]): Record<string, numb
 }
 
 /**
- * Los productos que muestra un mostrador. El principal ve todo el catálogo; el secundario y el tercero solo lo
- * que tienen asignado (más de 0), para no ofrecerle productos que no puede vender.
+ * Los productos que muestra un mostrador. El principal ve todo su catálogo y el tercero también (el
+ * backend ya le manda solo los suyos); el secundario solo lo que tiene asignado (más de 0), para no
+ * ofrecerle productos que no puede vender.
  *
  * `conservar` son ids que se siguen mostrando aunque se hayan quedado sin asignado (por ejemplo,
  * los que ya están cargados en una cuenta abierta, para poder restarlos).
@@ -25,7 +26,7 @@ export function productosDelMostrador<T extends { id: string }>(
   asignado: StockAsignado[],
   conservar: string[] = [],
 ): T[] {
-  if (tipo === 'PRINCIPAL') return productos;
+  if (tipo !== 'SECUNDARIO') return productos;
   const tiene = asignadoPorProducto(asignado);
   return productos.filter((p) => (tiene[p.id] ?? 0) > 0 || conservar.includes(p.id));
 }

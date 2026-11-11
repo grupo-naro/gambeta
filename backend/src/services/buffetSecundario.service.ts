@@ -59,8 +59,11 @@ export const buffetSecundarioService = {
     const ini = dayWindowUtc(fechas[fechas.length - 1], tz).start;
     const fin = dayWindowUtc(hoy, tz).end;
 
+    // El tercero no tiene cupo ni entregas: "lo que le queda" es el stock de sus propios productos.
+    const propio = (await prisma.mostrador.findUnique({ where: { id: puesto }, select: { tipo: true } }))?.tipo === 'TERCERO';
+
     const [entregas, ventas, cuentas, actual] = await Promise.all([
-      prisma.entregaMostradorLinea.findMany({
+      propio ? Promise.resolve([] as { productoId: string; cantidad: number; entrega: { creadaEn: Date } }[]) : prisma.entregaMostradorLinea.findMany({
         where: { entrega: { mostradorId: puesto, creadaEn: { gte: ini, lt: fin } } },
         include: { entrega: { select: { creadaEn: true } } },
       }),
@@ -78,7 +81,9 @@ export const buffetSecundarioService = {
         },
         include: { lineas: { select: { productoId: true, cantidad: true } } },
       }),
-      prisma.stockMostrador.findMany({ where: { mostradorId: puesto } }),
+      propio
+        ? prisma.productoBuffet.findMany({ where: { mostradorId: puesto }, select: { id: true, stock: true } }).then((ps) => ps.map((p) => ({ productoId: p.id, cantidad: p.stock })))
+        : prisma.stockMostrador.findMany({ where: { mostradorId: puesto } }),
     ]);
 
     const porDia = new Map<string, Map<string, Mov>>();

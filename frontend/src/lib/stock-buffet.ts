@@ -1,5 +1,5 @@
 /** Lo mínimo que hace falta para decidir si hay que reponer. */
-type ConStock = { stock: number; asignado: number; stockMinimo: number; activo: boolean };
+type ConStock = { stock: number; asignado?: number; stockMinimo: number; activo: boolean };
 
 /**
  * Todo lo que hay en el complejo. `stock` ya es el total: lo asignado al secundario es un cupo

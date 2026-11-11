@@ -1,7 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import { Conflict, NotFound, BusinessRule } from '../utils/errors.js';
 
-import { calcularPago, descontarStock, esViolacionStockAsignadoNegativo, mensajeSinStockAsignado } from './buffetStock.js';
+import { asegurarDelCatalogo, calcularPago, descontarStock, esViolacionStockAsignadoNegativo, mensajeSinStockAsignado } from './buffetStock.js';
 
 type Medio = 'EFECTIVO' | 'TRANSFERENCIA';
 export interface TicketLineaDTO { productoId: string; nombre: string; cantidad: number; precioUnit: number }
@@ -153,6 +153,7 @@ export const buffetCajaService = {
     for (const it of input.items) {
       if (!byId.has(it.productoId)) throw NotFound('ProductoBuffet', it.productoId);
       if (it.cantidad < 1) throw BusinessRule('Cantidad inválida');
+      asegurarDelCatalogo({ id: input.mostradorId, tipo: mostrador.tipo }, byId.get(it.productoId)!);
     }
     const total = input.items.reduce((a, it) => a + Number(byId.get(it.productoId)!.precio) * it.cantidad, 0);
 
