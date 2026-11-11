@@ -55,7 +55,7 @@ export function pdfBuffet(b: BuffetResumen, p: PeriodoPdf): jsPDF {
   const doc = new jsPDF();
   let y = encabezado(doc, 'Buffet', p);
 
-  y = subtitulo(doc, 'Resumen', y);
+  y = subtitulo(doc, 'Resumen (principal y secundario)', y);
   autoTable(doc, {
     ...estiloTabla, startY: y, theme: 'plain', styles: { fontSize: 10 },
     body: [
@@ -74,7 +74,8 @@ export function pdfBuffet(b: BuffetResumen, p: PeriodoPdf): jsPDF {
   autoTable(doc, {
     ...estiloTabla, startY: y,
     head: [['Mostrador', 'Ventas', 'Tickets', 'Unid.', 'Efectivo', 'Transf.', 'Ticket prom.']],
-    body: b.mostradores.map((m) => [m.nombre, money(m.monto), String(m.tickets), String(m.unidades), money(m.porMedio.EFECTIVO), money(m.porMedio.TRANSFERENCIA), money(Math.round(m.ticketPromedio))]),
+    didParseCell: (d) => { if (d.section === 'body' && !b.mostradores[d.row.index]?.enResumen) d.cell.styles.textColor = [200, 30, 30]; },
+    body: b.mostradores.map((m) => [m.enResumen ? m.nombre : `${m.nombre} (aparte)`, money(m.monto), String(m.tickets), String(m.unidades), money(m.porMedio.EFECTIVO), money(m.porMedio.TRANSFERENCIA), money(Math.round(m.ticketPromedio))]),
   });
 
   for (const m of b.mostradores) {

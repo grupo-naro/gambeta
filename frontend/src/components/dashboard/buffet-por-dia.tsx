@@ -66,7 +66,7 @@ export function BuffetPorDia({ dias }: { dias: BuffetDia[] }) {
                             <ul className="space-y-1">
                               <li className="flex justify-between"><span>Principal</span><span className="tabular-nums">{d.mostradores.PRINCIPAL.unidades} u · {money(d.mostradores.PRINCIPAL.total)}</span></li>
                               <li className="flex justify-between"><span>Secundario</span><span className="tabular-nums">{d.mostradores.SECUNDARIO.unidades} u · {money(d.mostradores.SECUNDARIO.total)}</span></li>
-                              <li className="flex justify-between"><span>Tercero</span><span className="tabular-nums">{d.mostradores.TERCERO.unidades} u · {money(d.mostradores.TERCERO.total)}</span></li>
+                              <li className="flex justify-between text-neutral-500"><span>Tercero <span className="text-xs text-red-600">(no suma al total)</span></span><span className="tabular-nums">{d.mostradores.TERCERO.unidades} u · {money(d.mostradores.TERCERO.total)}</span></li>
                             </ul>
                           </div>
                           <div>

@@ -7,6 +7,8 @@ import { dayOfWeekInTz, instanteDeJornada, jornadaWindowUtc, minutoDeJornada, su
 const ACTIVE = ['CONFIRMADA', 'COMPLETADA'] as const;
 
 const MOSTRADORES = ['PRINCIPAL', 'SECUNDARIO', 'TERCERO'] as const;
+/** El tercero es una caja aparte: sus ventas no entran en el resumen general del buffet. */
+const EN_RESUMEN = (tipo: TipoMostrador): boolean => tipo !== 'TERCERO';
 type TipoMostrador = (typeof MOSTRADORES)[number];
 const NOMBRE_MOSTRADOR: Record<TipoMostrador, string> = { PRINCIPAL: 'Mostrador principal', SECUNDARIO: 'Mostrador secundario', TERCERO: 'Mostrador tercero' };
 const redondear = (n: number) => Math.round(n * 100) / 100;
@@ -147,7 +149,9 @@ export const analyticsService = {
 
   /**
    * Ventas del buffet en el período, separadas por mostrador (el buffet tiene tres puestos, principal,
-   * secundario y tercero, cada uno con su caja). Siempre devuelve los tres, aunque no hayan vendido. Las ventas
+   * secundario y tercero, cada uno con su caja). Siempre devuelve los tres, aunque no hayan vendido.
+   * El tercero es una caja aparte: se informa como mostrador (`enResumen: false`) pero NO suma al total
+   * general ni a los totales, productos y más vendido de cada día. Las ventas
    * son los tickets; los alquileres (pecheras, etc.) van aparte porque no son venta de buffet. El día
    * de cada ticket es el de la hora argentina en que se vendió. `dias` trae TODOS los días del rango
    * (también los sin ventas), el más nuevo primero, con el desglose por medio de pago, por mostrador y
@@ -203,16 +207,22 @@ export const analyticsService = {
       const total = Number(t.total);
       a.monto += total; a.tickets += 1; a.porMedio[t.medioPago] += total;
       const d = diaDe(diaEnTz.format(t.creadoEn));
-      d.total += total;
+      const enResumen = EN_RESUMEN(tipo);
       d.mostradores[tipo].total += total;
-      if (t.medioPago === 'EFECTIVO') d.efectivo += total; else d.transferencia += total;
+      if (enResumen) {
+        d.total += total;
+        if (t.medioPago === 'EFECTIVO') d.efectivo += total; else d.transferencia += total;
+      }
       for (const l of t.lineas) {
         const monto = Number(l.precioUnit) * l.cantidad;
         a.unidades += l.cantidad;
-        d.unidades += l.cantidad; d.mostradores[tipo].unidades += l.cantidad;
+        d.mostradores[tipo].unidades += l.cantidad;
         sumarProducto(a.productos, l.producto.id, l.producto.nombre, l.cantidad, monto);
-        sumarProducto(d.productos, l.producto.id, l.producto.nombre, l.cantidad, monto);
-        sumarProducto(productosTotal, l.producto.id, l.producto.nombre, l.cantidad, monto);
+        if (enResumen) {
+          d.unidades += l.cantidad;
+          sumarProducto(d.productos, l.producto.id, l.producto.nombre, l.cantidad, monto);
+          sumarProducto(productosTotal, l.producto.id, l.producto.nombre, l.cantidad, monto);
+        }
       }
     }
     for (const al of alquileres) acc[al.caja.mostrador.tipo as TipoMostrador].alquileres += Number(al.total);
@@ -221,13 +231,14 @@ export const analyticsService = {
       const a = acc[tipo];
       return {
         tipo, nombre: nombres.get(tipo) ?? NOMBRE_MOSTRADOR[tipo],
+        enResumen: EN_RESUMEN(tipo),
         monto: a.monto, tickets: a.tickets, unidades: a.unidades,
         ticketPromedio: a.tickets ? redondear(a.monto / a.tickets) : 0,
         alquileres: a.alquileres, porMedio: a.porMedio,
         topProductos: porUnidades(a.productos).slice(0, 5),
       };
     });
-    const sum = (fn: (m: (typeof mostradores)[number]) => number) => mostradores.reduce((s, m) => s + fn(m), 0);
+    const sum = (fn: (m: (typeof mostradores)[number]) => number) => mostradores.filter((m) => m.enResumen).reduce((s, m) => s + fn(m), 0);
     const monto = sum((m) => m.monto);
     const nTickets = sum((m) => m.tickets);
     const top = porUnidades(productosTotal)[0];

@@ -120,6 +120,8 @@ export interface CobrosReserva { monto: number; pagado: number; saldo: number; c
 /** Ventas de un mostrador del buffet en el período (GET /analytics/buffet). */
 export interface BuffetMostradorResumen {
   tipo: TipoMostrador; nombre: string;
+  /** false para el tercero: es una caja aparte y no suma al resumen general. */
+  enResumen: boolean;
   monto: number; tickets: number; unidades: number; ticketPromedio: number; alquileres: number;
   porMedio: { EFECTIVO: number; TRANSFERENCIA: number };
   topProductos: { nombre: string; unidades: number; monto: number }[];

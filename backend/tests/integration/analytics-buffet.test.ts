@@ -114,6 +114,38 @@ describe('analytics del buffet, por mostrador', () => {
     expect(res.body.total.masVendido).toEqual({ nombre: 'Agua', unidades: 5 });
   });
 
+  it('el tercero es una caja aparte: se informa pero no suma al resumen general', async () => {
+    const coca = await producto('Coca', 2000);
+    const agua = await producto('Agua', 1000);
+    const cp = await caja('mostrador-principal');
+    const cs = await caja('mostrador-secundario');
+    const ct = await caja('mostrador-tercero');
+    await ticket(cp.id, '2030-05-10T22:00:00Z', 'EFECTIVO', [[coca, 2]]); // 4000
+    await ticket(cs.id, '2030-05-10T22:30:00Z', 'TRANSFERENCIA', [[agua, 1]]); // 1000
+    await ticket(ct.id, '2030-05-10T23:00:00Z', 'EFECTIVO', [[agua, 10]]); // 10000 del tercero
+    const res = await get();
+    // el total es solo principal + secundario
+    expect(res.body.total).toMatchObject({ monto: 5000, tickets: 2, unidades: 3, porMedio: { EFECTIVO: 4000, TRANSFERENCIA: 1000 } });
+    expect(res.body.total.masVendido).toEqual({ nombre: 'Coca', unidades: 2 });
+    // pero el tercero sigue viéndose por mostrador, marcado como fuera del resumen
+    const [p, s, t] = res.body.mostradores;
+    expect([p.enResumen, s.enResumen, t.enResumen]).toEqual([true, true, false]);
+    expect(t).toMatchObject({ tipo: 'TERCERO', monto: 10000, tickets: 1, unidades: 10 });
+    expect(t.topProductos).toEqual([{ nombre: 'Agua', unidades: 10, monto: 10000 }]);
+  });
+
+  it('en cada día el total deja afuera al tercero, pero el desglose por mostrador lo muestra', async () => {
+    const agua = await producto('Agua', 1000);
+    const cp = await caja('mostrador-principal');
+    const ct = await caja('mostrador-tercero');
+    await ticket(cp.id, '2030-05-10T22:00:00Z', 'EFECTIVO', [[agua, 2]]);
+    await ticket(ct.id, '2030-05-10T23:00:00Z', 'TRANSFERENCIA', [[agua, 7]]);
+    const d = (await get()).body.dias.find((x: any) => x.fecha === '2030-05-10');
+    expect(d).toMatchObject({ unidades: 2, efectivo: 2000, transferencia: 0, total: 2000 });
+    expect(d.productos).toEqual([{ nombre: 'Agua', unidades: 2, monto: 2000 }]);
+    expect(d.mostradores.TERCERO).toEqual({ unidades: 7, total: 7000 });
+  });
+
   it('respeta el período: lo de afuera no cuenta', async () => {
     const coca = await producto('Coca', 2000);
     const cp = await caja('mostrador-principal');

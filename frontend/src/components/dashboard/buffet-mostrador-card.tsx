@@ -18,6 +18,9 @@ export function BuffetMostradorCard({ m }: { m: BuffetMostradorResumen }) {
     <Card className="gap-0">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-neutral-600">{m.nombre}</CardTitle>
+        {!m.enResumen && (
+          <p className="text-sm font-semibold text-red-600">Este mostrador no se contabiliza en el resumen general.</p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-3xl font-semibold tracking-tight text-neutral-900">{money(m.monto)}</div>

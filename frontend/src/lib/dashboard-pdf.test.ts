@@ -11,8 +11,8 @@ const dia = (fecha: string, unidades: number, efectivo: number, transferencia: n
 const buffet: BuffetResumen = {
   total: { monto: 1379500, tickets: 12, unidades: 248, ticketPromedio: 114958, alquileres: 0, porMedio: { EFECTIVO: 1054400, TRANSFERENCIA: 325100 }, masVendido: { nombre: 'cerveza brahma 1 lt', unidades: 90 } },
   mostradores: [
-    { tipo: 'PRINCIPAL', nombre: 'Mostrador principal', monto: 1000000, tickets: 8, unidades: 180, ticketPromedio: 125000, alquileres: 0, porMedio: { EFECTIVO: 800000, TRANSFERENCIA: 200000 }, topProductos: [{ nombre: 'cerveza brahma 1 lt', unidades: 70, monto: 500000 }] },
-    { tipo: 'SECUNDARIO', nombre: 'Mostrador secundario', monto: 379500, tickets: 4, unidades: 68, ticketPromedio: 94875, alquileres: 0, porMedio: { EFECTIVO: 254400, TRANSFERENCIA: 125100 }, topProductos: [] },
+    { tipo: 'PRINCIPAL', nombre: 'Mostrador principal', enResumen: true, monto: 1000000, tickets: 8, unidades: 180, ticketPromedio: 125000, alquileres: 0, porMedio: { EFECTIVO: 800000, TRANSFERENCIA: 200000 }, topProductos: [{ nombre: 'cerveza brahma 1 lt', unidades: 70, monto: 500000 }] },
+    { tipo: 'SECUNDARIO', nombre: 'Mostrador secundario', enResumen: true, monto: 379500, tickets: 4, unidades: 68, ticketPromedio: 94875, alquileres: 0, porMedio: { EFECTIVO: 254400, TRANSFERENCIA: 125100 }, topProductos: [] },
   ],
   dias: [dia('2026-11-09', 0, 0, 0), dia('2026-11-08', 62, 243600, 74600), dia('2026-11-07', 186, 810800, 250500)],
 };
