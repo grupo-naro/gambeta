@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CuentaBuffet, CanchaMostrador } from '@/lib/types';
 import { abrirCuenta } from '@/lib/buffet-actions';
+import { agruparCanchas } from '@/lib/cuentas-canchas';
 
 const money = (n: number) => '$' + Number(n || 0).toLocaleString('es-AR');
 
@@ -16,7 +17,10 @@ export function PantallaCuentas({ canchas, abiertas }: { canchas: CanchaMostrado
   const [error, setError] = useState('');
 
   const conCuenta = new Set(abiertas.map((c) => c.canchaId));
-  const libres = canchas.filter((c) => !conCuenta.has(c.id));
+  const { bloques, sueltas } = agruparCanchas(canchas);
+  // Las sueltas (pádel) muestran solo las libres; los bloques muestran todas, con la ocupada marcada.
+  const sueltasLibres = sueltas.filter((c) => !conCuenta.has(c.id));
+  const hayLibres = sueltasLibres.length > 0 || bloques.some((b) => [b.entera, ...b.partes].some((c) => c && !conCuenta.has(c.id)));
 
   async function abrir(canchaId: string) {
     if (ocupado) return;
@@ -62,19 +66,48 @@ export function PantallaCuentas({ canchas, abiertas }: { canchas: CanchaMostrado
 
       <section>
         <p className="mb-2 text-lg font-semibold">Abrir una cuenta</p>
-        {libres.length === 0 ? (
+        {!hayLibres ? (
           <p className="text-neutral-500">Todas las canchas ya tienen una cuenta abierta.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {libres.map((c) => (
-              <button key={c.id} type="button" disabled={ocupado} onClick={() => void abrir(c.id)}
-                className="h-20 rounded-2xl border-2 border-neutral-300 bg-white text-xl font-semibold active:scale-95 disabled:opacity-50">
-                {c.nombre}
-              </button>
+          <div className="space-y-4">
+            {bloques.map((b) => (
+              <div key={b.id} className="rounded-2xl border-2 border-neutral-200 bg-neutral-50 p-3">
+                <p className="mb-2 text-lg font-bold">{b.nombre}</p>
+                {b.entera && (
+                  <BotonCancha c={b.entera} etiqueta={`Toda (de ${b.entera.jugadores ?? '?'})`} ocupada={conCuenta.has(b.entera.id)} ocupado={ocupado} onAbrir={abrir} grande />
+                )}
+                {b.partes.length > 0 && (
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {b.partes.map((c) => (
+                      <BotonCancha key={c.id} c={c} etiqueta={c.nombre} detalle={c.jugadores ? `de ${c.jugadores}` : undefined} ocupada={conCuenta.has(c.id)} ocupado={ocupado} onAbrir={abrir} />
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
+            {sueltasLibres.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {sueltasLibres.map((c) => (
+                  <BotonCancha key={c.id} c={c} etiqueta={c.nombre} ocupada={false} ocupado={ocupado} onAbrir={abrir} grande />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
     </main>
+  );
+}
+
+/** Botón para abrir una cuenta en una cancha. Si ya tiene una abierta se ve apagado y no se puede tocar. */
+function BotonCancha({ c, etiqueta, detalle, ocupada, ocupado, onAbrir, grande }: {
+  c: CanchaMostrador; etiqueta: string; detalle?: string; ocupada: boolean; ocupado: boolean; onAbrir: (id: string) => Promise<void>; grande?: boolean;
+}) {
+  return (
+    <button type="button" disabled={ocupado || ocupada} onClick={() => void onAbrir(c.id)}
+      className={`flex w-full flex-col items-center justify-center rounded-2xl border-2 px-1 text-center font-semibold active:scale-95 disabled:opacity-50 ${grande ? 'h-20 text-xl' : 'h-16 text-lg'} ${ocupada ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-neutral-300 bg-white'}`}>
+      <span>{etiqueta}</span>
+      {ocupada ? <span className="text-xs font-medium">Con cuenta abierta</span> : detalle && <span className="text-xs font-normal text-neutral-500">{detalle}</span>}
+    </button>
   );
 }

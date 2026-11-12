@@ -22,8 +22,21 @@ export interface CuentaDTO {
 
 const MAX_CANTIDAD = 999;
 
-/** Las cuentas por cancha son solo de pádel: en fútbol no se consume durante el turno. */
-export const esCanchaDePadel = (tipo: string) => tipo.toLowerCase() === 'padel';
+export type DeporteCuenta = 'padel' | 'futbol';
+
+/**
+ * Qué canchas admiten cuenta según el mostrador. El principal y el tercero, las de pádel; el
+ * secundario, las de fútbol (las de 9 y las de 6 en que se dividen). Los tipos viejos como "futbol5"
+ * cuentan como fútbol.
+ */
+export function deporteDeCuentas(tipoMostrador: string): DeporteCuenta {
+  return tipoMostrador === 'SECUNDARIO' ? 'futbol' : 'padel';
+}
+export const canchaAdmiteCuenta = (tipoMostrador: string, tipoCancha: string): boolean => {
+  const t = (tipoCancha ?? '').toLowerCase();
+  return deporteDeCuentas(tipoMostrador) === 'futbol' ? /^futbol\d*$/.test(t) : t === 'padel';
+};
+const SOLO_DEPORTE = { padel: 'Las cuentas de este mostrador son solo para pádel', futbol: 'Las cuentas de este mostrador son solo para fútbol' } as const;
 
 const incluir = {
   cancha: { select: { nombre: true } },
@@ -77,20 +90,51 @@ async function resultadoDeRendida(c: NonNullable<CuentaConDatos>): Promise<Rendi
   return { cuenta: aDTO(c), ticketId: t.id, total: Number(t.total), vuelto: Number(t.vuelto) };
 }
 
+const ESTADOS_CON_TURNO = ['CONFIRMADA', 'ESPERANDO_SENA', 'COMPLETADA'] as const;
+
+/**
+ * La reserva en curso de una cancha. Primero la cargada en esa misma cancha; si no hay, la que ocupa
+ * alguno de sus sectores: una cancha de 9 y las de 6 en que se divide comparten sectores, así que un
+ * turno cargado en la de 9 también está "en curso" en cada una de sus partes (y al revés).
+ */
+async function reservaEnCurso(canchaId: string, ahora: Date): Promise<{ id: string } | null> {
+  const propia = await prisma.reserva.findFirst({
+    where: { canchaId, estado: { in: [...ESTADOS_CON_TURNO] }, fechaInicio: { lte: ahora }, fechaFin: { gt: ahora } },
+    select: { id: true },
+  });
+  if (propia) return propia;
+  const sectores = await prisma.canchaSector.findMany({ where: { canchaId }, select: { sectorId: true } });
+  if (sectores.length === 0) return null;
+  const ocupacion = await prisma.reservaSector.findFirst({
+    where: { sectorId: { in: sectores.map((s) => s.sectorId) }, estado: { in: [...ESTADOS_CON_TURNO] }, fechaInicio: { lte: ahora }, fechaFin: { gt: ahora } },
+    select: { reservaId: true },
+  });
+  return ocupacion ? { id: ocupacion.reservaId } : null;
+}
+
 export const buffetCuentaService = {
+  /** Las canchas en las que este mostrador puede abrir cuentas, con lo necesario para agruparlas (grupo, tamaño, si es la entera). */
+  async canchasPara(mostradorId: string) {
+    const mostrador = await prisma.mostrador.findUnique({ where: { id: mostradorId } });
+    if (!mostrador) throw NotFound('Mostrador', mostradorId);
+    const canchas = await prisma.cancha.findMany({ where: { activa: true }, include: { grupo: { select: { id: true, nombre: true } } }, orderBy: { nombre: 'asc' } });
+    return canchas
+      .filter((c) => canchaAdmiteCuenta(mostrador.tipo, c.tipo))
+      .map((c) => ({ id: c.id, nombre: c.nombre, jugadores: c.jugadores, esEntera: c.esEntera, grupo: c.grupo }));
+  },
+
   async abrir(mostradorId: string, canchaId: string): Promise<CuentaDTO> {
+    const mostrador = await prisma.mostrador.findUnique({ where: { id: mostradorId } });
+    if (!mostrador) throw NotFound('Mostrador', mostradorId);
     const cancha = await prisma.cancha.findUnique({ where: { id: canchaId } });
     if (!cancha) throw NotFound('Cancha', canchaId);
     if (!cancha.activa) throw BusinessRule('La cancha está desactivada');
-    if (!esCanchaDePadel(cancha.tipo)) throw BusinessRule('Las cuentas por cancha son solo para pádel');
+    if (!canchaAdmiteCuenta(mostrador.tipo, cancha.tipo)) throw BusinessRule(SOLO_DEPORTE[deporteDeCuentas(mostrador.tipo)]);
     const yaAbierta = await prisma.cuentaBuffet.findFirst({ where: { canchaId, estado: 'ABIERTA' } });
     if (yaAbierta) throw Conflict('Esa cancha ya tiene una cuenta abierta');
 
     const ahora = new Date();
-    const reserva = await prisma.reserva.findFirst({
-      where: { canchaId, estado: { in: ['CONFIRMADA', 'ESPERANDO_SENA', 'COMPLETADA'] }, fechaInicio: { lte: ahora }, fechaFin: { gt: ahora } },
-      select: { id: true },
-    });
+    const reserva = await reservaEnCurso(canchaId, ahora);
     try {
       const c = await prisma.cuentaBuffet.create({ data: { mostradorId, canchaId, reservaId: reserva?.id ?? null }, include: incluir });
       return aDTO(c);

@@ -293,5 +293,9 @@ export interface CuentaBuffet {
   reserva: { clienteNombre: string; horaInicio: string; horaFin: string } | null;
   total: number; lineas: CuentaLinea[];
 }
-export interface CanchaMostrador { id: string; nombre: string }
+/** Una cancha en la que el mostrador puede abrir cuentas. Las divisibles traen su grupo y si es la entera. */
+export interface CanchaMostrador {
+  id: string; nombre: string;
+  jugadores?: number; esEntera?: boolean; grupo?: { id: string; nombre: string } | null;
+}
 export interface RendirCuentaResultado { cuenta: CuentaBuffet; ticketId: string; total: number; vuelto: number }

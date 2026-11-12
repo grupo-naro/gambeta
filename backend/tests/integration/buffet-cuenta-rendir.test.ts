@@ -11,12 +11,14 @@ afterAll(teardownTestDb);
 
 const PRINCIPAL = 'mostrador-principal';
 const SECUNDARIO = 'mostrador-secundario';
-let canchaId: string; let cocaId: string; let panchoId: string;
+let canchaId: string; let futbolId: string; let cocaId: string; let panchoId: string;
 
 beforeEach(async () => {
   await resetTables();
   const p = getPrisma();
   canchaId = (await p.cancha.create({ data: { nombre: 'Cancha 1', tipo: 'padel', precioHora: 30000 } })).id;
+  // El secundario abre cuentas en las canchas de fútbol; el principal, en las de pádel.
+  futbolId = (await p.cancha.create({ data: { nombre: 'Cancha de 6', tipo: 'futbol', precioHora: 50000, jugadores: 6 } })).id;
   cocaId = (await p.productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 20 } })).id;
   panchoId = (await p.productoBuffet.create({ data: { nombre: 'Pancho', precio: 3000, stock: 20 } })).id;
 });
@@ -153,7 +155,7 @@ describe('cuentas y cierre de caja', () => {
     await buffetCajaService.abrir(PRINCIPAL);
     await buffetCajaService.abrir(SECUNDARIO);
     await buffetEntregaService.entregar({ desdeMostradorId: PRINCIPAL, items: [{ productoId: cocaId, cantidad: 5 }] });
-    const c = await buffetCuentaService.abrir(SECUNDARIO, canchaId);
+    const c = await buffetCuentaService.abrir(SECUNDARIO, futbolId);
     await buffetCuentaService.fijarCantidad(SECUNDARIO, c.id, cocaId, 1);
     await buffetCajaService.cerrar(PRINCIPAL);
   });
@@ -162,7 +164,7 @@ describe('cuentas y cierre de caja', () => {
     await buffetEntregaService.entregar({ desdeMostradorId: PRINCIPAL, items: [{ productoId: cocaId, cantidad: 10 }] });
     const totalAntes = (await getPrisma().productoBuffet.findUniqueOrThrow({ where: { id: cocaId } })).stock;
     await buffetCajaService.abrir(SECUNDARIO);
-    const c = await buffetCuentaService.abrir(SECUNDARIO, canchaId);
+    const c = await buffetCuentaService.abrir(SECUNDARIO, futbolId);
     await buffetCuentaService.fijarCantidad(SECUNDARIO, c.id, cocaId, 2);
     await buffetCuentaService.darPorImpaga(SECUNDARIO, c.id);
     await buffetCajaService.cerrar(SECUNDARIO);

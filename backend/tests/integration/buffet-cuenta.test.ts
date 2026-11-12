@@ -10,12 +10,14 @@ afterAll(teardownTestDb);
 
 const PRINCIPAL = 'mostrador-principal';
 const SECUNDARIO = 'mostrador-secundario';
-let canchaId: string; let cancha2Id: string; let cocaId: string; let panchoId: string;
+let canchaId: string; let futbolId: string; let cancha2Id: string; let cocaId: string; let panchoId: string;
 
 beforeEach(async () => {
   await resetTables();
   const p = getPrisma();
   canchaId = (await p.cancha.create({ data: { nombre: 'Cancha 1', tipo: 'padel', precioHora: 30000 } })).id;
+  // El secundario abre cuentas en las canchas de fútbol; el principal, en las de pádel.
+  futbolId = (await p.cancha.create({ data: { nombre: 'Cancha de 6', tipo: 'futbol', precioHora: 50000, jugadores: 6 } })).id;
   cancha2Id = (await p.cancha.create({ data: { nombre: 'Cancha 2', tipo: 'padel', precioHora: 30000 } })).id;
   cocaId = (await p.productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 10 } })).id;
   panchoId = (await p.productoBuffet.create({ data: { nombre: 'Pancho', precio: 3000, stock: 10 } })).id;
@@ -100,7 +102,7 @@ describe('cuentas por cancha: consumos y stock', () => {
 
   it('el secundario sin stock asignado no puede sumar y la cuenta queda igual', async () => {
     await buffetCajaService.abrir(SECUNDARIO);
-    const c = await buffetCuentaService.abrir(SECUNDARIO, canchaId);
+    const c = await buffetCuentaService.abrir(SECUNDARIO, futbolId);
     await fallaCon(() => buffetCuentaService.fijarCantidad(SECUNDARIO, c.id, cocaId, 1), 422);
     expect((await buffetCuentaService.detalle(SECUNDARIO, c.id)).lineas).toEqual([]);
     expect(await stock(cocaId)).toBe(10);
@@ -109,7 +111,7 @@ describe('cuentas por cancha: consumos y stock', () => {
   it('el secundario descuenta de su cupo y también del total general', async () => {
     await buffetEntregaService.entregar({ desdeMostradorId: PRINCIPAL, items: [{ productoId: cocaId, cantidad: 5 }] });
     const generalAntes = await stock(cocaId);
-    const c = await buffetCuentaService.abrir(SECUNDARIO, canchaId);
+    const c = await buffetCuentaService.abrir(SECUNDARIO, futbolId);
     await buffetCuentaService.fijarCantidad(SECUNDARIO, c.id, cocaId, 2);
     expect(await asignado(cocaId)).toBe(3);
     expect(await stock(cocaId)).toBe(generalAntes - 2);

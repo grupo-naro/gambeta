@@ -10,9 +10,8 @@ import { buffetPinService } from '../services/buffetPin.service.js';
 import { buffetEntregaService } from '../services/buffetEntrega.service.js';
 import { buffetConciliacionService } from '../services/buffetConciliacion.service.js';
 import { mostradorService } from '../services/mostrador.service.js';
-import { buffetCuentaService, esCanchaDePadel } from '../services/buffetCuenta.service.js';
+import { buffetCuentaService } from '../services/buffetCuenta.service.js';
 import { buffetSecundarioService } from '../services/buffetSecundario.service.js';
-import { canchaRepo } from '../repositories/cancha.repo.js';
 import { crearProductoSchema, actualizarProductoSchema, reponerSchema, ajustarStockSchema, cobrarSchema, listarProductosSchema, porCodigoSchema, setPinSchema, verificarPinSchema, entregarSchema, conciliarSchema, setActivoMostradorSchema, stockAsignadoSchema, abrirCuentaSchema, cuentaIdSchema, fijarCantidadSchema, rendirCuentaSchema, listarCuentasAdminSchema } from '../validators/buffet.schema.js';
 import { idParamSchema } from '../validators/reserva.schema.js';
 import { firmarTokenMostrador } from '../utils/mostradorToken.js';
@@ -54,8 +53,9 @@ buffetRoutes.post('/cobrar', authMostrador, validate(cobrarSchema), async (req, 
 });
 
 // --- Cuentas por cancha (mostrador) ---
-buffetRoutes.get('/canchas', authMostrador, async (_req, res, next) => {
-  try { res.json((await canchaRepo.list(true)).filter((c) => esCanchaDePadel(c.tipo)).map((c) => ({ id: c.id, nombre: c.nombre }))); } catch (e) { next(e); }
+// Las canchas en las que ESTE mostrador abre cuentas: el principal y el tercero, pádel; el secundario, fútbol.
+buffetRoutes.get('/canchas', authMostrador, async (req, res, next) => {
+  try { res.json(await buffetCuentaService.canchasPara((req as any).mostrador.id)); } catch (e) { next(e); }
 });
 
 buffetRoutes.get('/cuentas', authMostrador, async (req, res, next) => {

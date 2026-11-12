@@ -32,11 +32,11 @@ const m = (r: any) => r.set('x-buffet-key', KEY).set('x-mostrador', mostradorTok
 const abrir = async () => (await m(supertest(app).post('/buffet/cuentas')).send({ canchaId })).body;
 
 describe('rutas de cuentas del mostrador', () => {
-  it('GET /buffet/canchas lista solo las canchas de pádel activas (no fútbol ni inactivas)', async () => {
+  it('GET /buffet/canchas (el principal) lista solo las canchas de pádel activas (no fútbol ni inactivas)', async () => {
     await getPrisma().cancha.create({ data: { nombre: 'Fútbol 5', tipo: 'futbol5', precioHora: 30000 } });
     const r = await m(supertest(app).get('/buffet/canchas'));
     expect(r.status).toBe(200);
-    expect(r.body).toEqual([{ id: canchaId, nombre: 'Cancha 1' }]);
+    expect(r.body.map((c: any) => ({ id: c.id, nombre: c.nombre }))).toEqual([{ id: canchaId, nombre: 'Cancha 1' }]);
   });
 
   it('POST /buffet/cuentas abre (201) y un segundo intento en la misma cancha es 409', async () => {

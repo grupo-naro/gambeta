@@ -20,7 +20,7 @@ let canchaId: string;
 beforeEach(async () => {
   await resetTables();
   productoId = (await getPrisma().productoBuffet.create({ data: { nombre: 'Coca', precio: 2000, stock: 100 } })).id;
-  canchaId = (await getPrisma().cancha.create({ data: { nombre: 'Pádel 1', tipo: 'padel', precioHora: 30000 } })).id;
+  canchaId = (await getPrisma().cancha.create({ data: { nombre: 'Cancha de 6', tipo: 'futbol', precioHora: 50000, jugadores: 6 } })).id;
 });
 
 const SEC = 'mostrador-secundario';
