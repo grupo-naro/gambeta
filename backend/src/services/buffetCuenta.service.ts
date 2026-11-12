@@ -24,19 +24,24 @@ const MAX_CANTIDAD = 999;
 
 export type DeporteCuenta = 'padel' | 'futbol';
 
+/** Los tamaños de fútbol en los que el secundario abre cuentas: las de 9 y las de 6 en que se dividen. */
+const TAMANOS_FUTBOL_CUENTAS = [6, 9];
+
 /**
  * Qué canchas admiten cuenta según el mostrador. El principal y el tercero, las de pádel; el
- * secundario, las de fútbol (las de 9 y las de 6 en que se dividen). Los tipos viejos como "futbol5"
- * cuentan como fútbol.
+ * secundario, las de fútbol de 6 y de 9 (los tipos viejos como "futbol5" cuentan como fútbol, pero
+ * un fútbol 5 o 7 no entra).
  */
 export function deporteDeCuentas(tipoMostrador: string): DeporteCuenta {
   return tipoMostrador === 'SECUNDARIO' ? 'futbol' : 'padel';
 }
-export const canchaAdmiteCuenta = (tipoMostrador: string, tipoCancha: string): boolean => {
-  const t = (tipoCancha ?? '').toLowerCase();
-  return deporteDeCuentas(tipoMostrador) === 'futbol' ? /^futbol\d*$/.test(t) : t === 'padel';
+export const canchaAdmiteCuenta = (tipoMostrador: string, cancha: { tipo: string; jugadores: number }): boolean => {
+  const t = (cancha.tipo ?? '').toLowerCase();
+  return deporteDeCuentas(tipoMostrador) === 'futbol'
+    ? /^futbol\d*$/.test(t) && TAMANOS_FUTBOL_CUENTAS.includes(cancha.jugadores)
+    : t === 'padel';
 };
-const SOLO_DEPORTE = { padel: 'Las cuentas de este mostrador son solo para pádel', futbol: 'Las cuentas de este mostrador son solo para fútbol' } as const;
+const SOLO_DEPORTE = { padel: 'Las cuentas de este mostrador son solo para pádel', futbol: 'Las cuentas de este mostrador son solo para canchas de fútbol de 6 y de 9' } as const;
 
 const incluir = {
   cancha: { select: { nombre: true } },
@@ -119,7 +124,7 @@ export const buffetCuentaService = {
     if (!mostrador) throw NotFound('Mostrador', mostradorId);
     const canchas = await prisma.cancha.findMany({ where: { activa: true }, include: { grupo: { select: { id: true, nombre: true } } }, orderBy: { nombre: 'asc' } });
     return canchas
-      .filter((c) => canchaAdmiteCuenta(mostrador.tipo, c.tipo))
+      .filter((c) => canchaAdmiteCuenta(mostrador.tipo, c))
       .map((c) => ({ id: c.id, nombre: c.nombre, jugadores: c.jugadores, esEntera: c.esEntera, grupo: c.grupo }));
   },
 
@@ -129,7 +134,7 @@ export const buffetCuentaService = {
     const cancha = await prisma.cancha.findUnique({ where: { id: canchaId } });
     if (!cancha) throw NotFound('Cancha', canchaId);
     if (!cancha.activa) throw BusinessRule('La cancha está desactivada');
-    if (!canchaAdmiteCuenta(mostrador.tipo, cancha.tipo)) throw BusinessRule(SOLO_DEPORTE[deporteDeCuentas(mostrador.tipo)]);
+    if (!canchaAdmiteCuenta(mostrador.tipo, cancha)) throw BusinessRule(SOLO_DEPORTE[deporteDeCuentas(mostrador.tipo)]);
     const yaAbierta = await prisma.cuentaBuffet.findFirst({ where: { canchaId, estado: 'ABIERTA' } });
     if (yaAbierta) throw Conflict('Esa cancha ya tiene una cuenta abierta');
 

@@ -13,6 +13,7 @@ const TER = 'mostrador-tercero';
 let app: any;
 const tokens: Record<string, string> = {};
 let padel: { id: string };
+let futbol5: { id: string }; let futbol7: { id: string };
 // Dos canchas de 9, cada una dividida en tres de 6.
 let c1: { entera: any; partes: any[] };
 let c2: { entera: any; partes: any[] };
@@ -38,6 +39,8 @@ beforeEach(async () => {
     tokens[id] = (await supertest(app).post('/buffet/pin/verificar').set('x-buffet-key', KEY).send({ pin })).body.token;
   }
   padel = await p.cancha.create({ data: { nombre: 'Pádel 1', tipo: 'padel', precioHora: 30000 } });
+  futbol5 = await p.cancha.create({ data: { nombre: 'Fútbol 5 · Cancha 1', tipo: 'futbol5', jugadores: 5, precioHora: 30000 } });
+  futbol7 = await p.cancha.create({ data: { nombre: 'Fútbol 7 · Cancha 4', tipo: 'futbol7', jugadores: 7, precioHora: 40000 } });
   c1 = await divisible('CANCHA 1');
   c2 = await divisible('CANCHA 2');
 });
@@ -63,12 +66,14 @@ describe('qué canchas ve cada mostrador', () => {
     expect(r.body.map((c: any) => c.id)).toEqual([padel.id]);
   });
 
-  it('el secundario ve las 8 canchas de fútbol y ningún pádel', async () => {
+  it('el secundario ve las 8 canchas de fútbol de 6 y de 9, sin pádel ni otros tamaños (5, 7)', async () => {
     const r = await listar(SEC);
     const ids = r.body.map((c: any) => c.id);
     expect(ids).toHaveLength(8);
     expect(ids).toEqual(expect.arrayContaining([c1.entera.id, c2.entera.id, ...c1.partes.map((c: any) => c.id), ...c2.partes.map((c: any) => c.id)]));
     expect(ids).not.toContain(padel.id);
+    expect(ids).not.toContain(futbol5.id);
+    expect(ids).not.toContain(futbol7.id);
   });
 
   it('trae lo necesario para agrupar: tamaño, si es la entera y el grupo', async () => {
@@ -93,6 +98,11 @@ describe('abrir una cuenta según el mostrador', () => {
   it('el secundario abre en la cancha de 9 y en las de 6', async () => {
     await expect(buffetCuentaService.abrir(SEC, c1.entera.id)).resolves.toMatchObject({ canchaId: c1.entera.id });
     await expect(buffetCuentaService.abrir(SEC, c2.partes[1].id)).resolves.toMatchObject({ canchaId: c2.partes[1].id });
+  });
+
+  it('el secundario no abre en una cancha de fútbol 5 o 7: solo las de 6 y de 9', async () => {
+    await expect(buffetCuentaService.abrir(SEC, futbol5.id)).rejects.toThrow(/6 y de 9/);
+    await expect(buffetCuentaService.abrir(SEC, futbol7.id)).rejects.toThrow(/6 y de 9/);
   });
 
   it('el secundario no abre en pádel', async () => {
